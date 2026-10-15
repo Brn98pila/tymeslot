@@ -71,6 +71,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Meetings.ParticipantQueries
+  alias Tymeslot.Meetings.SeatLookup
   alias Tymeslot.MeetingTypes
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Notifications.Events
@@ -122,13 +123,24 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
   can take: a lone participant sees their own hour as free, while a seat
   sharing its meeting with others sees it busy. An unlocked read, for
   display only; the submit decides again under the old meeting's row lock.
+
+  Takes the token, or the live seat a page has already loaded for it
+  (`Tymeslot.Meetings.fetch_live_seat/1`), whose liveness and count are
+  then read again here.
   """
-  @spec vacated_meeting(String.t() | nil, integer() | nil) :: struct() | nil
+  @spec vacated_meeting(String.t() | SeatLookup.seat() | nil, integer() | nil) ::
+          struct() | nil
   def vacated_meeting(management_token, organizer_user_id)
       when is_binary(management_token) and is_integer(organizer_user_id) do
-    with {:ok, %{participant: participant, meeting: meeting}} <-
-           Meetings.fetch_live_seat(management_token),
-         :ok <- ensure_same_organizer(meeting, organizer_user_id),
+    case Meetings.fetch_live_seat(management_token) do
+      {:ok, seat} -> vacated_meeting(seat, organizer_user_id)
+      {:error, _dead_end} -> nil
+    end
+  end
+
+  def vacated_meeting(%{participant: participant, meeting: meeting}, organizer_user_id)
+      when is_integer(organizer_user_id) do
+    with :ok <- ensure_same_organizer(meeting, organizer_user_id),
          true <- last_live_seat?(meeting, participant) do
       meeting
     else
@@ -136,7 +148,7 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
     end
   end
 
-  def vacated_meeting(_management_token, _organizer_user_id), do: nil
+  def vacated_meeting(_seat, _organizer_user_id), do: nil
 
   defp ensure_live(%{cancelled_at: nil}), do: :ok
   defp ensure_live(_participant), do: {:error, :already_cancelled}
@@ -163,17 +175,25 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
     |> Enum.map(& &1.email)
   end
 
-  # A type that is no longer a group type (its limit turned back to one)
-  # takes no seat moves: its existing group meetings keep their seats but
-  # accept nobody new, and a fresh slot would be a one-seat meeting with no
-  # attendee. A deleted type (`nil`) takes none either: a slot created by the
-  # move would be a group meeting belonging to no type, which no booking page
-  # offers and no type update keeps in step.
-  defp ensure_group_type(nil), do: {:error, :seat_not_movable}
-
   defp ensure_group_type(meeting_type) do
-    if MeetingTypeSchema.group?(meeting_type), do: :ok, else: {:error, :seat_not_movable}
+    if movable_type?(meeting_type), do: :ok, else: {:error, :seat_not_movable}
   end
+
+  @doc """
+  Whether a seat on a meeting of `meeting_type` (resolved as the move
+  resolves it, `nil` for a deleted type) can be moved at all.
+
+  A type that is no longer a group type (its limit turned back to one)
+  takes no seat moves: its existing group meetings keep their seats but
+  accept nobody new, and a fresh slot would be a one-seat meeting with no
+  attendee. A deleted type (`nil`) takes none either: a slot created by the
+  move would be a group meeting belonging to no type, which no booking page
+  offers and no type update keeps in step. The seat-move page asks this up
+  front, so it can say so instead of offering times the move would refuse.
+  """
+  @spec movable_type?(map() | nil) :: boolean()
+  def movable_type?(nil), do: false
+  def movable_type?(meeting_type), do: MeetingTypeSchema.group?(meeting_type)
 
   # The participant's own slot is offered on the page like any other with a
   # spot free, and picking it moves nothing: their seat would only collide
