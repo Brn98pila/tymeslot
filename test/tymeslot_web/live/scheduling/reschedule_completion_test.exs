@@ -356,6 +356,48 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleCompletionTest do
     end
   end
 
+  describe "a booking whose meeting type has since been deleted" do
+    # Deliberately not refused, unlike a seat whose type is gone: a whole
+    # booking with no type moves like an ad-hoc one, on the type its length
+    # matches (`Reschedule`), so the page offers the organiser's types as a
+    # real choice rather than pinning one.
+    @tag :capture_log
+    test "is offered the organiser's types, and moves", %{
+      conn: conn,
+      user: user,
+      profile: profile,
+      meeting_type: meeting_type,
+      meeting: meeting,
+      original_start: original_start
+    } do
+      replacement =
+        insert(:meeting_type, user: user, duration_minutes: 30, name: "New Chat", is_active: true)
+
+      Repo.delete!(meeting_type)
+
+      view =
+        navigate_to_booking_form(conn, profile, replacement, reschedule_meeting_uid: meeting.uid)
+
+      refute :sys.get_state(view.pid).socket.assigns.meeting_type_pinned
+
+      view
+      |> form("form[phx-submit='submit']", %{
+        "booking" => %{
+          "name" => "Test Attendee",
+          "email" => "attendee@example.com",
+          "message" => ""
+        }
+      })
+      |> render_submit()
+
+      wait_until(fn ->
+        Repo.get!(MeetingSchema, meeting.id).start_time != original_start
+      end)
+
+      assert meeting_count_for(user) == 1
+    end
+  end
+
   describe "a booking cancelled while its reschedule page is open" do
     # The page checks the meeting when it applies its URL; nothing re-checks
     # it as the booker moves from step to step. Whatever the page has kept of

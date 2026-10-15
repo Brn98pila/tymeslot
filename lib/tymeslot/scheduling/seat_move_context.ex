@@ -17,7 +17,7 @@ defmodule Tymeslot.Scheduling.SeatMoveContext do
       from.
     * `:meeting_type` - the type of the seat's meeting, which the move is
       committed to; `nil` when that meeting is not the page's organiser's (a
-      hand-edited username) or its type has been deleted.
+      hand-edited username).
     * `:form_data` - the booking form's starting values: the participant's
       own details.
   """

@@ -14,7 +14,9 @@ defmodule Tymeslot.Scheduling.ThemeFlowSeatTokenTest do
 
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Meetings.ParticipantQueries
+  alias Tymeslot.Repo
   alias Tymeslot.Scheduling.SeatMoveContext
   alias Tymeslot.Scheduling.ThemeFlow
 
@@ -61,6 +63,22 @@ defmodule Tymeslot.Scheduling.ThemeFlowSeatTokenTest do
 
       assert ThemeFlow.seat_move_context(participant.management_token, user.id) ==
                {:error, :already_cancelled}
+    end
+
+    test "cannot move a seat whose type has since been deleted",
+         %{user: user, meeting_type: meeting_type, participant: participant} do
+      Repo.delete!(meeting_type)
+
+      assert ThemeFlow.seat_move_context(participant.management_token, user.id) ==
+               {:error, :seat_not_movable}
+    end
+
+    test "cannot move a seat whose type no longer takes group bookings",
+         %{user: user, meeting_type: meeting_type, participant: participant} do
+      meeting_type |> Changeset.change(%{max_participants: 1}) |> Repo.update!()
+
+      assert ThemeFlow.seat_move_context(participant.management_token, user.id) ==
+               {:error, :seat_not_movable}
     end
 
     test "is not found for an unknown or missing token", %{user: user} do

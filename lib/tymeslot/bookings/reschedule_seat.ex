@@ -175,17 +175,25 @@ defmodule Tymeslot.Bookings.RescheduleSeat do
     |> Enum.map(& &1.email)
   end
 
-  # A type that is no longer a group type (its limit turned back to one)
-  # takes no seat moves: its existing group meetings keep their seats but
-  # accept nobody new, and a fresh slot would be a one-seat meeting with no
-  # attendee. A deleted type (`nil`) takes none either: a slot created by the
-  # move would be a group meeting belonging to no type, which no booking page
-  # offers and no type update keeps in step.
-  defp ensure_group_type(nil), do: {:error, :seat_not_movable}
-
   defp ensure_group_type(meeting_type) do
-    if MeetingTypeSchema.group?(meeting_type), do: :ok, else: {:error, :seat_not_movable}
+    if movable_type?(meeting_type), do: :ok, else: {:error, :seat_not_movable}
   end
+
+  @doc """
+  Whether a seat on a meeting of `meeting_type` (resolved as the move
+  resolves it, `nil` for a deleted type) can be moved at all.
+
+  A type that is no longer a group type (its limit turned back to one)
+  takes no seat moves: its existing group meetings keep their seats but
+  accept nobody new, and a fresh slot would be a one-seat meeting with no
+  attendee. A deleted type (`nil`) takes none either: a slot created by the
+  move would be a group meeting belonging to no type, which no booking page
+  offers and no type update keeps in step. The seat-move page asks this up
+  front, so it can say so instead of offering times the move would refuse.
+  """
+  @spec movable_type?(map() | nil) :: boolean()
+  def movable_type?(nil), do: false
+  def movable_type?(meeting_type), do: MeetingTypeSchema.group?(meeting_type)
 
   # The participant's own slot is offered on the page like any other with a
   # spot free, and picking it moves nothing: their seat would only collide

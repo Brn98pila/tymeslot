@@ -24,11 +24,13 @@ defmodule TymeslotWeb.Live.Scheduling.SeatRescheduleJourneyTest do
   import Tymeslot.BookingTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Tymeslot.Bookings.Create
   alias Tymeslot.Meetings.ParticipantQueries
   alias Tymeslot.Meetings.ParticipantSchema
   alias Tymeslot.Repo
   alias Tymeslot.RescheduleTestSetup
+  alias Tymeslot.Security.Token
   alias Tymeslot.Workers.EmailWorker
   alias TymeslotWeb.Live.Scheduling.AvailabilityHelpers
 
@@ -277,6 +279,38 @@ defmodule TymeslotWeb.Live.Scheduling.SeatRescheduleJourneyTest do
     end
   end
 
+  describe "a seat link" do
+    # A seat whose type has been deleted, or no longer takes group bookings,
+    # cannot move at all (`RescheduleSeat`). The page says so on arrival, as
+    # the email link's own landing page does, rather than offering times the
+    # move refuses, or (with the type's slug gone) turning the visitor away as
+    # an invalid meeting type without their token, to book a second seat.
+    for {change, label} <- [delete: "deleted", solo: "no longer taking group bookings"] do
+      @tag :capture_log
+      test "whose type is #{label} is refused on arrival, saying it cannot move", %{
+        conn: conn,
+        profile: profile,
+        group_type: group_type,
+        seat: seat
+      } do
+        case unquote(change) do
+          :delete -> Repo.delete!(group_type)
+          :solo -> group_type |> Changeset.change(%{max_participants: 1}) |> Repo.update!()
+        end
+
+        assert {:error, {:live_redirect, %{to: to, flash: flash}}} =
+                 live(
+                   conn,
+                   "/#{profile.username}/group-session?timezone=UTC&reschedule_seat_token=#{seat.management_token}"
+                 )
+
+        assert to == "/#{profile.username}?timezone=UTC"
+        assert flash["error"] =~ "This spot can no longer be moved"
+        assert {:ok, %{cancelled_at: nil}} = ParticipantQueries.get(seat.id)
+      end
+    end
+  end
+
   describe "the page a seat move opens on" do
     @tag :capture_log
     test "a hand-edited slug does not move the page off the seat's own type", %{
@@ -350,15 +384,15 @@ defmodule TymeslotWeb.Live.Scheduling.SeatRescheduleJourneyTest do
   describe "the seat a move is loaded from" do
     # Loaded once each time the page applies its URL (the static render, the
     # connected one), and read from there by the pin, the date step's notice,
-    # the form and the times offered. Counted at the lookup by token, which
-    # filters on the token's hash.
+    # the form and the times offered. Counted at the lookup by this seat's
+    # token, which filters on the token's hash.
     @tag :capture_log
     test "is looked up once per render, however far the move goes", %{
       conn: conn,
       profile: profile,
       seat: seat
     } do
-      ref = count_seat_lookups()
+      ref = count_seat_lookups(seat.management_token)
 
       {:ok, view, _html} =
         live(
@@ -374,16 +408,19 @@ defmodule TymeslotWeb.Live.Scheduling.SeatRescheduleJourneyTest do
     end
   end
 
-  defp count_seat_lookups do
+  # The lookup by token filters on the token's hash, so this seat's own
+  # lookups are the participant queries carrying its hash.
+  defp count_seat_lookups(token) do
     parent = self()
     ref = make_ref()
     handler_id = "seat-lookup-#{inspect(ref)}"
+    hash = Token.hash_token(token)
 
     :telemetry.attach(
       handler_id,
       [:tymeslot, :repo, :query],
-      fn _event, _measurements, %{source: source, query: query}, _config ->
-        if source == "meeting_participants" and query =~ ~r/WHERE .*"management_token_hash" = /,
+      fn _event, _measurements, %{source: source, params: params}, _config ->
+        if source == "meeting_participants" and hash in params,
           do: send(parent, {:seat_lookup, ref})
       end,
       nil

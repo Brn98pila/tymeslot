@@ -7,6 +7,7 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
 
   alias Tymeslot.Bookings.Errors
   alias Tymeslot.Bookings.Orchestrator
+  alias Tymeslot.Bookings.RescheduleSeat
   alias Tymeslot.Demo
   alias Tymeslot.Meetings
   alias Tymeslot.Meetings.SeatLookup
@@ -76,27 +77,39 @@ defmodule Tymeslot.Scheduling.ThemeFlow do
   The token alone scopes the lookup, so no other booker's details can be
   prefilled. The meeting type, though, is the seat's only while its meeting is
   `organizer_user_id`'s: a seat on another organiser's meeting (a hand-edited
-  username), or one whose type has since been deleted, has none, the same
-  cases in which `reschedule_context/2` finds no type for a uid.
+  username) has none. A seat of this organiser's whose type has since been
+  deleted, or no longer takes group bookings, cannot be moved at all, and is
+  `{:error, :seat_not_movable}`, the refusal the move itself would give.
   """
   @spec seat_move_context(String.t() | nil, integer() | nil) ::
-          {:ok, SeatMoveContext.t()} | {:error, SeatLookup.dead_end()}
+          {:ok, SeatMoveContext.t()} | {:error, SeatLookup.dead_end() | :seat_not_movable}
   def seat_move_context(seat_token, organizer_user_id) when is_binary(seat_token) do
-    with {:ok, seat} <- Meetings.fetch_live_seat(seat_token) do
-      {:ok, SeatMoveContext.new(seat_token, seat, seat_meeting_type(seat, organizer_user_id))}
+    with {:ok, seat} <- Meetings.fetch_live_seat(seat_token),
+         {:ok, meeting_type} <- seat_meeting_type(seat, organizer_user_id) do
+      {:ok, SeatMoveContext.new(seat_token, seat, meeting_type)}
     end
   end
 
   def seat_move_context(_missing, _organizer_user_id), do: {:error, :not_found}
 
+  # On this organiser's page a seat whose type has been deleted, or no longer
+  # takes group bookings, cannot move at all (`RescheduleSeat.movable_type?/1`),
+  # so the page is told so up front rather than offering times the move would
+  # refuse. A seat on another organiser's meeting has no type here, and the
+  # submit refuses it as no seat of theirs.
   defp seat_meeting_type(
          %{meeting: %{organizer_user_id: organizer_user_id} = meeting},
          organizer_user_id
        )
-       when is_integer(organizer_user_id),
-       do: meeting_type_of(meeting, organizer_user_id)
+       when is_integer(organizer_user_id) do
+    meeting_type = meeting_type_of(meeting, organizer_user_id)
 
-  defp seat_meeting_type(_seat, _organizer_user_id), do: nil
+    if RescheduleSeat.movable_type?(meeting_type),
+      do: {:ok, meeting_type},
+      else: {:error, :seat_not_movable}
+  end
+
+  defp seat_meeting_type(_seat, _organizer_user_id), do: {:ok, nil}
 
   @doc """
   The location the meeting being rescheduled was booked at, as the picker
