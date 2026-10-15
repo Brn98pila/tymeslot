@@ -41,6 +41,12 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   # one of them was for the background video.
   @legacy_field "background_video_path"
 
+  @doc """
+  Queues the transcode of the video `video_path` in the asset field `field`.
+  Called inside the transaction that saves the video
+  (`ThemeCustomizations.Assets`), so Oban does not retry a failed insert:
+  the transaction is already aborted, and the error rolls the save back.
+  """
   @spec enqueue(pos_integer(), atom() | String.t(), String.t()) ::
           {:ok, Oban.Job.t()} | {:error, term()}
   def enqueue(theme_customization_id, field, video_path) do
@@ -50,7 +56,7 @@ defmodule Tymeslot.Workers.VideoTranscoder do
       video_path: video_path
     }
     |> new(replace: [:args, :scheduled_at])
-    |> Oban.insert()
+    |> Oban.insert(retry: false)
   end
 
   @behaviour ExpectedJobOutcome

@@ -2,24 +2,15 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
   use Tymeslot.DataCase, async: false
   @moduletag :utils
 
+  alias Tymeslot.Media.Uploads
   alias Tymeslot.Test.MediaFixtures
+  alias Tymeslot.Test.UploadRoot
   alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.ThemeCustomizations.Validation
 
   setup do
-    upload_root =
-      Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
-
-    original_root = Application.get_env(:tymeslot, :upload_directory)
-
-    Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-    on_exit(fn ->
-      Application.put_env(:tymeslot, :upload_directory, original_root)
-      File.rm_rf(upload_root)
-    end)
-
-    %{upload_root: upload_root}
+    UploadRoot.isolate("tymeslot_uploads")
+    :ok
   end
 
   # A real image and a real video, which the metadata strippers can read to
@@ -45,40 +36,23 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
   end
 
   describe "Storage module" do
-    test "build_theme_file_path/1 creates full path", %{upload_root: upload_root} do
-      relative_path = "themes/1/images/background.jpg"
-      full_path = Storage.build_theme_file_path(relative_path)
-
-      assert full_path =~ "themes/1/images/background.jpg"
-      assert String.starts_with?(full_path, Storage.get_upload_base_directory())
-      assert String.starts_with?(full_path, upload_root)
-    end
-
-    test "get_upload_base_directory/0 returns configured directory", %{upload_root: upload_root} do
-      base_dir = Storage.get_upload_base_directory()
-
-      assert base_dir == upload_root
-    end
-
     test "store_asset/4 returns error tuple when directory creation fails" do
       # Point upload dir at a read-only location so the store cannot create its directory
       readonly = Path.join(System.tmp_dir!(), "tymeslot_ro_#{:rand.uniform(100_000)}")
       File.mkdir_p!(readonly)
       File.chmod!(readonly, 0o444)
 
-      original_dir = Application.get_env(:tymeslot, :upload_directory)
-      Application.put_env(:tymeslot, :upload_directory, readonly)
+      UploadRoot.point_at(readonly)
+
+      on_exit(fn ->
+        File.chmod!(readonly, 0o755)
+        File.rm_rf!(readonly)
+      end)
 
       temp_file = MediaFixtures.temp_copy!("gps.webp")
 
-      try do
-        assert {:error, :eacces} =
-                 Storage.store_asset(:image, 1, "1", %{path: temp_file, filename: "bg.webp"})
-      after
-        Application.put_env(:tymeslot, :upload_directory, original_dir)
-        File.chmod!(readonly, 0o755)
-        File.rm_rf!(readonly)
-      end
+      assert {:error, :eacces} =
+               Storage.store_asset(:image, 1, "1", %{path: temp_file, filename: "bg.webp"})
     end
 
     test "store_asset/4 refuses a temp file that does not exist" do
@@ -106,7 +80,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
                Storage.store_asset(:image, 1, "1", %{path: image_file(), filename: "test.png"})
 
       assert stored_path =~ ~r|\Athemes/1/1/images/[0-9a-f-]{36}\.png\z|
-      assert File.exists?(Storage.build_theme_file_path(stored_path))
+      assert File.exists?(UploadRoot.path(stored_path))
     end
 
     test "store_asset/4 stores a video under the theme's videos directory" do
@@ -114,7 +88,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
                Storage.store_asset(:video, 1, "2", %{path: video_file(), filename: "test.mp4"})
 
       assert stored_path =~ ~r|\Athemes/1/2/videos/[0-9a-f-]{36}\.mp4\z|
-      assert File.exists?(Storage.build_theme_file_path(stored_path))
+      assert File.exists?(UploadRoot.path(stored_path))
     end
 
     test "store_asset/4 gives two uploads of the same name paths of their own" do
@@ -125,8 +99,8 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
       {:ok, second} = Storage.store_asset(:image, 1, "1", upload.())
 
       assert first != second
-      assert File.exists?(Storage.build_theme_file_path(first))
-      assert File.exists?(Storage.build_theme_file_path(second))
+      assert File.exists?(UploadRoot.path(first))
+      assert File.exists?(UploadRoot.path(second))
     end
 
     # The media URL is built through `Validation.sanitize_path/1`; a stored
@@ -139,7 +113,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
         assert Path.dirname(stored_path) == "themes/1/1/images"
         assert Path.basename(stored_path) =~ ~r/\A[0-9a-f-]{36}\.png\z/
         assert Validation.sanitize_path(stored_path) == stored_path
-        assert File.exists?(Storage.build_theme_file_path(stored_path))
+        assert File.exists?(UploadRoot.path(stored_path))
       end
     end
 
@@ -150,7 +124,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
                  filename: "bg.webp"
                })
 
-      contents = stored_path |> Storage.build_theme_file_path() |> File.read!()
+      contents = stored_path |> UploadRoot.path() |> File.read!()
       assert MediaFixtures.image_metadata_fields(contents) == []
       refute contents =~ "Model-X"
     end
@@ -169,7 +143,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
                  filename: "test.mp4"
                })
 
-      stored = stored_path |> Storage.build_theme_file_path() |> File.read!()
+      stored = stored_path |> UploadRoot.path() |> File.read!()
       assert byte_size(stored) == byte_size(MediaFixtures.read!("gps.mp4"))
       refute stored =~ <<0xA9, "xyz">>
       refute stored =~ "location.ISO6709"
@@ -192,7 +166,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
                Storage.store_asset(:video, 1, "1", %{path: temp_file, filename: "clip.mp4"})
 
       assert Path.basename(stored_path) =~ ~r/\A[0-9a-f-]{36}\.webm\z/
-      assert File.exists?(Storage.build_theme_file_path(stored_path))
+      assert File.exists?(UploadRoot.path(stored_path))
     end
 
     test "store_asset/4 for a video refuses junk whose first byte is the MPEG-TS sync byte" do
@@ -211,7 +185,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
                Storage.store_asset(:image, 1, "1", %{path: temp_file, filename: "bg.jpg"})
 
       assert Path.basename(stored_path) =~ ~r/\A[0-9a-f-]{36}\.png\z/
-      stored = stored_path |> Storage.build_theme_file_path() |> File.read!()
+      stored = stored_path |> UploadRoot.path() |> File.read!()
       assert <<137, 80, 78, 71, _rest::binary>> = stored
       assert MediaFixtures.image_metadata_fields(stored) == []
     end
@@ -229,7 +203,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
     @tag :tmp_dir
     test "store_asset/4 for a video stores under a relative upload root at the path it returns",
          %{tmp_dir: tmp_dir} do
-      Application.put_env(:tymeslot, :upload_directory, Path.relative_to_cwd(tmp_dir))
+      UploadRoot.point_at(Path.relative_to_cwd(tmp_dir))
       temp_file = MediaFixtures.temp_copy!("gps.mp4")
 
       assert {:ok, "themes/1/1/videos/" <> _name = stored_path} =
@@ -242,7 +216,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
     @tag :tmp_dir
     test "store_asset/4 for an image stores under a relative upload root at the path it returns",
          %{tmp_dir: tmp_dir} do
-      Application.put_env(:tymeslot, :upload_directory, Path.relative_to_cwd(tmp_dir))
+      UploadRoot.point_at(Path.relative_to_cwd(tmp_dir))
       temp_file = MediaFixtures.temp_copy!("gps.webp")
 
       assert {:ok, "themes/1/1/images/" <> _name = stored_path} =
@@ -287,7 +261,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
   end
 
   defp uploaded_files do
-    [Storage.get_upload_base_directory(), "**", "*"]
+    [Uploads.root(), "**", "*"]
     |> Path.join()
     |> Path.wildcard()
     |> Enum.filter(&File.regular?/1)

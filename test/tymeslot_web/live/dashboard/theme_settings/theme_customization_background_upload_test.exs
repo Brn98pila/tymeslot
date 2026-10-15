@@ -2,7 +2,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   @moduledoc """
   Background choices that store or clear files, made through the theme
   customisation panel: uploading an image or a video, and picking a preset
-  image or video, which drops any upload the previous background named.
+  image or video. An uploaded image and an uploaded video both stay stored,
+  whatever is shown, until that same upload is replaced or removed.
 
   A successful upload pushes "upload-complete" so the `AutoUpload` hook clears
   the file picker, mirroring the avatar upload fixes (dashboard and
@@ -24,11 +25,12 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Test.JobRefusal
   alias Tymeslot.Test.MediaFixtures
+  alias Tymeslot.Test.UploadRoot
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Specs
-  alias Tymeslot.ThemeCustomizations.Storage
   alias Tymeslot.Workers.VideoTranscoder
   alias TymeslotWeb.ThemeTestMatrix
 
@@ -59,24 +61,11 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   setup :verify_on_exit!
   setup :setup_dashboard_user_with_theme
 
-  defp isolated_upload_root(_context) do
-    upload_root =
-      Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
-
-    original_root = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-    on_exit(fn ->
-      Application.put_env(:tymeslot, :upload_directory, original_root)
-      File.rm_rf(upload_root)
-    end)
-
-    %{upload_root: upload_root}
-  end
+  defp isolated_upload_root(_context), do: %{upload_root: UploadRoot.isolate()}
 
   defp stored_file(profile, theme_id, relative) do
     path = "themes/#{profile.id}/#{theme_id}/#{relative}"
-    full = Storage.build_theme_file_path(path)
+    full = UploadRoot.path(path)
     File.mkdir_p!(Path.dirname(full))
     File.write!(full, "old")
     {path, full}
@@ -106,6 +95,19 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         &{&1, customization.settings[&1]}
       )
 
+  defp tab_button(kind),
+    do: "button[phx-click='theme:set_browsing_type'][phx-value-type='#{kind}']"
+
+  defp saved_settings(profile),
+    do: ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").settings
+
+  defp shown(profile) do
+    settings = saved_settings(profile)
+    {settings["background_type"], settings["background_value"]}
+  end
+
+  defp served?(path), do: get(build_conn(), "/uploads/" <> path).status == 200
+
   defp video_entry do
     %{
       last_modified: System.system_time(:millisecond),
@@ -116,6 +118,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   end
 
   describe "background image upload" do
+    setup :isolated_upload_root
+
     test "a successful upload pushes upload-complete so the AutoUpload hook clears the picker",
          %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme")
@@ -143,26 +147,15 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       assert_push_event(view, "upload-complete", %{})
     end
 
-    test "an image upload replaces an uploaded video and removes its file",
+    test "an image upload becomes the background and keeps the uploaded video stored",
          %{conn: conn, profile: profile} do
-      upload_root =
-        Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
-
-      original_root = Application.get_env(:tymeslot, :upload_directory)
-      Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-      on_exit(fn ->
-        Application.put_env(:tymeslot, :upload_directory, original_root)
-        File.rm_rf(upload_root)
-      end)
-
       video_rel = "themes/#{profile.id}/1/videos/old.mp4"
-      video_abs = Storage.build_theme_file_path(video_rel)
+      video_abs = UploadRoot.path(video_rel)
       File.mkdir_p!(Path.dirname(video_abs))
       File.write!(video_abs, "data")
 
       {:ok, _customization} =
-        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
           "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "custom",
@@ -195,8 +188,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
       assert saved.settings["background_type"] == "image"
       assert saved.settings["background_image_path"] =~ "themes/#{profile.id}/1/images/"
-      assert saved.settings["background_video_path"] == nil
-      refute File.exists?(video_abs)
+      assert saved.settings["background_video_path"] == video_rel
+      assert File.exists?(video_abs)
     end
 
     test "publishes a WebP background without its EXIF location", %{
@@ -254,14 +247,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
     setup :isolated_upload_root
 
     for theme <- @image_themes do
-      test "#{theme.name}: a preset image card saves it and clears the uploaded files",
+      test "#{theme.name}: a preset image card saves it and keeps both uploads stored",
            %{conn: conn, profile: profile} do
         theme_id = unquote(theme.id)
         {image, image_file} = stored_file(profile, theme_id, "images/old.png")
         {video, video_file} = stored_file(profile, theme_id, "videos/old.mp4")
 
         {:ok, _customization} =
-          ThemeCustomizations.create_theme_customization(profile.id, theme_id, %{
+          ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
             "background_type" => "image",
             "background_value" => "custom",
             "background_image_path" => image,
@@ -279,23 +272,23 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
                  %{
                    "background_type" => "image",
                    "background_value" => choice,
-                   "background_image_path" => nil,
-                   "background_video_path" => nil
+                   "background_image_path" => image,
+                   "background_video_path" => video
                  }
 
-        refute File.exists?(image_file)
-        refute File.exists?(video_file)
+        assert File.exists?(image_file)
+        assert File.exists?(video_file)
       end
     end
 
     for theme <- @video_themes do
-      test "#{theme.name}: a preset video card saves it and clears the uploaded files",
+      test "#{theme.name}: a preset video card saves it and keeps the uploaded video stored",
            %{conn: conn, profile: profile} do
         theme_id = unquote(theme.id)
         {video, video_file} = stored_file(profile, theme_id, "videos/old.mp4")
 
         {:ok, _customization} =
-          ThemeCustomizations.create_theme_customization(profile.id, theme_id, %{
+          ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
             "background_type" => "video",
             "background_value" => "custom",
             "background_video_path" => video
@@ -319,10 +312,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
                    "background_type" => "video",
                    "background_value" => choice,
                    "background_image_path" => nil,
-                   "background_video_path" => nil
+                   "background_video_path" => video
                  }
 
-        refute File.exists?(video_file)
+        assert File.exists?(video_file)
       end
     end
   end
@@ -349,7 +342,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         assert saved.settings["background_type"] == "video"
         assert saved.settings["background_value"] == "custom"
         assert path =~ ~r"\Athemes/#{profile.id}/#{theme_id}/videos/[^/]+\.mp4\z"
-        assert File.exists?(Storage.build_theme_file_path(path))
+        assert served?(path)
 
         assert_enqueued(
           worker: VideoTranscoder,
@@ -375,6 +368,37 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       end
     end
 
+    test "when the video cannot be queued, says the upload failed and keeps the previous video",
+         %{conn: conn, profile: profile, upload_root: upload_root} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+      theme_id = hd(@video_themes).id
+      {previous, previous_file} = stored_file(profile, theme_id, "videos/previous.mp4")
+
+      {:ok, _row} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => previous
+        })
+
+      JobRefusal.refuse_jobs(VideoTranscoder)
+      view = open_tab(conn, theme_id, "video")
+
+      view
+      |> file_input("#theme-background-video-form", :background_video_path, [video_entry()])
+      |> render_upload("clip.mp4")
+
+      assert render(view) =~ "The upload failed and nothing was changed. Please try again."
+
+      saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
+      assert saved.settings["background_video_path"] == previous
+      assert saved.video_processing_status == %{}
+      refute_enqueued(worker: VideoTranscoder)
+
+      assert Path.wildcard(Path.join(upload_root, "themes/#{profile.id}/#{theme_id}/videos/*")) ==
+               [previous_file]
+    end
+
     test "stores a video under its detected type, replaces the previous one with its variants, and transcodes the new one",
          %{conn: conn, profile: profile} do
       stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
@@ -398,7 +422,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       # What the first video's transcode wrote beside it.
       first_variants =
         for variant <- Transcoder.derive_variant_paths(first_path) do
-          path = Storage.build_theme_file_path(variant)
+          path = UploadRoot.path(variant)
           File.write!(path, "variant")
           path
         end
@@ -412,7 +436,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       second = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
       second_path = second.settings["background_video_path"]
       assert Path.extname(second_path) == ".mp4"
-      refute File.exists?(Storage.build_theme_file_path(first_path))
+      refute served?(first_path)
       refute Enum.any?(first_variants, &File.exists?/1)
 
       args = %{
@@ -457,6 +481,77 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   # progress callback consumes a finished entry first, so the `upload_asset`
   # handler is reached only by spending the budget, letting the progress-path
   # consume be refused, and then submitting the form.
+  describe "switching between uploads and removing them" do
+    setup :isolated_upload_root
+
+    # Quill offers both an image and a video background.
+    test "both uploads stay until removed, and either can be shown again without a new upload",
+         %{conn: conn, profile: profile} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+      view = open_tab(conn, "1", "image")
+
+      image = %{
+        last_modified: System.system_time(:millisecond),
+        name: "background.png",
+        content: @valid_png,
+        type: "image/png"
+      }
+
+      view
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
+      |> render_upload("background.png")
+
+      view |> element(tab_button("video")) |> render_click()
+
+      view
+      |> file_input("#theme-background-video-form", :background_video_path, [video_entry()])
+      |> render_upload("clip.mp4")
+
+      %{"background_image_path" => image_path, "background_video_path" => video_path} =
+        saved_settings(profile)
+
+      # A preset image is shown; both uploads stay served.
+      view |> element(tab_button("image")) |> render_click()
+      [preset | _others] = Presets.get_image_presets() |> Map.keys() |> Enum.sort()
+      view |> element(preset_button("image", preset)) |> render_click()
+
+      assert served?(image_path)
+      assert served?(video_path)
+
+      # Back to the uploaded image, then the uploaded video, without uploading again.
+      view |> element("[data-testid='show-uploaded-image']") |> render_click()
+      assert shown(profile) == {"image", "custom"}
+
+      view |> element(tab_button("video")) |> render_click()
+      view |> element("[data-testid='show-uploaded-video']") |> render_click()
+      assert shown(profile) == {"video", "custom"}
+
+      # Removing the image, not on show, deletes only it.
+      view |> element(tab_button("image")) |> render_click()
+      view |> element("[data-testid='remove-uploaded-image']") |> render_click()
+
+      assert shown(profile) == {"video", "custom"}
+      refute served?(image_path)
+      assert served?(video_path)
+      refute has_element?(view, "[data-testid='uploaded-image']")
+
+      # The organiser stays on the tab they removed it from, though the
+      # background on show is a video.
+      assert has_element?(view, "#theme-background-image-form")
+
+      # Removing the video on show falls back to the theme's default background.
+      view |> element(tab_button("video")) |> render_click()
+      view |> element("[data-testid='remove-uploaded-video']") |> render_click()
+
+      assert shown(profile) == {"gradient", "gradient_1"}
+      refute served?(video_path)
+      assert has_element?(view, "#theme-background-video-form")
+
+      assert Map.take(saved_settings(profile), ["background_image_path", "background_video_path"]) ==
+               %{}
+    end
+  end
+
   describe "the upload_asset handler" do
     setup :isolated_upload_root
 

@@ -1043,6 +1043,9 @@ msgid "must be a Slack webhook URL (https://hooks.slack.com/services/...)"
 msgstr "muss eine Slack-Webhook-URL sein (https://hooks.slack.com/services/...)"
 
 #: lib/tymeslot/app_settings/app_settings_schema.ex
+#: lib/tymeslot/theme_customizations/options/accent.ex
+#: lib/tymeslot/theme_customizations/options/background.ex
+#: lib/tymeslot/theme_customizations/options/palette.ex
 #, elixir-autogen, elixir-format
 msgid "must be a hex colour such as #14b8a6"
 msgstr "muss eine Hex-Farbe wie #14b8a6 sein"
@@ -1058,6 +1061,7 @@ msgid "must be a list of reminder settings"
 msgstr "muss eine Liste von Erinnerungseinstellungen sein"
 
 #: lib/tymeslot/profiles/profile_schema.ex
+#: lib/tymeslot/theme_customizations/theme_customization_schema.ex
 #, elixir-autogen, elixir-format
 msgid "must be a valid theme"
 msgstr "muss ein gültiges Design sein"
@@ -1183,3 +1187,63 @@ msgstr "Mindestens ein Ereignis muss ausgewählt sein"
 #, elixir-autogen, elixir-format
 msgid "If you are the organiser, please connect a calendar in your dashboard."
 msgstr "Falls Sie der Gastgeber sind: Bitte verknüpfen Sie einen Kalender in Ihrem Dashboard."
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is not supported by this theme"
+msgstr "wird von diesem Design nicht unterstützt"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded cover"
+msgstr "ist für ein hochgeladenes Titelbild erforderlich"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded image background"
+msgstr "ist für ein hochgeladenes Hintergrundbild erforderlich"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded video background"
+msgstr "ist für ein hochgeladenes Hintergrundvideo erforderlich"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid cover preset"
+msgstr "muss ein gültiges vorgegebenes Titelbild sein"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid gradient preset"
+msgstr "muss ein gültiger vorgegebener Farbverlauf sein"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid image preset"
+msgstr "muss ein gültiges vorgegebenes Bild sein"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid video preset"
+msgstr "muss ein gültiges vorgegebenes Video sein"
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "The file could not be read. Please upload it again."
+msgstr "Die Datei konnte nicht gelesen werden. Bitte laden Sie sie erneut hoch."
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "This file is not an image we can read. Please upload a different image."
+msgstr "Diese Datei ist kein Bild, das wir lesen können. Bitte laden Sie ein anderes Bild hoch."
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "This file is too large. Please upload a file of at most %{size} MB."
+msgstr "Diese Datei ist zu groß. Bitte laden Sie eine Datei mit höchstens %{size} MB hoch."
+
+#: lib/tymeslot_web/helpers/image_upload_errors.ex
+#, elixir-autogen, elixir-format
+msgid "This file type is not accepted. Please upload a JPG, PNG, GIF or WebP image."
+msgstr "Dieser Dateityp wird nicht akzeptiert. Bitte laden Sie ein JPG-, PNG-, GIF- oder WebP-Bild hoch."

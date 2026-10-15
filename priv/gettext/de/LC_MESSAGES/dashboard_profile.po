@@ -159,11 +159,6 @@ msgstr "Hochladen fehlgeschlagen"
 
 #: lib/tymeslot_web/live/dashboard/profile_settings/avatar_upload_component.ex
 #, elixir-autogen, elixir-format
-msgid "Upload failed: %{reason}"
-msgstr "Hochladen fehlgeschlagen: %{reason}"
-
-#: lib/tymeslot_web/live/dashboard/profile_settings/avatar_upload_component.ex
-#, elixir-autogen, elixir-format
 msgid "Uploading..."
 msgstr "Wird hochgeladen…"
 

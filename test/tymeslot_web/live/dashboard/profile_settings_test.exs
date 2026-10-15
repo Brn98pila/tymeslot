@@ -108,6 +108,31 @@ defmodule TymeslotWeb.Dashboard.ProfileSettingsTest do
       assert get_resp_header(response, "x-content-type-options") == ["nosniff"]
     end
 
+    test "says in the user's language why a file that is not an image was refused", %{
+      conn: conn,
+      user: user,
+      profile: profile
+    } do
+      user |> Changeset.change(locale: "de") |> Repo.update!()
+      {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
+
+      fake = %{
+        last_modified: System.system_time(:millisecond),
+        name: "photo.png",
+        content: "not an image at all",
+        type: "image/png"
+      }
+
+      view
+      |> file_input("#avatar-upload-form", :avatar, [fake])
+      |> render_upload("photo.png")
+
+      html = render(view)
+      assert html =~ "Diese Datei ist kein Bild, das wir lesen können."
+      refute html =~ "invalid_image_format"
+      assert Repo.reload!(profile).avatar == profile.avatar
+    end
+
     test "publishes a phone photo without its EXIF location, turned upright", %{
       conn: conn,
       profile: profile

@@ -11,15 +11,14 @@ defmodule Tymeslot.Media.UploadsTest do
 
   alias Ecto.UUID
   alias Tymeslot.Media.Uploads
+  alias Tymeslot.Test.UploadRoot
 
   setup :capture_admin_alerts
 
   setup %{tmp_dir: tmp_dir} do
     root = Path.join(tmp_dir, "uploads")
     File.mkdir_p!(root)
-    original = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, root)
-    on_exit(fn -> Application.put_env(:tymeslot, :upload_directory, original) end)
+    UploadRoot.point_at(root)
 
     %{root: Path.expand(root), outside: Path.join(tmp_dir, "outside")}
   end
@@ -155,7 +154,7 @@ defmodule Tymeslot.Media.UploadsTest do
 
     test "stores under a relative root once, not under the root twice", %{tmp_dir: tmp_dir} do
       relative_root = Path.relative_to_cwd(Path.join(tmp_dir, "relative"))
-      Application.put_env(:tymeslot, :upload_directory, relative_root)
+      UploadRoot.point_at(relative_root)
       source = write!(Path.join(tmp_dir, "incoming"))
 
       assert {:ok, "a.png"} = Uploads.store_atomically(source, "avatars/1", "a.png", %{})
