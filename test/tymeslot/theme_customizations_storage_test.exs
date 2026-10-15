@@ -4,6 +4,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
 
   alias Tymeslot.Test.MediaFixtures
   alias Tymeslot.ThemeCustomizations.Storage
+  alias Tymeslot.ThemeCustomizations.Validation
 
   setup do
     upload_root =
@@ -172,6 +173,28 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
 
       assert Path.basename(stored_path) =~ ~r|\A[0-9a-f]{12}-bg\.png\z|
       assert Path.dirname(stored_path) == "themes/1/1/images"
+    end
+
+    # The media URL is built through `Validation.sanitize_path/1`; a stored
+    # name it would rewrite is served under a name no file has, and 404s.
+    for {filename, stem} <- [
+          {"photo (1).jpg", "photo__1_"},
+          {"a..b.png", "a__b"},
+          {"café.png", "caf__"}
+        ] do
+      test "store_asset/4 stores #{inspect(filename)} under a name its URL keeps" do
+        {:ok, stored_path} =
+          Storage.store_asset(:image, 1, "1", %{path: image_file(), filename: unquote(filename)})
+
+        extension = Path.extname(unquote(filename))
+
+        assert Path.basename(stored_path) =~
+                 ~r/\A[0-9a-f]{12}-#{unquote(stem)}#{Regex.escape(extension)}\z/
+
+        assert Validation.sanitize_path(stored_path) == stored_path
+
+        assert File.exists?(Storage.build_theme_file_path(Validation.sanitize_path(stored_path)))
+      end
     end
 
     test "store_asset/4 shortens a long client name to fit, keeping its extension" do

@@ -165,12 +165,23 @@ defmodule Tymeslot.ThemeCustomizations.Storage do
   # front of a client name carrying a directory. The client's stem is
   # shortened first, so that the whole name fits the file-name limit and the
   # sanitiser never cuts off the stored extension, by which the file is
-  # later served. The cut may split a multi-byte character; harmless, since
-  # the sanitiser replaces every non-ASCII byte with one `_` and so keeps
-  # the length.
+  # later served.
+  #
+  # Every byte of the stem outside `[a-zA-Z0-9_-]` becomes one `_`: the
+  # media URL is built through `Validation.sanitize_path/1`, which drops
+  # anything else and every `..`, so a stored `photo (1).jpg` or `a..b.png`
+  # would be served under a name no file has. Dots go too, so the only dot
+  # left is the extension's. The replacement is byte for byte, which keeps
+  # the length budget exact.
   defp unique_name(filename, extension) do
     prefix = Base.encode16(:crypto.strong_rand_bytes(6), case: :lower) <> "-"
-    stem = filename |> Path.basename() |> Path.rootname()
+
+    stem =
+      filename
+      |> Path.basename()
+      |> Path.rootname()
+      |> String.replace(~r/[^a-zA-Z0-9_-]/, "_")
+
     budget = @max_name_bytes - byte_size(prefix) - byte_size(extension)
 
     prefix <> binary_part(stem, 0, min(byte_size(stem), budget)) <> extension
