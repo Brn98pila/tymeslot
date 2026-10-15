@@ -5,6 +5,9 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
+  import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.UploadedBackground,
+    only: [uploaded_background: 1]
+
   alias Tymeslot.ThemeCustomizations.Options.Background
 
   import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImageUpload,
@@ -86,6 +89,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
         </div>
       </div>
 
+      <.uploaded_background
+        kind={:image}
+        option={@option}
+        customization={@customization}
+        myself={@myself}
+      />
+
       <div class="bg-tymeslot-50 p-8 rounded-token-4xl border-2 border-tymeslot-100 border-dashed">
         <.image_upload
           id="theme-background-image-form"
@@ -93,18 +103,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
           uploads={@uploads}
           myself={@myself}
         />
-
-        <%= if @customization.settings["background_image_path"] && @customization.settings["background_value"] == "custom" do %>
-          <div class="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-token-2xl flex items-center gap-3">
-            <.icon name="hero-exclamation-triangle" class="w-5 h-5 text-amber-600 shrink-0" />
-            <p class="text-token-sm font-bold text-amber-800">
-              {dgettext(
-                "dashboard_appearance",
-                "You have a custom image. Selecting a preset will remove it."
-              )}
-            </p>
-          </div>
-        <% end %>
       </div>
     </div>
     """

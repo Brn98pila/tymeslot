@@ -143,8 +143,11 @@ defmodule Tymeslot.ThemeCustomizations do
   row through `Specs.settings/2`), so `attrs` need only hold what changes.
   See `save_customization/4`.
   """
-  @spec upsert_theme_customization(profile_id(), theme_id(), map()) ::
-          persistence_result()
+  @spec upsert_theme_customization(
+          profile_id(),
+          theme_id(),
+          map() | OptionGroup.stored_changes()
+        ) :: persistence_result()
   def upsert_theme_customization(profile_id, theme_id, attrs) do
     case save_customization(profile_id, theme_id, attrs, &{:ok, &1}) do
       {:ok, saved} -> {:ok, saved}
@@ -164,13 +167,16 @@ defmodule Tymeslot.ThemeCustomizations do
   already deleted. Once the transaction commits, the files of the asset
   fields this save changed are deleted (`FileLifecycle`).
 
-  `then_fun` returns `{:ok, result}`, or `{:error, reason}` to roll the save
-  back; a refused save returns its changeset.
+  `attrs` is a map, or a function of the stored settings and the theme's
+  defaults (`OptionGroup.stored_changes/0`) for changes that depend on what
+  is stored, called on the locked row. `then_fun` returns `{:ok, result}`,
+  or `{:error, reason}` to roll the save back; a refused save returns its
+  changeset.
   """
   @spec save_customization(
           profile_id(),
           theme_id(),
-          map(),
+          map() | OptionGroup.stored_changes(),
           (ThemeCustomizationSchema.t() -> {:ok, result} | {:error, reason})
         ) :: {:ok, result} | {:error, reason | Changeset.t()}
         when result: term(), reason: term()
@@ -205,7 +211,10 @@ defmodule Tymeslot.ThemeCustomizations do
   # A row created by another request between the read and the insert is
   # locked and updated instead.
   defp create_or_write_locked(profile_id, theme_id, attrs) do
-    keyed = Map.merge(attrs, %{"profile_id" => profile_id, "theme_id" => theme_id})
+    keyed =
+      default_customization(profile_id, theme_id)
+      |> resolve_attrs(attrs)
+      |> Map.merge(%{"profile_id" => profile_id, "theme_id" => theme_id})
 
     case ThemeCustomizationQueries.create(keyed) do
       {:ok, :exists} ->
@@ -222,10 +231,18 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   defp write_locked(current, attrs) do
-    case ThemeCustomizationQueries.update(current, attrs) do
+    case ThemeCustomizationQueries.update(current, resolve_attrs(current, attrs)) do
       {:ok, updated} -> {:ok, current, updated}
       {:error, changeset} -> {:error, changeset}
     end
+  end
+
+  defp resolve_attrs(_customization, attrs) when is_map(attrs), do: attrs
+
+  defp resolve_attrs(customization, changes_fun) when is_function(changes_fun, 2) do
+    theme_id = customization.theme_id
+    stored = Specs.settings(Specs.for_theme(theme_id), to_map(customization))
+    changes_fun.(stored, get_defaults(theme_id))
   end
 
   defp cleanup_replaced_files(_theme_id, nil, _saved), do: :ok

@@ -169,6 +169,54 @@ defmodule Tymeslot.ThemeCustomizations.ApplyOptionTest do
              ] == "gradient"
     end
 
+    test "removing the upload on show deletes it and shows the theme's default background",
+         %{profile: profile} do
+      {image, image_file} = stored_image(profile)
+      {video, video_file} = stored_video(profile)
+
+      {:ok, _existing} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_image_path" => image,
+          "background_video_path" => video
+        })
+
+      assert {:ok, saved} = apply(profile, :background, "remove", "video")
+
+      assert Map.take(saved.settings, ~w(background_type background_value background_video_path
+                                          background_image_path)) == %{
+               "background_type" => "gradient",
+               "background_value" => "gradient_1",
+               "background_image_path" => image
+             }
+
+      refute File.exists?(video_file)
+      assert File.exists?(image_file)
+    end
+
+    test "removing an upload not on show deletes only it", %{profile: profile} do
+      {image, image_file} = stored_image(profile)
+
+      {:ok, _existing} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "1", %{
+          "background_type" => "gradient",
+          "background_value" => "gradient_4",
+          "background_image_path" => image
+        })
+
+      assert {:ok, saved} = apply(profile, :background, "remove", "image")
+
+      assert {saved.settings["background_type"], saved.settings["background_value"],
+              saved.settings["background_image_path"]} == {"gradient", "gradient_4", nil}
+
+      refute File.exists?(image_file)
+    end
+
+    test "removing an upload of a kind the theme does not offer is refused", %{profile: profile} do
+      assert {:error, @unavailable} = apply(profile, :background, "remove", "pattern")
+    end
+
     test "a kind the theme does not declare is refused", %{profile: profile} do
       assert {:error, @unavailable} = apply(profile, :background, "pattern", "stripes")
       assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil

@@ -96,6 +96,19 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         &{&1, customization.settings[&1]}
       )
 
+  defp tab_button(kind),
+    do: "button[phx-click='theme:set_browsing_type'][phx-value-type='#{kind}']"
+
+  defp saved_settings(profile),
+    do: ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").settings
+
+  defp shown(profile) do
+    settings = saved_settings(profile)
+    {settings["background_type"], settings["background_value"]}
+  end
+
+  defp served?(path), do: get(build_conn(), "/uploads/" <> path).status == 200
+
   defp video_entry do
     %{
       last_modified: System.system_time(:millisecond),
@@ -469,6 +482,72 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   # progress callback consumes a finished entry first, so the `upload_asset`
   # handler is reached only by spending the budget, letting the progress-path
   # consume be refused, and then submitting the form.
+  describe "switching between uploads and removing them" do
+    setup :isolated_upload_root
+
+    # Quill offers both an image and a video background.
+    test "both uploads stay until removed, and either can be shown again without a new upload",
+         %{conn: conn, profile: profile} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+      view = open_tab(conn, "1", "image")
+
+      image = %{
+        last_modified: System.system_time(:millisecond),
+        name: "background.png",
+        content: @valid_png,
+        type: "image/png"
+      }
+
+      view
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
+      |> render_upload("background.png")
+
+      view |> element(tab_button("video")) |> render_click()
+
+      view
+      |> file_input("#theme-background-video-form", :background_video_path, [video_entry()])
+      |> render_upload("clip.mp4")
+
+      %{"background_image_path" => image_path, "background_video_path" => video_path} =
+        saved_settings(profile)
+
+      # A preset image is shown; both uploads stay served.
+      view |> element(tab_button("image")) |> render_click()
+      [preset | _others] = Presets.get_image_presets() |> Map.keys() |> Enum.sort()
+      view |> element(preset_button("image", preset)) |> render_click()
+
+      assert served?(image_path)
+      assert served?(video_path)
+
+      # Back to the uploaded image, then the uploaded video, without uploading again.
+      view |> element("[data-testid='show-uploaded-image']") |> render_click()
+      assert shown(profile) == {"image", "custom"}
+
+      view |> element(tab_button("video")) |> render_click()
+      view |> element("[data-testid='show-uploaded-video']") |> render_click()
+      assert shown(profile) == {"video", "custom"}
+
+      # Removing the image, not on show, deletes only it.
+      view |> element(tab_button("image")) |> render_click()
+      view |> element("[data-testid='remove-uploaded-image']") |> render_click()
+
+      assert shown(profile) == {"video", "custom"}
+      refute served?(image_path)
+      assert served?(video_path)
+      refute has_element?(view, "[data-testid='uploaded-image']")
+
+      # Removing the video on show falls back to the theme's default background.
+      view |> element(tab_button("video")) |> render_click()
+      view |> element("[data-testid='remove-uploaded-video']") |> render_click()
+
+      assert shown(profile) == {"gradient", "gradient_1"}
+      refute served?(video_path)
+
+      assert Map.take(saved_settings(profile), ["background_image_path", "background_video_path"]) ==
+               %{}
+    end
+  end
+
   describe "the upload_asset handler" do
     setup :isolated_upload_root
 

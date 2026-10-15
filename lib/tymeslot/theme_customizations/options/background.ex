@@ -104,10 +104,21 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   The changes choosing a background makes, or `:error` for a kind the group
   does not offer. Choosing never touches the uploads: an uploaded image and
   an uploaded video both stay stored, whatever is shown, until the organiser
-  replaces that same upload (`upload_changes/3`). Choosing `"custom"` of a
-  kind shows its upload, which must then be stored.
+  removes or replaces that same upload (`removal_changes/3`,
+  `upload_changes/3`). Choosing `"custom"` of a kind shows its upload, which
+  must then be stored. The field `"remove"` with the kind (`"image"` or
+  `"video"`) as its value removes that upload (`removal_changes/3`).
   """
   @impl OptionGroup
+  def changes("remove", kind, group) do
+    case Enum.find(asset_fields(group), fn {_field, offered} ->
+           Atom.to_string(offered) == kind
+         end) do
+      {field, _kind} -> {:ok, &removal_changes(field, &1, &2)}
+      nil -> :error
+    end
+  end
+
   def changes(kind, value, %{kinds: kinds}) do
     if kind in Enum.map(kinds, &Atom.to_string/1),
       do: {:ok, %{"background_type" => kind, "background_value" => value}},
@@ -129,6 +140,31 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
       "background_value" => "custom",
       Atom.to_string(field) => path
     }
+  end
+
+  @doc """
+  The changes removing the upload in `field` makes, given the stored
+  `settings` and the theme's `defaults`: the field is cleared, so the save
+  deletes its file, and a background that was showing that upload falls back
+  to the theme's default background.
+  """
+  @spec removal_changes(atom(), Spec.settings(), Spec.settings()) :: map()
+  def removal_changes(field, settings, defaults) do
+    cleared = %{Atom.to_string(field) => nil}
+
+    if showing_upload?(settings, Keyword.fetch!(@asset_fields, field)),
+      do: Map.merge(cleared, Map.take(defaults, ["background_type", "background_value"])),
+      else: cleared
+  end
+
+  @doc """
+  Whether the stored `settings` show the uploaded background of `kind`
+  (`:image` or `:video`).
+  """
+  @spec showing_upload?(Spec.settings(), :image | :video) :: boolean()
+  def showing_upload?(settings, kind) do
+    settings["background_type"] == Atom.to_string(kind) and
+      settings["background_value"] == "custom"
   end
 
   @doc "The group's presets of one kind as `{id, preset}`, in the group's order."
@@ -160,7 +196,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
 
   def descriptor(%{"background_type" => "image", "background_image_path" => path})
       when is_binary(path) and path != "" do
-    %{kind: :image, url: "/uploads/" <> Validation.sanitize_path(path)}
+    %{kind: :image, url: upload_url(path)}
   end
 
   def descriptor(%{"background_type" => "image"} = settings) do
@@ -206,6 +242,13 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   def preset_image_url(file) when is_binary(file), do: @preset_image_dir <> file
 
   @doc """
+  The public URL of an uploaded background file (its stored path, as the
+  original upload of a video), safe to emit.
+  """
+  @spec upload_url(String.t()) :: String.t()
+  def upload_url(path) when is_binary(path), do: "/uploads/" <> Validation.sanitize_path(path)
+
+  @doc """
   The `--theme-background` custom property for a descriptor.
 
   Gradients and colours are the background itself. Behind an image or a video
@@ -231,7 +274,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
       end)
 
     # The original upload is always the last fallback.
-    variants ++ [%{src: "/uploads/" <> sanitized, type: "video/mp4", media: nil}]
+    variants ++ [%{src: upload_url(path), type: "video/mp4", media: nil}]
   end
 
   defp video_sources(settings) do

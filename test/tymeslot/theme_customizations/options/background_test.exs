@@ -312,4 +312,46 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
                }
     end
   end
+
+  describe "removal_changes/3" do
+    @defaults %{"background_type" => "gradient", "background_value" => "gradient_1"}
+
+    test "removing the upload on show falls back to the theme's default background" do
+      settings = %{
+        "background_type" => "image",
+        "background_value" => "custom",
+        "background_image_path" => "themes/1/1/images/a.png",
+        "background_video_path" => "themes/1/1/videos/a.mp4"
+      }
+
+      assert Background.removal_changes(:background_image_path, settings, @defaults) == %{
+               "background_image_path" => nil,
+               "background_type" => "gradient",
+               "background_value" => "gradient_1"
+             }
+    end
+
+    test "removing an upload not on show only clears it" do
+      settings = %{
+        "background_type" => "image",
+        "background_value" => "custom",
+        "background_image_path" => "themes/1/1/images/a.png",
+        "background_video_path" => "themes/1/1/videos/a.mp4"
+      }
+
+      assert Background.removal_changes(:background_video_path, settings, @defaults) ==
+               %{"background_video_path" => nil}
+    end
+
+    test "a preset of the same kind on show is not the upload" do
+      settings = %{
+        "background_type" => "video",
+        "background_value" => "preset:blue-wave",
+        "background_video_path" => "themes/1/1/videos/a.mp4"
+      }
+
+      assert Background.removal_changes(:background_video_path, settings, @defaults) ==
+               %{"background_video_path" => nil}
+    end
+  end
 end
