@@ -9,6 +9,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
     only: [uploaded_background: 1]
 
   alias Tymeslot.Media.Uploads
+  alias Tymeslot.ThemeCustomizations.Presets
 
   @doc """
   Renders the video picker.
@@ -46,14 +47,14 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
                 class="aspect-video bg-tymeslot-900 relative overflow-hidden video-hover-container"
               >
                 <img
-                  src={"/videos/thumbnails/#{video.thumbnail}"}
+                  src={Presets.video_thumbnail_url(video.thumbnail)}
                   alt={video.name}
                   class="video-thumbnail w-full h-full object-cover absolute inset-0 z-10 transition-transform duration-700 group-hover/video:scale-110"
                   data-img-fallback
                   data-fallback-selector="[data-fallback-thumbnail]"
                 />
                 <video
-                  src={"/videos/backgrounds/#{video.file}"}
+                  src={Presets.video_url(video.file)}
                   class="video-preview w-full h-full object-cover absolute inset-0 opacity-0"
                   muted
                   loop

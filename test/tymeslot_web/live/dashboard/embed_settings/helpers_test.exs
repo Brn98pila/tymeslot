@@ -30,7 +30,7 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.HelpersTest do
 
       assert code =~ "data-locale=\"de\""
       assert code =~ "data-theme=\"2\""
-      assert code =~ "data-primary-color=\"#14B8A6\""
+      assert code =~ "data-primary-color=\"#14b8a6\""
       refute code =~ "data-duration"
     end
 
@@ -48,7 +48,7 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.HelpersTest do
       # Check for presence of parameters without assuming order
       assert code =~ "TymeslotBooking.open('testuser', {"
       assert code =~ "locale: 'fr'"
-      assert code =~ "primaryColor: '#FF5733'"
+      assert code =~ "primaryColor: '#ff5733'"
       assert code =~ "theme: '1'"
       refute code =~ "duration"
     end
@@ -90,6 +90,17 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.HelpersTest do
       refute code =~ "data-theme"
       refute code =~ "data-primary-color"
       refute code =~ "data-locale"
+    end
+
+    test "carries a short colour in the form the booking page reads it" do
+      code =
+        Helpers.embed_code("inline", %{
+          username: "testuser",
+          base_url: "https://tymeslot.com",
+          primary_color: "#ABC"
+        })
+
+      assert code =~ "data-primary-color=\"#aabbcc\""
     end
 
     test "generates link embed code with the booking URL" do

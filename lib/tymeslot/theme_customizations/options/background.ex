@@ -45,9 +45,6 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     "video" => :video
   }
 
-  @preset_image_dir "/images/themes/backgrounds/"
-  @preset_video_dir "/videos/backgrounds/"
-  @poster_dir "/images/ui/posters/"
   @preset_video_variants [
     {"-desktop.webm", "video/webm", "(min-width: 1024px)"},
     {"-desktop.mp4", "video/mp4", "(min-width: 1024px)"},
@@ -201,7 +198,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
 
   def descriptor(%{"background_type" => "image"} = settings) do
     case Presets.find_preset_by_id(:image, settings["background_value"]) do
-      %{file: file} -> %{kind: :image, url: preset_image_url(file)}
+      %{file: file} -> %{kind: :image, url: Presets.image_url(file)}
       nil -> nil
     end
   end
@@ -233,13 +230,6 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     %{background: descriptor} = media(settings, group)
     %{acc | vars: Map.merge(page_vars, vars(descriptor, page_vars))}
   end
-
-  @doc """
-  The public URL of a preset image file, as booking pages and the dashboard
-  picker both load it.
-  """
-  @spec preset_image_url(String.t()) :: String.t()
-  def preset_image_url(file) when is_binary(file), do: @preset_image_dir <> file
 
   @doc """
   The public URL of an uploaded background file (its stored path, as the
@@ -293,13 +283,13 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
       |> String.replace("-desktop.webm", "")
 
     Enum.map(@preset_video_variants, fn {suffix, type, media} ->
-      %{src: @preset_video_dir <> base <> suffix, type: type, media: media}
+      %{src: Presets.video_url(base <> suffix), type: type, media: media}
     end)
   end
 
   defp poster(value) do
     case Presets.find_preset_by_id(:video, value) do
-      %{poster: poster} when is_binary(poster) -> @poster_dir <> poster
+      %{poster: poster} when is_binary(poster) -> Presets.video_poster_url(poster)
       _other -> nil
     end
   end

@@ -8,6 +8,7 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.Helpers do
   alias Phoenix.HTML
   alias Tymeslot.Locales
   alias Tymeslot.Security.InputProcessor
+  alias Tymeslot.Utils.Colour
   alias TymeslotWeb.Themes.Core.Context, as: ThemeContext
 
   @doc "Returns the list of valid embed type strings."
@@ -263,14 +264,14 @@ defmodule TymeslotWeb.Live.Dashboard.EmbedSettings.Helpers do
     if Regex.match?(~r/^\d+$/, theme), do: theme, else: nil
   end
 
-  defp sanitize_primary_color(nil), do: nil
-
+  # The booking page reads the colour with `Colour.cast_hex/1`
+  # (`ThemeContext.from_params/2`), so the snippet carries it in that form or
+  # not at all.
   defp sanitize_primary_color(color) do
-    color = to_string(color)
-
-    if Regex.match?(~r/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, color),
-      do: color,
-      else: nil
+    case Colour.cast_hex(color) do
+      {:ok, hex} -> hex
+      :error -> nil
+    end
   end
 
   defp sanitize_locale(nil), do: ""

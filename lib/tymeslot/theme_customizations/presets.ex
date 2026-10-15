@@ -92,6 +92,22 @@ defmodule Tymeslot.ThemeCustomizations.Presets do
   # Kind -> the module holding its presets. A function body rather than a
   # module attribute, so the kind modules stay runtime references (see
   # `Tymeslot.Themes.Catalog`).
+  @doc "The public URL of a preset image file (or its thumbnail)."
+  @spec image_url(String.t()) :: String.t()
+  defdelegate image_url(file), to: Images, as: :url
+
+  @doc "The public URL of a preset video file."
+  @spec video_url(String.t()) :: String.t()
+  defdelegate video_url(file), to: Videos, as: :url
+
+  @doc "The public URL of a preset video's thumbnail."
+  @spec video_thumbnail_url(String.t()) :: String.t()
+  defdelegate video_thumbnail_url(file), to: Videos, as: :thumbnail_url
+
+  @doc "The public URL of a preset video's poster."
+  @spec video_poster_url(String.t()) :: String.t()
+  defdelegate video_poster_url(file), to: Videos, as: :poster_url
+
   defp kinds do
     %{
       accent: Accents,

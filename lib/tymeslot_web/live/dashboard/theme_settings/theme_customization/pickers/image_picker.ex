@@ -5,13 +5,13 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
   use TymeslotWeb, :html
   use Gettext, backend: TymeslotWeb.Gettext
 
-  import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.UploadedBackground,
-    only: [uploaded_background: 1]
-
-  alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.ThemeCustomizations.Presets
 
   import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImageUpload,
     only: [image_upload: 1]
+
+  import TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.UploadedBackground,
+    only: [uploaded_background: 1]
 
   @doc """
   Renders the image picker.
@@ -45,7 +45,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.ImagePi
             >
               <div class="aspect-video relative overflow-hidden">
                 <img
-                  src={Background.preset_image_url(image.file)}
+                  src={Presets.image_url(image.file)}
                   alt={image.name}
                   class="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-110"
                   data-img-fallback
