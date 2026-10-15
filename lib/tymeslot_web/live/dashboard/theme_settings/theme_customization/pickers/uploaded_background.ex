@@ -60,7 +60,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.Uploade
             <img
               :if={@kind == :image}
               src={@url}
-              alt={dgettext("dashboard_appearance", "Your uploaded image")}
+              alt=""
               class="w-full h-full object-cover"
             />
             <video
