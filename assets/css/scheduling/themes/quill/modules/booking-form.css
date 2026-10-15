@@ -487,6 +487,7 @@
 .quill-theme-wrapper .location-option--selected:hover {
   background: var(--theme-primary-solid);
   color: var(--theme-on-primary);
+  box-shadow: var(--selected-ring);
 }
 .quill-theme-wrapper .location-field__detail {
   color: var(--text-opacity-subtle);
@@ -550,6 +551,7 @@
 .quill-theme-wrapper .location-venue--selected:hover {
   background: var(--theme-primary-solid);
   color: var(--theme-on-primary);
+  box-shadow: var(--selected-ring);
 }
 .quill-theme-wrapper .location-venue__name {
   font-size: var(--theme-font-size-sm);

@@ -281,6 +281,13 @@
   --option-tile-border-hover: rgba(255, 255, 255, 0.35);
   --option-tile-text: rgba(255, 255, 255, 0.85);
   --option-tile-selected-glow: var(--theme-primary-glow);
+
+  /* Edge of every selected control. The selected fill is the primary, and a
+     background in the same hue as the primary (an orange image under the
+     Sunset palette) shows through the glass card around it, so the fill alone
+     can vanish into its surroundings. The page's text colour is the one
+     colour the palette guarantees reads on that card. */
+  --selected-ring: inset 0 0 0 var(--border-width-medium) var(--theme-text);
   --option-indicator-idle: rgba(255, 255, 255, 0.45);
   --option-indicator-hover: rgba(255, 255, 255, 0.7);
   --option-tile-text-hover: white;
