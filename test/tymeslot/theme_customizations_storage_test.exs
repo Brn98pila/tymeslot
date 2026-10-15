@@ -42,19 +42,17 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
       File.mkdir_p!(readonly)
       File.chmod!(readonly, 0o444)
 
-      original_dir = Application.get_env(:tymeslot, :upload_directory)
-      Application.put_env(:tymeslot, :upload_directory, readonly)
+      UploadRoot.point_at(readonly)
+
+      on_exit(fn ->
+        File.chmod!(readonly, 0o755)
+        File.rm_rf!(readonly)
+      end)
 
       temp_file = MediaFixtures.temp_copy!("gps.webp")
 
-      try do
-        assert {:error, :eacces} =
-                 Storage.store_asset(:image, 1, "1", %{path: temp_file, filename: "bg.webp"})
-      after
-        Application.put_env(:tymeslot, :upload_directory, original_dir)
-        File.chmod!(readonly, 0o755)
-        File.rm_rf!(readonly)
-      end
+      assert {:error, :eacces} =
+               Storage.store_asset(:image, 1, "1", %{path: temp_file, filename: "bg.webp"})
     end
 
     test "store_asset/4 refuses a temp file that does not exist" do
@@ -205,7 +203,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
     @tag :tmp_dir
     test "store_asset/4 for a video stores under a relative upload root at the path it returns",
          %{tmp_dir: tmp_dir} do
-      Application.put_env(:tymeslot, :upload_directory, Path.relative_to_cwd(tmp_dir))
+      UploadRoot.point_at(Path.relative_to_cwd(tmp_dir))
       temp_file = MediaFixtures.temp_copy!("gps.mp4")
 
       assert {:ok, "themes/1/1/videos/" <> _name = stored_path} =
@@ -218,7 +216,7 @@ defmodule Tymeslot.ThemeCustomizationsStorageTest do
     @tag :tmp_dir
     test "store_asset/4 for an image stores under a relative upload root at the path it returns",
          %{tmp_dir: tmp_dir} do
-      Application.put_env(:tymeslot, :upload_directory, Path.relative_to_cwd(tmp_dir))
+      UploadRoot.point_at(Path.relative_to_cwd(tmp_dir))
       temp_file = MediaFixtures.temp_copy!("gps.webp")
 
       assert {:ok, "themes/1/1/images/" <> _name = stored_path} =
