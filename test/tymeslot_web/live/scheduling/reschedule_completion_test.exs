@@ -356,6 +356,63 @@ defmodule TymeslotWeb.Live.Scheduling.RescheduleCompletionTest do
     end
   end
 
+  describe "a booking cancelled while its reschedule page is open" do
+    # The page checks the meeting when it applies its URL; nothing re-checks
+    # it as the booker moves from step to step. Whatever the page has kept of
+    # the meeting meanwhile, the submit asks the rules again, and a booking
+    # cancelled in between is refused there, with the reason.
+    @tag :capture_log
+    test "the submit is refused with the reason, and the meeting is not moved", %{
+      conn: conn,
+      user: user,
+      profile: profile,
+      meeting_type: meeting_type,
+      meeting: meeting,
+      original_start: original_start
+    } do
+      view =
+        navigate_to_booking_form(conn, profile, meeting_type, reschedule_meeting_uid: meeting.uid)
+
+      meeting |> Changeset.change(%{status: "cancelled"}) |> Repo.update!()
+
+      view
+      |> form("form[phx-submit='submit']", %{
+        "booking" => %{
+          "name" => "Test Attendee",
+          "email" => "attendee@example.com",
+          "message" => ""
+        }
+      })
+      |> render_submit()
+
+      wait_until(fn -> render(view) =~ "Cannot reschedule a cancelled meeting" end)
+
+      kept = Repo.get!(MeetingSchema, meeting.id)
+      assert kept.status == "cancelled"
+      assert DateTime.compare(kept.start_time, original_start) == :eq
+      assert meeting_count_for(user) == 1
+    end
+
+    # Applying the URL again (a patch, back and forward in the browser) asks
+    # the rules afresh, as arriving does, rather than trusting what the page
+    # learnt about the meeting when it opened.
+    @tag :capture_log
+    test "applying the page's URL again refuses it, as arriving would", %{
+      conn: conn,
+      profile: profile,
+      meeting: meeting
+    } do
+      path = "/#{profile.username}?timezone=UTC&reschedule_meeting_uid=#{meeting.uid}"
+      {:ok, view, _html} = live(conn, path)
+
+      meeting |> Changeset.change(%{status: "cancelled"}) |> Repo.update!()
+
+      assert {:error, {:live_redirect, %{to: to}}} = render_patch(view, path)
+      assert to == "/#{profile.username}?timezone=UTC"
+      assert assert_redirect(view, to)["error"] == "Cannot reschedule a cancelled meeting"
+    end
+  end
+
   describe "without the reschedule context" do
     @tag :capture_log
     test "the same walk books a new meeting and leaves the original alone", %{
