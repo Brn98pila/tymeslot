@@ -47,6 +47,19 @@ defmodule Tymeslot.Profiles.DemoReservedUsernameTest do
       assert Profiles.username_status(profile, @demo_username) == :reserved
     end
 
+    test "a refused attempt to change to it spends no change attempt" do
+      profile = insert(:profile, username: "sarah")
+
+      # More refusals than the change allowance holds: had any of them
+      # counted, the valid change below would be rate limited.
+      for _attempt <- 1..6 do
+        assert {:error, "This username is reserved"} =
+                 Profiles.change_username(profile, @demo_username)
+      end
+
+      assert {:ok, %{username: "sarah-new"}} = Profiles.change_username(profile, "sarah-new")
+    end
+
     test "a username it does not reserve stays free" do
       profile = insert(:profile, username: "sarah")
 
