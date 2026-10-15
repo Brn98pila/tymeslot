@@ -1068,6 +1068,9 @@ msgid "must be a Slack webhook URL (https://hooks.slack.com/services/...)"
 msgstr "musí být URL webhooku Slack (https://hooks.slack.com/services/...)"
 
 #: lib/tymeslot/app_settings/app_settings_schema.ex
+#: lib/tymeslot/theme_customizations/options/accent.ex
+#: lib/tymeslot/theme_customizations/options/background.ex
+#: lib/tymeslot/theme_customizations/options/palette.ex
 #, elixir-autogen, elixir-format
 msgid "must be a hex colour such as #14b8a6"
 msgstr "musí být hexadecimální barva, například #14b8a6"
@@ -1083,6 +1086,7 @@ msgid "must be a list of reminder settings"
 msgstr "musí být seznam nastavení připomínek"
 
 #: lib/tymeslot/profiles/profile_schema.ex
+#: lib/tymeslot/theme_customizations/theme_customization_schema.ex
 #, elixir-autogen, elixir-format
 msgid "must be a valid theme"
 msgstr "musí být platný motiv"
@@ -1209,3 +1213,43 @@ msgstr "Je třeba vybrat alespoň jednu událost"
 #, elixir-autogen, elixir-format
 msgid "If you are the organiser, please connect a calendar in your dashboard."
 msgstr "Pokud jste hostitel, připojte si prosím kalendář na své nástěnce."
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is not supported by this theme"
+msgstr "není tímto motivem podporováno"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded cover"
+msgstr "je povinný pro nahraný titulní obrázek"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded image background"
+msgstr "je povinný pro nahraný obrázek na pozadí"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded video background"
+msgstr "je povinný pro nahrané video na pozadí"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid cover preset"
+msgstr "musí být platný přednastavený titulní obrázek"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid gradient preset"
+msgstr "musí být platný přednastavený přechod"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid image preset"
+msgstr "musí být platný přednastavený obrázek"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid video preset"
+msgstr "musí být platné přednastavené video"

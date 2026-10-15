@@ -1042,6 +1042,9 @@ msgid "must be a Slack webhook URL (https://hooks.slack.com/services/...)"
 msgstr "doit être une URL de webhook Slack (https://hooks.slack.com/services/...)"
 
 #: lib/tymeslot/app_settings/app_settings_schema.ex
+#: lib/tymeslot/theme_customizations/options/accent.ex
+#: lib/tymeslot/theme_customizations/options/background.ex
+#: lib/tymeslot/theme_customizations/options/palette.ex
 #, elixir-autogen, elixir-format
 msgid "must be a hex colour such as #14b8a6"
 msgstr "doit être une couleur hexadécimale telle que #14b8a6"
@@ -1057,6 +1060,7 @@ msgid "must be a list of reminder settings"
 msgstr "doit être une liste de paramètres de rappel"
 
 #: lib/tymeslot/profiles/profile_schema.ex
+#: lib/tymeslot/theme_customizations/theme_customization_schema.ex
 #, elixir-autogen, elixir-format
 msgid "must be a valid theme"
 msgstr "doit être un thème valide"
@@ -1182,3 +1186,43 @@ msgstr "Au moins un événement doit être sélectionné"
 #, elixir-autogen, elixir-format
 msgid "If you are the organiser, please connect a calendar in your dashboard."
 msgstr "Veuillez d’abord connecter votre calendrier"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is not supported by this theme"
+msgstr "n’est pas pris en charge par ce thème"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded cover"
+msgstr "est obligatoire pour une image de couverture téléversée"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded image background"
+msgstr "est obligatoire pour une image d’arrière-plan téléversée"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded video background"
+msgstr "est obligatoire pour une vidéo d’arrière-plan téléversée"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid cover preset"
+msgstr "doit être une image de couverture prédéfinie valide"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid gradient preset"
+msgstr "doit être un dégradé prédéfini valide"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid image preset"
+msgstr "doit être une image prédéfinie valide"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid video preset"
+msgstr "doit être une vidéo prédéfinie valide"

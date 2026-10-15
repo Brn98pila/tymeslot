@@ -1061,6 +1061,9 @@ msgid "must be a Slack webhook URL (https://hooks.slack.com/services/...)"
 msgstr "має бути URL вебхука Slack (https://hooks.slack.com/services/...)"
 
 #: lib/tymeslot/app_settings/app_settings_schema.ex
+#: lib/tymeslot/theme_customizations/options/accent.ex
+#: lib/tymeslot/theme_customizations/options/background.ex
+#: lib/tymeslot/theme_customizations/options/palette.ex
 #, elixir-autogen, elixir-format
 msgid "must be a hex colour such as #14b8a6"
 msgstr "має бути шістнадцятковим кольором, наприклад #14b8a6"
@@ -1076,6 +1079,7 @@ msgid "must be a list of reminder settings"
 msgstr "має бути списком налаштувань нагадувань"
 
 #: lib/tymeslot/profiles/profile_schema.ex
+#: lib/tymeslot/theme_customizations/theme_customization_schema.ex
 #, elixir-autogen, elixir-format
 msgid "must be a valid theme"
 msgstr "має бути коректною темою"
@@ -1202,3 +1206,43 @@ msgstr "Потрібно вибрати щонайменше одну подію
 #, elixir-autogen, elixir-format
 msgid "If you are the organiser, please connect a calendar in your dashboard."
 msgstr "Якщо ви організатор, підключіть календар на панелі керування."
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is not supported by this theme"
+msgstr "не підтримується цією темою"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded cover"
+msgstr "є обов'язковим для завантаженої обкладинки"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded image background"
+msgstr "є обов'язковим для завантаженого фонового зображення"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "is required for an uploaded video background"
+msgstr "є обов'язковим для завантаженого фонового відео"
+
+#: lib/tymeslot/theme_customizations/options/cover.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid cover preset"
+msgstr "має бути коректним шаблоном обкладинки"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid gradient preset"
+msgstr "має бути коректним шаблоном градієнта"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid image preset"
+msgstr "має бути коректним шаблоном зображення"
+
+#: lib/tymeslot/theme_customizations/options/background.ex
+#, elixir-autogen, elixir-format
+msgid "must be a valid video preset"
+msgstr "має бути коректним шаблоном відео"

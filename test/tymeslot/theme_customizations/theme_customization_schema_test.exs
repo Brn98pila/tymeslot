@@ -26,7 +26,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchemaTest do
 
       refute changeset.valid?
 
-      assert "is required for uploaded video background" in errors_on(changeset).background_video_path
+      assert "is required for an uploaded video background" in errors_on(changeset).background_video_path
     end
 
     test "uploaded image backgrounds require image path" do
@@ -47,7 +47,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationSchemaTest do
 
       refute changeset.valid?
 
-      assert "is required for uploaded image background" in errors_on(changeset).background_image_path
+      assert "is required for an uploaded image background" in errors_on(changeset).background_image_path
     end
 
     test "preset backgrounds work without upload paths" do

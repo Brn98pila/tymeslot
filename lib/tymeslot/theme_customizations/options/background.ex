@@ -17,6 +17,8 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   the palette whose canvas it may show.
   """
 
+  use Gettext, backend: TymeslotWeb.Gettext
+
   import Ecto.Changeset
 
   alias Tymeslot.Media.Transcoder
@@ -298,7 +300,11 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     kind = Map.get(@kinds_by_type, get_field(changeset, :background_type))
 
     if kind && kind not in kinds do
-      add_error(changeset, :background_type, "is not supported by this theme")
+      add_error(
+        changeset,
+        :background_type,
+        dgettext_noop("errors", "is not supported by this theme")
+      )
     else
       changeset
     end
@@ -310,17 +316,17 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
         validate_preset(
           changeset,
           preset_ids(group, :gradient),
-          "must be a valid gradient preset"
+          dgettext_noop("errors", "must be a valid gradient preset")
         )
 
       "color" ->
         cast_colour(changeset)
 
       "image" ->
-        validate_media(changeset, preset_ids(group, :image), :background_image_path, "image")
+        validate_media(changeset, preset_ids(group, :image), :background_image_path, :image)
 
       "video" ->
-        validate_media(changeset, preset_ids(group, :video), :background_video_path, "video")
+        validate_media(changeset, preset_ids(group, :video), :background_video_path, :video)
 
       _invalid_type ->
         changeset
@@ -337,23 +343,39 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
 
   defp cast_colour(changeset) do
     case Colour.cast_hex(get_field(changeset, :background_value)) do
-      {:ok, hex} -> put_change(changeset, :background_value, hex)
-      :error -> add_error(changeset, :background_value, "must be a valid hex color")
+      {:ok, hex} ->
+        put_change(changeset, :background_value, hex)
+
+      :error ->
+        add_error(
+          changeset,
+          :background_value,
+          dgettext_noop("errors", "must be a hex colour such as #14b8a6")
+        )
     end
   end
 
-  defp validate_media(changeset, ids, path_field, label) do
+  defp validate_media(changeset, ids, path_field, kind) do
     value = get_field(changeset, :background_value)
 
     cond do
       is_binary(value) and String.starts_with?(value, "preset:") ->
-        validate_preset(changeset, ids, "must be a valid #{label} preset")
+        validate_preset(changeset, ids, invalid_preset(kind))
 
       get_field(changeset, path_field) ->
         changeset
 
       true ->
-        add_error(changeset, path_field, "is required for uploaded #{label} background")
+        add_error(changeset, path_field, missing_upload(kind))
     end
   end
+
+  defp invalid_preset(:image), do: dgettext_noop("errors", "must be a valid image preset")
+  defp invalid_preset(:video), do: dgettext_noop("errors", "must be a valid video preset")
+
+  defp missing_upload(:image),
+    do: dgettext_noop("errors", "is required for an uploaded image background")
+
+  defp missing_upload(:video),
+    do: dgettext_noop("errors", "is required for an uploaded video background")
 end

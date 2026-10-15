@@ -243,7 +243,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueriesTest do
         }
 
         assert {:error, changeset} = ThemeCustomizationQueries.create(attrs)
-        assert "must be a valid hex color" in errors_on(changeset).background_value
+        assert "must be a hex colour such as #14b8a6" in errors_on(changeset).background_value
       end
     end
 
@@ -291,7 +291,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueriesTest do
 
       assert {:error, changeset} = ThemeCustomizationQueries.create(attrs)
 
-      assert "is required for uploaded image background" in errors_on(changeset).background_image_path
+      assert "is required for an uploaded image background" in errors_on(changeset).background_image_path
     end
 
     test "accepts preset video without video path" do
@@ -338,7 +338,7 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueriesTest do
 
       assert {:error, changeset} = ThemeCustomizationQueries.create(attrs)
 
-      assert "is required for uploaded video background" in errors_on(changeset).background_video_path
+      assert "is required for an uploaded video background" in errors_on(changeset).background_video_path
     end
   end
 

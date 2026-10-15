@@ -6,6 +6,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
 
   alias Ecto.Changeset
   alias Tymeslot.ThemeCustomizations.Options.Background
+  alias Tymeslot.Utils.ChangesetErrors
 
   @all_kinds [:gradient, :color, :image, :video]
 
@@ -38,7 +39,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
     test "rejects the alpha form and non-hex colours" do
       for value <- ["#ff550080", "rgb(255, 0, 0)", "transparent"] do
         cs = changeset(%{"background_type" => "color", "background_value" => value})
-        assert error(cs, :background_value) == "must be a valid hex color", value
+        assert error(cs, :background_value) == "must be a hex colour such as #14b8a6", value
       end
     end
   end
@@ -65,6 +66,15 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
       assert error(cs, :background_value) == "must be a valid gradient preset"
     end
 
+    test "says what is wrong in the organiser's language" do
+      cs = changeset(%{"background_type" => "video", "background_value" => "custom"})
+
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        assert ChangesetErrors.translate(cs.errors[:background_video_path]) ==
+                 "ist für ein hochgeladenes Hintergrundvideo erforderlich"
+      end)
+    end
+
     test "rejects an unknown image or video preset" do
       image = changeset(%{"background_type" => "image", "background_value" => "preset:nope"})
       video = changeset(%{"background_type" => "video", "background_value" => "preset:nope"})
@@ -88,7 +98,7 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
 
     test "requires the stored path for an uploaded video" do
       cs = changeset(%{"background_type" => "video", "background_value" => "custom"})
-      assert error(cs, :background_video_path) == "is required for uploaded video background"
+      assert error(cs, :background_video_path) == "is required for an uploaded video background"
     end
 
     test "accepts a known preset without a path" do
