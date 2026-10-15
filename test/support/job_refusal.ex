@@ -4,6 +4,11 @@ defmodule Tymeslot.Test.JobRefusal do
   the rest of the test. The trigger is created in the test's sandbox
   transaction, so it is rolled back with it and no other connection ever
   sees it; a LiveView or task sharing the test's connection does.
+
+  For `async: false` modules only, and once per test: the trigger and its
+  function have fixed names, and creating the trigger holds a
+  `SHARE ROW EXCLUSIVE` lock on `oban_jobs` until the test ends, which
+  makes any other connection inserting a job wait for it.
   """
 
   alias Tymeslot.Repo
