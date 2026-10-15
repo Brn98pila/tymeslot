@@ -11,9 +11,11 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
 
   import Mox
 
+  alias Tymeslot.Test.JobRefusal
   alias Tymeslot.Test.MediaFixtures
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Storage
+  alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
   alias Tymeslot.Workers.VideoTranscoder
 
   setup :verify_on_exit!
@@ -169,6 +171,42 @@ defmodule Tymeslot.ThemeCustomizations.AssetsTest do
 
       assert customization.settings["background_image_path"] == nil
       refute File.exists?(image_file)
+    end
+
+    test "when the job cannot be queued, changes nothing and deletes the new file",
+         %{profile: profile} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+      {video, video_file} = stored_file(profile, "2", "videos/old.mp4")
+
+      {:ok, existing} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, "2", %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => video
+        })
+
+      {:ok, _completed} =
+        ThemeCustomizationQueries.update_video_processing_status(
+          existing.id,
+          "background_video_path",
+          "completed"
+        )
+
+      JobRefusal.refuse_jobs(VideoTranscoder)
+
+      assert {:error, "The upload failed and nothing was changed. Please try again."} =
+               ThemeCustomizations.attach_asset(
+                 profile.id,
+                 "2",
+                 :background_video_path,
+                 temp_file("clip.mp4", @mp4)
+               )
+
+      row = ThemeCustomizations.get_by_profile_and_theme(profile.id, "2")
+      assert row.settings["background_video_path"] == video
+      assert row.video_processing_status == %{"background_video_path" => "completed"}
+      assert uploaded_files(profile, "2") == [video_file]
+      refute_enqueued(worker: VideoTranscoder)
     end
 
     test "refuses a file that is not a video, saving nothing", %{profile: profile} do

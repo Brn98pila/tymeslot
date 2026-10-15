@@ -24,6 +24,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
+  alias Tymeslot.Test.JobRefusal
   alias Tymeslot.Test.MediaFixtures
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
@@ -373,6 +374,37 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
         refute_enqueued(worker: VideoTranscoder)
         refute File.exists?(Path.join(upload_root, "themes/#{profile.id}/#{theme_id}/videos"))
       end
+    end
+
+    test "when the video cannot be queued, says the upload failed and keeps the previous video",
+         %{conn: conn, profile: profile, upload_root: upload_root} do
+      stub(Tymeslot.Media.TranscoderMock, :available?, fn -> true end)
+      theme_id = hd(@video_themes).id
+      {previous, previous_file} = stored_file(profile, theme_id, "videos/previous.mp4")
+
+      {:ok, _row} =
+        ThemeCustomizations.upsert_theme_customization(profile.id, theme_id, %{
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => previous
+        })
+
+      JobRefusal.refuse_jobs(VideoTranscoder)
+      view = open_tab(conn, theme_id, "video")
+
+      view
+      |> file_input("#theme-background-video-form", :background_video_path, [video_entry()])
+      |> render_upload("clip.mp4")
+
+      assert render(view) =~ "The upload failed and nothing was changed. Please try again."
+
+      saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, theme_id)
+      assert saved.settings["background_video_path"] == previous
+      assert saved.video_processing_status == %{}
+      refute_enqueued(worker: VideoTranscoder)
+
+      assert Path.wildcard(Path.join(upload_root, "themes/#{profile.id}/#{theme_id}/videos/*")) ==
+               [previous_file]
     end
 
     test "stores a video under its detected type, replaces the previous one with its variants, and transcodes the new one",

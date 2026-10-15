@@ -327,11 +327,6 @@ msgstr "Nahrání se nezdařilo"
 msgid "Video processing is unavailable on this server because ffmpeg is not installed. Install ffmpeg or use a background image instead."
 msgstr "Zpracování videa není na tomto serveru k dispozici, protože není nainstalován ffmpeg. Nainstalujte ffmpeg nebo místo toho použijte obrázek na pozadí."
 
-#: lib/tymeslot/theme_customizations/assets.ex
-#, elixir-autogen, elixir-format
-msgid "Your video was saved but could not be queued for processing. Please upload it again."
-msgstr "Vaše video bylo uloženo, ale nepodařilo se jej zařadit ke zpracování. Nahrajte jej prosím znovu."
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "File uploaded successfully"
@@ -649,3 +644,8 @@ msgstr "Neplatný soubor titulků. Nahrajte prosím soubor WebVTT (.vtt)."
 #, elixir-autogen, elixir-format
 msgid "MP4 or WebM. Max %{size} MB."
 msgstr "MP4 nebo WebM. Max. %{size} MB."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "The upload failed and nothing was changed. Please try again."
+msgstr "Nahrání se nezdařilo a nic se nezměnilo. Zkuste to prosím znovu."

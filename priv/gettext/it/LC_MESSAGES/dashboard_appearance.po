@@ -327,11 +327,6 @@ msgstr "Caricamento non riuscito"
 msgid "Video processing is unavailable on this server because ffmpeg is not installed. Install ffmpeg or use a background image instead."
 msgstr "L’elaborazione video non è disponibile su questo server perché ffmpeg non è installato. Installa ffmpeg oppure usa un’immagine di sfondo."
 
-#: lib/tymeslot/theme_customizations/assets.ex
-#, elixir-autogen, elixir-format
-msgid "Your video was saved but could not be queued for processing. Please upload it again."
-msgstr "Il video è stato salvato, ma non è stato possibile metterlo in coda per l’elaborazione. Caricalo di nuovo."
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "File uploaded successfully"
@@ -649,3 +644,8 @@ msgstr "File di sottotitoli non valido. Carica un file WebVTT (.vtt)."
 #, elixir-autogen, elixir-format
 msgid "MP4 or WebM. Max %{size} MB."
 msgstr "MP4 o WebM. Massimo %{size} MB."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "The upload failed and nothing was changed. Please try again."
+msgstr "Il caricamento non è riuscito e non è stato modificato nulla. Riprova."

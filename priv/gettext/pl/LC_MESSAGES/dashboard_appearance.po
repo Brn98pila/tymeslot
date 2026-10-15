@@ -323,11 +323,6 @@ msgstr "Przesyłanie nie powiodło się"
 msgid "Video processing is unavailable on this server because ffmpeg is not installed. Install ffmpeg or use a background image instead."
 msgstr "Przetwarzanie wideo jest niedostępne na tym serwerze, ponieważ nie zainstalowano ffmpeg. Zainstaluj ffmpeg albo użyj zamiast tego obrazu tła."
 
-#: lib/tymeslot/theme_customizations/assets.ex
-#, elixir-autogen, elixir-format
-msgid "Your video was saved but could not be queued for processing. Please upload it again."
-msgstr "Zapisano wideo, ale nie udało się dodać go do kolejki przetwarzania. Prześlij je ponownie."
-
 #: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
 #, elixir-autogen, elixir-format
 msgid "File uploaded successfully"
@@ -645,3 +640,8 @@ msgstr "Nieprawidłowy plik napisów. Prześlij plik WebVTT (.vtt)."
 #, elixir-autogen, elixir-format
 msgid "MP4 or WebM. Max %{size} MB."
 msgstr "MP4 lub WebM. Maks. %{size} MB."
+
+#: lib/tymeslot/theme_customizations/assets.ex
+#, elixir-autogen, elixir-format
+msgid "The upload failed and nothing was changed. Please try again."
+msgstr "Przesyłanie nie powiodło się i nic nie zostało zmienione. Spróbuj ponownie."
