@@ -17,9 +17,13 @@ defmodule Tymeslot.Demo.Behaviour do
   @callback get_profile_by_user_id(user_id :: integer()) :: map() | nil
 
   @doc """
-  Whether `username` is one the demo provider serves (e.g. demo-theme-1). No
-  organiser may choose such a username: a real profile under it would have
-  its booking page replaced by demo content.
+  Whether `username` lies in the namespace the demo provider reserves for its
+  demo pages, so no organiser may choose it (`Tymeslot.Profiles.ReservedPaths`).
+
+  This answers reservation only, never identity: the reserved namespace may be
+  wider than the usernames the provider actually serves, and an organiser who
+  held such a username before it was reserved keeps it and keeps their own
+  booking page. Whether a profile is a demo one is `c:demo_profile?/1`.
   """
   @callback demo_username?(username :: String.t() | any()) :: boolean()
 
