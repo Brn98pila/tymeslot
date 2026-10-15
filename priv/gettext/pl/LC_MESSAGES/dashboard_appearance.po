@@ -639,7 +639,7 @@ msgstr "Przesyłanie nie powiodło się i nic nie zostało zmienione. Spróbuj p
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format
 msgid "Kept until you replace or remove it."
-msgstr "Pozostaje zapisany, dopóki go nie zastąpisz lub nie usuniesz."
+msgstr "Plik pozostaje zapisany, dopóki go nie zastąpisz lub nie usuniesz."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format

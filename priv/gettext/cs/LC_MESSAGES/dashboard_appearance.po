@@ -643,7 +643,7 @@ msgstr "Nahrání se nezdařilo a nic se nezměnilo. Zkuste to prosím znovu."
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format
 msgid "Kept until you replace or remove it."
-msgstr "Zůstane uložen, dokud jej nenahradíte nebo neodeberete."
+msgstr "Soubor zůstane uložen, dokud jej nenahradíte nebo neodeberete."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format

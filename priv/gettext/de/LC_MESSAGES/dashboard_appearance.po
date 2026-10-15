@@ -643,7 +643,7 @@ msgstr "Der Upload ist fehlgeschlagen, es wurde nichts geändert. Bitte versuche
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format
 msgid "Kept until you replace or remove it."
-msgstr "Bleibt gespeichert, bis Sie es ersetzen oder entfernen."
+msgstr "Bleibt gespeichert, bis Sie die Datei ersetzen oder entfernen."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format

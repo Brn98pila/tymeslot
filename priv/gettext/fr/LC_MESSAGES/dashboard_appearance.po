@@ -643,7 +643,7 @@ msgstr "Le téléversement a échoué et rien n’a été modifié. Veuillez ré
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format
 msgid "Kept until you replace or remove it."
-msgstr "Conservé jusqu’à ce que vous le remplaciez ou le supprimiez."
+msgstr "Le fichier est conservé jusqu’à ce que vous le remplaciez ou le supprimiez."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format

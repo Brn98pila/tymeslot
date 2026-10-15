@@ -643,7 +643,7 @@ msgstr "Не вдалося завантажити файл, нічого не �
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format
 msgid "Kept until you replace or remove it."
-msgstr "Зберігається, доки ви його не заміните або не видалите."
+msgstr "Файл зберігається, доки ви його не заміните або не видалите."
 
 #: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/uploaded_background.ex
 #, elixir-autogen, elixir-format
