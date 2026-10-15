@@ -34,7 +34,8 @@ defmodule Tymeslot.ThemeCustomizations do
   @type user_id :: pos_integer()
   @type customization_input :: ThemeCustomizationSchema.t() | map() | nil
   @type upload_attrs :: %{path: String.t(), filename: String.t()}
-  @type persistence_result :: {:ok, ThemeCustomizationSchema.t()} | {:error, Changeset.t()}
+  @type persistence_result ::
+          {:ok, ThemeCustomizationSchema.t()} | {:error, Changeset.t() | :not_found}
 
   @doc """
   Gets a theme customization by profile ID and theme ID.
@@ -151,7 +152,8 @@ defmodule Tymeslot.ThemeCustomizations do
   def upsert_theme_customization(profile_id, theme_id, attrs) do
     case save_customization(profile_id, theme_id, attrs, &{:ok, &1}) do
       {:ok, saved} -> {:ok, saved}
-      {:error, %Changeset{} = changeset} -> {:error, changeset}
+      {:error, {:raised, error, stacktrace}} -> reraise error, stacktrace
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -170,8 +172,14 @@ defmodule Tymeslot.ThemeCustomizations do
   `attrs` is a map, or a function of the stored settings and the theme's
   defaults (`OptionGroup.stored_changes/0`) for changes that depend on what
   is stored, called on the locked row. `then_fun` returns `{:ok, result}`,
-  or `{:error, reason}` to roll the save back; a refused save returns its
-  changeset.
+  or `{:error, reason}` to roll the save back.
+
+  A refused save returns its changeset, and `{:error, :not_found}` means the
+  row was deleted while the save waited for it (its profile was deleted).
+  Anything raised inside the transaction, which is then rolled back, comes
+  back as `{:error, {:raised, exception, stacktrace}}` for the caller to
+  clean up after and re-raise or report; nothing raised after the commit
+  (the file clean-up) is caught.
   """
   @spec save_customization(
           profile_id(),
@@ -182,7 +190,7 @@ defmodule Tymeslot.ThemeCustomizations do
         when result: term(), reason: term()
   def save_customization(profile_id, theme_id, attrs, then_fun) do
     transaction =
-      Repo.transaction(fn ->
+      run_transaction(fn ->
         with {:ok, previous, saved} <- lock_and_write(profile_id, theme_id, attrs),
              {:ok, result} <- then_fun.(saved) do
           {previous, saved, result}
@@ -201,6 +209,18 @@ defmodule Tymeslot.ThemeCustomizations do
     end
   end
 
+  # A COMMIT that raises although the server committed (the connection
+  # dropped while it answered) is caught here as well, so the caller treats
+  # a saved row as unsaved. That in-doubt case is accepted: it cannot be told
+  # apart from a failed commit without another round trip, and the row is
+  # still consistent; at worst an upload's file is deleted while the row
+  # names it, and the page falls back as for a missing file.
+  defp run_transaction(fun) do
+    Repo.transaction(fun)
+  rescue
+    error -> {:error, {:raised, error, __STACKTRACE__}}
+  end
+
   defp lock_and_write(profile_id, theme_id, attrs) do
     case ThemeCustomizationQueries.lock_by_profile_and_theme(profile_id, theme_id) do
       nil -> create_or_write_locked(profile_id, theme_id, attrs)
@@ -209,18 +229,20 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   # A row created by another request between the read and the insert is
-  # locked and updated instead.
+  # locked and updated instead; if it is gone again by then (its profile
+  # was deleted), the save is refused.
   defp create_or_write_locked(profile_id, theme_id, attrs) do
     keyed =
-      default_customization(profile_id, theme_id)
-      |> resolve_attrs(attrs)
+      %{}
+      |> resolve_attrs(theme_id, attrs)
       |> Map.merge(%{"profile_id" => profile_id, "theme_id" => theme_id})
 
     case ThemeCustomizationQueries.create(keyed) do
       {:ok, :exists} ->
-        profile_id
-        |> ThemeCustomizationQueries.lock_by_profile_and_theme(theme_id)
-        |> write_locked(attrs)
+        case ThemeCustomizationQueries.lock_by_profile_and_theme(profile_id, theme_id) do
+          nil -> {:error, :not_found}
+          current -> write_locked(current, attrs)
+        end
 
       {:ok, created} ->
         {:ok, nil, created}
@@ -231,19 +253,21 @@ defmodule Tymeslot.ThemeCustomizations do
   end
 
   defp write_locked(current, attrs) do
-    case ThemeCustomizationQueries.update(current, resolve_attrs(current, attrs)) do
+    changes = current |> to_map() |> resolve_attrs(current.theme_id, attrs)
+
+    case ThemeCustomizationQueries.update(current, changes) do
       {:ok, updated} -> {:ok, current, updated}
       {:error, changeset} -> {:error, changeset}
     end
   end
 
-  defp resolve_attrs(_customization, attrs) when is_map(attrs), do: attrs
+  # Changes that depend on what is stored are worked out from the row as
+  # stored (empty before it exists), never from defaults filled in, so a
+  # theme's default cannot pass for the organiser's own choice.
+  defp resolve_attrs(_stored, _theme_id, attrs) when is_map(attrs), do: attrs
 
-  defp resolve_attrs(customization, changes_fun) when is_function(changes_fun, 2) do
-    theme_id = customization.theme_id
-    stored = Specs.settings(Specs.for_theme(theme_id), to_map(customization))
-    changes_fun.(stored, get_defaults(theme_id))
-  end
+  defp resolve_attrs(stored, theme_id, changes_fun) when is_function(changes_fun, 2),
+    do: changes_fun.(stored, get_defaults(theme_id))
 
   defp cleanup_replaced_files(_theme_id, nil, _saved), do: :ok
 

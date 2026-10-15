@@ -59,8 +59,9 @@ defmodule Tymeslot.ThemeCustomizations.OptionGroup do
 
   @typedoc """
   Changes that depend on the stored settings: called by the save with the
-  row's settings as `Specs.settings/2` reads them and the theme's defaults,
-  both string-keyed, once it holds the row's lock.
+  row's stored settings (empty before the row exists, with no defaults
+  filled in) and the theme's defaults, both string-keyed, once it holds the
+  row's lock.
   """
   @type stored_changes :: (Spec.settings(), Spec.settings() -> map())
 

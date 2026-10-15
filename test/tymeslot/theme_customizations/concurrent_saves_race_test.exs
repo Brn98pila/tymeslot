@@ -20,6 +20,7 @@ defmodule Tymeslot.ThemeCustomizations.ConcurrentSavesRaceTest do
   import Ecto.Query, only: [from: 2]
   import Tymeslot.Test.RaceConductor, only: [race: 1, unboxed: 1]
 
+  alias Ecto.UUID
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Media.Uploads
   alias Tymeslot.Profiles.ProfileSchema
@@ -38,9 +39,11 @@ defmodule Tymeslot.ThemeCustomizations.ConcurrentSavesRaceTest do
     original_root = Application.get_env(:tymeslot, :upload_directory)
     Application.put_env(:tymeslot, :upload_directory, upload_root)
 
+    # Committed for real, so its email must not depend on the factory's
+    # sequence, which restarts with every run.
     profile =
       unboxed(fn ->
-        user = insert(:user)
+        user = insert(:user, email: "race-#{UUID.generate()}@example.com")
         insert(:profile, user: user)
       end)
 
@@ -131,6 +134,9 @@ defmodule Tymeslot.ThemeCustomizations.ConcurrentSavesRaceTest do
     end
   end
 
+  # A guard of the create path rather than a regression test: the save
+  # this replaced also ended with both changes here, since its insert waited
+  # for the other one and then fell back to updating the committed row.
   describe "the first two saves of a theme" do
     test "both create or update the one row, keeping each change", %{profile: profile} do
       results =
@@ -160,6 +166,37 @@ defmodule Tymeslot.ThemeCustomizations.ConcurrentSavesRaceTest do
     end
   end
 
+  describe "a first save whose row another request creates and deletes meanwhile" do
+    # The row is created on another connection right after this save finds
+    # none, so its insert meets it, and deleted right after that insert, so
+    # the save finds nothing to lock (a profile deletion would do this).
+    test "is refused rather than crashing", %{profile: profile} do
+      handler_id = "concurrent-saves-#{inspect(make_ref())}"
+      test_process = self()
+
+      :ok =
+        :telemetry.attach(
+          handler_id,
+          [:tymeslot, :repo, :query],
+          fn _event, _measurements, metadata, _config ->
+            if self() == test_process, do: interfere(metadata, profile)
+          end,
+          nil
+        )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+      Process.put(:interference, [:create, :delete])
+
+      assert {:error, :not_found} =
+               ThemeCustomizations.upsert_theme_customization(profile.id, @theme_id, %{
+                 "color_scheme" => "ocean"
+               })
+
+      assert Process.get(:interference) == []
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, @theme_id) == nil
+    end
+  end
+
   defp upload_image(profile) do
     path = Path.join(System.tmp_dir!(), "#{System.unique_integer([:positive])}-bg.png")
     File.write!(path, MediaFixtures.png())
@@ -171,6 +208,34 @@ defmodule Tymeslot.ThemeCustomizations.ConcurrentSavesRaceTest do
       })
     after
       File.rm(path)
+    end
+  end
+
+  # The other request's own queries run in this process too, on their own
+  # connection, so they are passed over while it runs.
+  defp interfere(metadata, profile) do
+    case {Process.get(:interference), metadata[:source], metadata[:query]} do
+      {{:running, _rest}, _source, _query} ->
+        :ok
+
+      {[:create | rest], "theme_customizations", "SELECT" <> _read} ->
+        Process.put(:interference, {:running, rest})
+
+        unboxed(fn ->
+          {:ok, _row} = ThemeCustomizations.upsert_theme_customization(profile.id, @theme_id, %{})
+        end)
+
+        Process.put(:interference, rest)
+
+      {[:delete | rest], "theme_customizations", "INSERT" <> _insert} ->
+        Process.put(:interference, rest)
+
+        unboxed(fn ->
+          Repo.delete_all(from(c in ThemeCustomizationSchema, where: c.profile_id == ^profile.id))
+        end)
+
+      _other ->
+        :ok
     end
   end
 

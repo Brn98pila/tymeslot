@@ -117,9 +117,11 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
 
   # The file was stored for this save alone, so a refused or rolled-back
   # save leaves it referenced by nothing: delete it rather than orphan it.
-  # A database error raises out of the transaction once it has rolled back
-  # (inserting the transcoding job is the likeliest place); anything else
-  # that raises is re-raised once the file is gone.
+  # Only the transaction's own failures arrive here as errors
+  # (`ThemeCustomizations.save_customization/4`); a database error raised
+  # inside it (inserting the transcoding job is the likeliest place) is
+  # reported as nothing changed, and anything else is re-raised once the
+  # file is gone.
   defp save(profile_id, theme_id, path, attrs, then_fun) do
     case ThemeCustomizations.save_customization(profile_id, theme_id, attrs, then_fun) do
       {:ok, customization} ->
@@ -129,25 +131,28 @@ defmodule Tymeslot.ThemeCustomizations.Assets do
         discard(path, profile_id, theme_id)
         {:error, save_failed()}
 
-      {:error, _not_queued} ->
+      {:error, {:raised, error, stacktrace}} ->
+        discard(path, profile_id, theme_id)
+        raised(error, stacktrace, profile_id, theme_id)
+
+      {:error, _not_queued_or_not_found} ->
         discard(path, profile_id, theme_id)
         {:error, nothing_changed()}
     end
-  rescue
-    error in [Postgrex.Error, DBConnection.ConnectionError] ->
-      Logger.error("Theme upload rolled back by a database error",
-        profile_id: profile_id,
-        theme_id: theme_id,
-        reason: LogFormat.reason(error)
-      )
-
-      discard(path, profile_id, theme_id)
-      {:error, nothing_changed()}
-
-    error ->
-      discard(path, profile_id, theme_id)
-      reraise error, __STACKTRACE__
   end
+
+  defp raised(%error_type{} = error, _stacktrace, profile_id, theme_id)
+       when error_type in [Postgrex.Error, DBConnection.ConnectionError] do
+    Logger.error("Theme upload rolled back by a database error",
+      profile_id: profile_id,
+      theme_id: theme_id,
+      reason: LogFormat.reason(error)
+    )
+
+    {:error, nothing_changed()}
+  end
+
+  defp raised(error, stacktrace, _profile_id, _theme_id), do: reraise(error, stacktrace)
 
   defp discard(path, profile_id, theme_id),
     do: FileLifecycle.discard_upload(path, %{profile_id: profile_id, theme_id: theme_id})
