@@ -60,6 +60,17 @@ defmodule Tymeslot.Profiles.DemoReservedUsernameTest do
       assert {:ok, %{username: "sarah-new"}} = Profiles.change_username(profile, "sarah-new")
     end
 
+    test "a capitalised variant is refused by the username format" do
+      profile = insert(:profile, username: "sarah")
+      capitalised = String.capitalize(@demo_username)
+
+      assert {:error, "Username must start with a letter or number" <> _rest} =
+               Profiles.change_username(profile, capitalised)
+
+      assert {:invalid, _message} = Profiles.username_status(profile, capitalised)
+      assert Repo.reload!(profile).username == "sarah"
+    end
+
     test "a username it does not reserve stays free" do
       profile = insert(:profile, username: "sarah")
 
