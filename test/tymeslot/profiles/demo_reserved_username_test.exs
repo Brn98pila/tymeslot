@@ -1,7 +1,7 @@
 defmodule Tymeslot.Profiles.DemoReservedUsernameTest do
   @moduledoc """
-  A username the demo provider serves can never be chosen: the provider would
-  answer for it, replacing the organiser's booking page with demo content.
+  A username the demo provider reserves can never be newly chosen, while a
+  profile that held it before it was reserved keeps it.
   """
 
   # Swaps the node-wide demo provider, so it must not run beside other tests.
@@ -23,7 +23,7 @@ defmodule Tymeslot.Profiles.DemoReservedUsernameTest do
     ProfileSchema.username_changeset(profile, %{username: username})
   end
 
-  describe "with a demo provider that serves the username" do
+  describe "with a demo provider that reserves the username" do
     setup do
       with_config(:tymeslot, demo_provider: ReservingDemoProvider)
       :ok
@@ -47,7 +47,7 @@ defmodule Tymeslot.Profiles.DemoReservedUsernameTest do
       assert Profiles.username_status(profile, @demo_username) == :reserved
     end
 
-    test "a username it does not serve stays free" do
+    test "a username it does not reserve stays free" do
       profile = insert(:profile, username: "sarah")
 
       assert username_changeset(profile, "demo-x-2").valid?

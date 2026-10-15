@@ -187,10 +187,9 @@ defmodule TymeslotWeb.Live.Scheduling.CalendarHelpers do
       Demo.demo_profile?(organizer_profile) ->
         # Demo profiles answer the fallback question with the same demo
         # generator the month grid uses, not Core's hard-coded business
-        # hours. `Demo.demo_profile?/1` also matches on username, which
-        # `Demo.get_calendar_days/6` does not — for such a profile the
-        # generator returns an empty grid, so fall back to business hours
-        # rather than render every day of the week as unavailable.
+        # hours. Should the provider's generator have no days for a profile
+        # it calls a demo one, fall back to business hours rather than
+        # render every day of the week as unavailable.
         demo_days =
           demo_calendar_days(week_start, organizer_profile, availability_map, user_timezone)
 
