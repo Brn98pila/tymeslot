@@ -11,8 +11,12 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.Profiles
+  alias Tymeslot.Test.ShowcaseThemeSpec
   alias Tymeslot.ThemeCustomizations
+  alias Tymeslot.ThemeCustomizations.FileLifecycle
   alias Tymeslot.ThemeCustomizations.Storage
+  alias Tymeslot.ThemeCustomizations.ThemeCustomizationQueries
+  alias Tymeslot.ThemeCustomizations.ThemeCustomizationSchema
 
   setup do
     upload_root =
@@ -40,6 +44,15 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
     absolute
   end
 
+  # The showcase theme's spec declares every shared group, three of them
+  # (logo, cover, background) with an image upload. Its rows are built in
+  # memory and the spec is passed in, so each test controls exactly which
+  # files a row names.
+  defp logo_row(profile, settings),
+    do: %ThemeCustomizationSchema{profile_id: profile.id, theme_id: "97", settings: settings}
+
+  defp with_settings(row, changes), do: %{row | settings: Map.merge(row.settings, changes)}
+
   describe "update_theme_customization/2 file cleanup" do
     test "deletes the old image when the image path is replaced", %{profile: profile} do
       old_rel = "themes/#{profile.id}/1/images/old.jpg"
@@ -49,6 +62,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "image",
           "background_value" => "uploaded",
           "background_image_path" => old_rel
@@ -69,6 +83,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "image",
           "background_value" => "uploaded",
           "background_image_path" => rel
@@ -93,6 +108,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "uploaded",
           "background_video_path" => old_rel
@@ -106,6 +122,51 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
       refute File.exists?(old_abs)
       Enum.each(variant_abs, fn path -> refute File.exists?(path) end)
       assert File.exists?(new_abs)
+    end
+
+    test "keeps the stored video when its processing state is recorded", %{profile: profile} do
+      rel = "themes/#{profile.id}/1/videos/upload.mp4"
+      abs = touch_stored(rel)
+
+      {:ok, customization} =
+        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
+          "background_type" => "video",
+          "background_value" => "custom",
+          "background_video_path" => rel
+        })
+
+      assert {:ok, _recorded} =
+               ThemeCustomizationQueries.update_video_processing_status(
+                 customization.id,
+                 "background_video_path",
+                 "failed"
+               )
+
+      reloaded = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
+      assert reloaded.settings["background_video_path"] == rel
+      assert reloaded.video_processing_status == %{"background_video_path" => "failed"}
+      assert File.exists?(abs)
+    end
+
+    test "keeps the image when an update does not touch its path", %{profile: profile} do
+      rel = "themes/#{profile.id}/1/images/keep.jpg"
+      abs = touch_stored(rel)
+
+      {:ok, customization} =
+        ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
+          "background_type" => "image",
+          "background_value" => "custom",
+          "background_image_path" => rel
+        })
+
+      assert {:ok, _updated} =
+               ThemeCustomizations.update_theme_customization(customization, %{
+                 "color_scheme" => "ocean"
+               })
+
+      assert File.exists?(abs)
     end
   end
 
@@ -125,37 +186,26 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
       %{
         customization: customization,
         image_rel: image_rel,
+        video_rel: video_rel,
         image_abs: touch_stored(image_rel),
         video_abs: touch_stored(video_rel),
         variant_abs: video_rel |> Transcoder.derive_variant_paths() |> Enum.map(&touch_stored/1)
       }
     end
 
-    test "an image upload leaves the stored video and its variants", ctx do
-      new_image_rel = "themes/#{ctx.profile.id}/1/images/new.jpg"
-      touch_stored(new_image_rel)
-
+    test "an update that leaves both paths out keeps both files and the video's variants",
+         ctx do
       assert {:ok, updated} =
                ThemeCustomizations.update_theme_customization(ctx.customization, %{
                  "background_type" => "image",
-                 "background_value" => "custom",
-                 "background_image_path" => new_image_rel
+                 "background_value" => "custom"
                })
 
-      assert updated.background_video_path == ctx.customization.background_video_path
+      assert updated.settings["background_image_path"] == ctx.image_rel
+      assert updated.settings["background_video_path"] == ctx.video_rel
+      assert File.exists?(ctx.image_abs)
       assert File.exists?(ctx.video_abs)
       assert Enum.all?(ctx.variant_abs, &File.exists?/1)
-      refute File.exists?(ctx.image_abs)
-    end
-
-    test "marking the video failed leaves the video just stored", ctx do
-      assert {:ok, _updated} =
-               ThemeCustomizations.update_theme_customization(ctx.customization, %{
-                 "video_processing" => "failed"
-               })
-
-      assert File.exists?(ctx.video_abs)
-      assert File.exists?(ctx.image_abs)
     end
 
     test "an explicit nil clears the path and deletes its file", ctx do
@@ -164,37 +214,21 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
                  "background_image_path" => nil
                })
 
-      assert updated.background_image_path == nil
+      assert updated.settings["background_image_path"] == nil
       refute File.exists?(ctx.image_abs)
       assert File.exists?(ctx.video_abs)
     end
 
-    test "switching to the uploaded video keeps the uploaded image on disk", ctx do
+    test "choosing a gradient clears both paths and deletes both files", ctx do
       assert {:ok, updated} =
-               ThemeCustomizations.apply_background_change(
-                 ctx.profile.id,
-                 "1",
-                 ctx.customization,
-                 "video",
-                 "custom"
-               )
+               ThemeCustomizations.apply_option(ctx.profile.id, "1", :background, %{
+                 "field" => "gradient",
+                 "value" => "gradient_2"
+               })
 
-      assert updated.background_image_path == ctx.image_rel
-      assert File.exists?(ctx.image_abs)
-      assert File.exists?(ctx.video_abs)
-    end
+      assert {updated.settings["background_image_path"],
+              updated.settings["background_video_path"]} == {nil, nil}
 
-    test "switching to a gradient clears both paths and deletes both files", ctx do
-      assert {:ok, updated} =
-               ThemeCustomizations.apply_background_change(
-                 ctx.profile.id,
-                 "1",
-                 ctx.customization,
-                 "gradient",
-                 "gradient_2"
-               )
-
-      assert {updated.background_image_path, updated.background_video_path} == {nil, nil}
       refute File.exists?(ctx.image_abs)
       refute File.exists?(ctx.video_abs)
       refute Enum.any?(ctx.variant_abs, &File.exists?/1)
@@ -208,6 +242,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "image",
           "background_value" => "uploaded",
           "background_image_path" => rel
@@ -224,6 +259,7 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       {:ok, customization} =
         ThemeCustomizations.create_theme_customization(profile.id, "1", %{
+          "color_scheme" => "default",
           "background_type" => "video",
           "background_value" => "uploaded",
           "background_video_path" => rel
@@ -233,6 +269,70 @@ defmodule Tymeslot.ThemeCustomizations.FileLifecycleTest do
 
       refute File.exists?(abs)
       Enum.each(variant_abs, fn path -> refute File.exists?(path) end)
+    end
+  end
+
+  describe "asset fields of any option group" do
+    setup %{profile: profile} do
+      background = "themes/#{profile.id}/1/images/a-bg.png"
+      logo = "themes/#{profile.id}/1/images/b-logo.png"
+
+      row =
+        logo_row(profile, %{
+          "color_scheme" => "neutral",
+          "background_type" => "image",
+          "background_value" => "custom",
+          "background_image_path" => background,
+          "logo_path" => logo
+        })
+
+      %{row: row, background: touch_stored(background), logo: touch_stored(logo)}
+    end
+
+    test "replacing the logo deletes the old logo and leaves the background's file",
+         %{row: row, background: background, logo: logo, profile: profile} do
+      new_logo = touch_stored("themes/#{profile.id}/1/images/c-logo.png")
+      updated = with_settings(row, %{"logo_path" => "themes/#{profile.id}/1/images/c-logo.png"})
+
+      FileLifecycle.cleanup_replaced_files(ShowcaseThemeSpec, row, updated)
+
+      refute File.exists?(logo)
+      assert File.exists?(new_logo)
+      assert File.exists?(background)
+    end
+
+    test "clearing the logo deletes its file only", %{
+      row: row,
+      background: background,
+      logo: logo
+    } do
+      FileLifecycle.cleanup_replaced_files(
+        ShowcaseThemeSpec,
+        row,
+        with_settings(row, %{"logo_path" => nil})
+      )
+
+      refute File.exists?(logo)
+      assert File.exists?(background)
+    end
+
+    test "replacing the background leaves the logo's file",
+         %{row: row, background: background, logo: logo} do
+      updated =
+        with_settings(row, %{"background_type" => "gradient", "background_image_path" => nil})
+
+      FileLifecycle.cleanup_replaced_files(ShowcaseThemeSpec, row, updated)
+
+      refute File.exists?(background)
+      assert File.exists?(logo)
+    end
+
+    test "deleting the customisation deletes every group's files",
+         %{row: row, background: background, logo: logo} do
+      FileLifecycle.cleanup_all_files(ShowcaseThemeSpec, row)
+
+      refute File.exists?(background)
+      refute File.exists?(logo)
     end
   end
 end

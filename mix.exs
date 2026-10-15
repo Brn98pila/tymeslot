@@ -222,15 +222,10 @@ defmodule Tymeslot.MixProject do
       # `mix precommit` step and a CI step of its own.
       "test.js": [&run_js_tests/1],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": [
-        "tailwind tymeslot",
-        "tailwind quill",
-        "tailwind rhythm",
-        "esbuild tymeslot",
-        "esbuild bundles",
-        "esbuild embed",
-        "esbuild iframe_embed"
-      ],
+      "assets.build":
+        ["tailwind tymeslot"] ++
+          Enum.map(theme_stylesheets(), &"tailwind #{&1}") ++
+          ["esbuild tymeslot", "esbuild bundles", "esbuild embed", "esbuild iframe_embed"],
       # The minified build on its own, without digesting. Split out of
       # `assets.deploy` so that a project consuming this one as a path
       # dependency can build these assets and then digest them from its own
@@ -238,17 +233,24 @@ defmodule Tymeslot.MixProject do
       # loaded, so running it here means running Mix in this project, which
       # uses a separate `_build` and would recompile the whole application
       # just to reach the digest step.
-      "assets.minify": [
-        "tailwind tymeslot --minify",
-        "tailwind quill --minify",
-        "tailwind rhythm --minify",
-        "esbuild tymeslot --minify",
-        "esbuild bundles --minify",
-        "esbuild embed --minify",
-        "esbuild iframe_embed --minify"
-      ],
+      "assets.minify":
+        ["tailwind tymeslot --minify"] ++
+          Enum.map(theme_stylesheets(), &"tailwind #{&1} --minify") ++
+          [
+            "esbuild tymeslot --minify",
+            "esbuild bundles --minify",
+            "esbuild embed --minify",
+            "esbuild iframe_embed --minify"
+          ],
       "assets.deploy": ["assets.minify", "phx.digest"]
     ]
+  end
+
+  # One stylesheet per booking-page theme directory; the Tailwind profiles and
+  # dev watchers read the same file.
+  defp theme_stylesheets do
+    {keys, _binding} = Code.eval_file("config/theme_stylesheets.exs", __DIR__)
+    keys
   end
 
   # `test_helper.exs` reads this to decide whether to start the HTTP endpoint and

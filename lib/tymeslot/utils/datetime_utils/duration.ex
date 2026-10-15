@@ -1,5 +1,5 @@
 defmodule Tymeslot.Utils.DateTimeUtils.Duration do
-  @moduledoc "Duration parsing and URL formatting."
+  @moduledoc "ISO 8601 and booking-link duration parsing, and URL duration slugs."
 
   @doc """
   Parses an ISO 8601 duration string (simplified).

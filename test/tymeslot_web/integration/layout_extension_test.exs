@@ -9,6 +9,18 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
   alias Tymeslot.ConfigTestHelpers
   alias Tymeslot.Profiles
   alias Tymeslot.Profiles.ProfileQueries
+  alias TymeslotWeb.ThemeTestMatrix
+
+  defmodule ThemeIdExtension do
+    use Phoenix.Component
+
+    @spec probe(map()) :: Phoenix.LiveView.Rendered.t()
+    def probe(assigns) do
+      ~H"""
+      <div id="theme-id-ext" data-theme-id={@theme_id}></div>
+      """
+    end
+  end
 
   setup do
     verify_on_exit!()
@@ -145,6 +157,25 @@ defmodule TymeslotWeb.Integration.LayoutExtensionTest do
 
       # Check order: ext1 should appear before ext2 in the HTML
       assert response =~ ~r/id="ext1".*id="ext2"/s
+    end
+
+    for theme <- ThemeTestMatrix.all() do
+      test "#{theme.slug}: extensions receive the rendering theme's id", %{conn: conn} do
+        Application.put_env(:tymeslot, :theme_extensions, [{ThemeIdExtension, :probe}])
+
+        username = "themeid#{unquote(theme.slug)}"
+        user = create_user_fixture(%{username: username})
+        {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
+
+        {:ok, profile} = Profiles.change_username(profile, username, skip_rate_limit: true)
+        {:ok, _profile} = Profiles.update_booking_theme(profile, unquote(theme.id))
+
+        insert(:calendar_integration, user: user)
+
+        doc = conn |> get("/#{username}") |> html_response(200) |> Floki.parse_document!()
+
+        assert Floki.attribute(doc, "#theme-id-ext", "data-theme-id") == [unquote(theme.id)]
+      end
     end
 
     test "extension hook ignores completely invalid config shapes gracefully", %{conn: conn} do

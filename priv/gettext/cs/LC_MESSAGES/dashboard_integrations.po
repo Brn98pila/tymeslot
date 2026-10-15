@@ -1,11 +1,11 @@
-## "msgid"s in this file come from POT (.pot) files.
-###
-### Do not add, change, or remove "msgid"s manually here as
-### they're tied to the ones in the corresponding POT file
-### (with the same domain).
-###
-### Use "mix gettext.extract --merge" or "mix gettext.merge"
-### to merge POT files into PO files.
+#  "msgid"s in this file come from POT (.pot) files.
+# #
+# # Do not add, change, or remove "msgid"s manually here as
+# # they're tied to the ones in the corresponding POT file
+# # (with the same domain).
+# #
+# # Use "mix gettext.extract --merge" or "mix gettext.merge"
+# # to merge POT files into PO files.
 msgid ""
 msgstr ""
 "Language: cs\n"
@@ -105,11 +105,6 @@ msgstr "Ověření se nezdařilo. Zkuste to prosím znovu."
 #, elixir-autogen, elixir-format
 msgid "Authentication session mismatch. Please sign in and try again."
 msgstr "Ověřovací relace neodpovídá. Přihlaste se prosím a zkuste to znovu."
-
-#: lib/tymeslot_web/controllers/integrations/oauth_callback_handler.ex
-#, elixir-autogen, elixir-format
-msgid "Authorization was denied. Please try again."
-msgstr "Autorizace byla zamítnuta. Zkuste to prosím znovu."
 
 #: lib/tymeslot_web/components/dashboard/integrations/shared/provider_picker_modal.ex
 #, elixir-autogen, elixir-format
@@ -471,3 +466,8 @@ msgstr "%{name}: kalendář „%{calendar}“ už na vašem kalendářovém serv
 #, elixir-autogen, elixir-format
 msgid "%{service} is busy right now. Please try again in a minute."
 msgstr "Služba %{service} je právě přetížená. Zkuste to prosím znovu za minutu."
+
+#: lib/tymeslot_web/controllers/integrations/oauth_callback_handler.ex
+#, elixir-autogen, elixir-format
+msgid "Authorisation was denied. Please try again."
+msgstr "Autorizace byla zamítnuta. Zkuste to prosím znovu."

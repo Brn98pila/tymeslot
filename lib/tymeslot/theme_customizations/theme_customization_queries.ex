@@ -55,25 +55,75 @@ defmodule Tymeslot.ThemeCustomizations.ThemeCustomizationQueries do
     Repo.get_by(ProfileSchema, user_id: user_id)
   end
 
-  @doc """
-  Sets the video processing status, but only while `video_path` is still the
-  row's background video. A transcode of a video that has since been replaced
-  or removed must not report its outcome against the row.
+  @video_processing_states ~w(pending completed failed)
 
-  Returns `{:error, :replaced}` when the row no longer holds that video, or no
-  longer exists.
+  @doc """
+  Records the processing state of the video in the asset field `field`
+  (`"background_video_path"`) of a theme customisation, leaving every other
+  field's state as it is, and returns the updated customisation. The state
+  is merged into the stored map by the one `UPDATE`, so two transcodes of
+  one customisation finishing together never overwrite each other.
+  `{:error, :not_found}` when the customisation no longer exists.
   """
-  @spec update_video_processing_status_for(integer(), String.t(), String.t()) ::
-          :ok | {:error, :replaced}
-  def update_video_processing_status_for(id, video_path, status) do
+  @spec update_video_processing_status(integer(), String.t(), String.t()) ::
+          {:ok, ThemeCustomizationSchema.t()} | {:error, :not_found}
+  def update_video_processing_status(id, field, status)
+      when is_binary(field) and status in @video_processing_states do
     query =
       from(c in ThemeCustomizationSchema,
-        where: c.id == ^id and c.background_video_path == ^video_path
+        where: c.id == ^id,
+        select: c,
+        update: [
+          set: [
+            video_processing_status:
+              fragment(
+                "? || jsonb_build_object(?::text, ?::text)",
+                c.video_processing_status,
+                ^field,
+                ^status
+              ),
+            updated_at: ^DateTime.utc_now(:second)
+          ]
+        ]
       )
 
-    case Repo.update_all(query,
-           set: [video_processing: status, updated_at: DateTime.utc_now(:second)]
-         ) do
+    case Repo.update_all(query, []) do
+      {1, [customization]} -> {:ok, customization}
+      {0, []} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Records the processing state of the video in `field`, as
+  `update_video_processing_status/3` does, but only while `video_path` is
+  still the video that field holds. A transcode of a video that has since
+  been replaced or removed must not report its outcome against the row.
+
+  Returns `{:error, :replaced}` when the field no longer holds that video, or
+  the customisation no longer exists.
+  """
+  @spec update_video_processing_status_for(integer(), String.t(), String.t(), String.t()) ::
+          :ok | {:error, :replaced}
+  def update_video_processing_status_for(id, field, video_path, status)
+      when is_binary(field) and is_binary(video_path) and status in @video_processing_states do
+    query =
+      from(c in ThemeCustomizationSchema,
+        where: c.id == ^id and fragment("?->>?", c.settings, ^field) == ^video_path,
+        update: [
+          set: [
+            video_processing_status:
+              fragment(
+                "? || jsonb_build_object(?::text, ?::text)",
+                c.video_processing_status,
+                ^field,
+                ^status
+              ),
+            updated_at: ^DateTime.utc_now(:second)
+          ]
+        ]
+      )
+
+    case Repo.update_all(query, []) do
       {1, _rows} -> :ok
       {0, _rows} -> {:error, :replaced}
     end

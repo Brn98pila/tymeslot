@@ -9,7 +9,7 @@ defmodule TymeslotWeb.AccountDeletion.FrozenPublicPagesTest do
   import Tymeslot.AvailabilityTestHelpers
   import Tymeslot.Factory
   import Tymeslot.MeetingTestHelpers, only: [insert_meeting_for_user: 1]
-  import Tymeslot.ThemeBookingFlowHelpers, only: [seed_booking_account: 3]
+  import Tymeslot.BookingTestHelpers, only: [seed_booking_account: 3]
 
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Bookings.Create

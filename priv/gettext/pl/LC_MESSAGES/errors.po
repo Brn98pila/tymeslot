@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: tymeslot\n"
@@ -11,11 +12,6 @@ msgstr ""
 #, elixir-autogen
 msgid "We can't show this scheduling page yet"
 msgstr "Nie możemy jeszcze wyświetlić tej strony rezerwacji"
-
-#: lib/tymeslot_web/themes/shared/components/error_component.ex
-#, elixir-autogen
-msgid "If you are the organizer, please connect a calendar in your dashboard."
-msgstr "Jeśli organizujesz te spotkania, podłącz kalendarz w panelu."
 
 #: lib/tymeslot_web/gettext/ecto_error_msgids.ex
 #, elixir-autogen, elixir-format
@@ -1205,3 +1201,8 @@ msgstr "Zawiera nieprawidłowe zdarzenia: %{events}"
 #, elixir-autogen, elixir-format
 msgid "Must select at least one event"
 msgstr "Wybierz co najmniej jedno zdarzenie"
+
+#: lib/tymeslot_web/themes/shared/components/error_component.ex
+#, elixir-autogen, elixir-format
+msgid "If you are the organiser, please connect a calendar in your dashboard."
+msgstr "Jeśli organizujesz te spotkania, podłącz kalendarz w panelu."

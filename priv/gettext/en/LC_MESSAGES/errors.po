@@ -1,4 +1,4 @@
-## English error translations
+#  English error translations
 msgid ""
 msgstr ""
 "Language: en\n"
@@ -7,11 +7,6 @@ msgstr ""
 #: lib/tymeslot_web/themes/shared/components/error_component.ex
 #, elixir-autogen
 msgid "We can't show this scheduling page yet"
-msgstr ""
-
-#: lib/tymeslot_web/themes/shared/components/error_component.ex
-#, elixir-autogen
-msgid "If you are the organizer, please connect a calendar in your dashboard."
 msgstr ""
 
 #: lib/tymeslot_web/gettext/ecto_error_msgids.ex
@@ -1181,4 +1176,9 @@ msgstr ""
 #: lib/tymeslot/webhooks/webhook_schema.ex
 #, elixir-autogen, elixir-format
 msgid "Must select at least one event"
+msgstr ""
+
+#: lib/tymeslot_web/themes/shared/components/error_component.ex
+#, elixir-autogen, elixir-format
+msgid "If you are the organiser, please connect a calendar in your dashboard."
 msgstr ""

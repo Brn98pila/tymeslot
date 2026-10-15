@@ -110,7 +110,14 @@ defmodule TymeslotWeb.Live.Themes.MeetingLinkRedirectTest do
     end
 
     test "an unknown uid under the new holder's username is still not found", %{conn: conn} do
-      assert {:error, {:redirect, %{to: "/", flash: %{"error" => "Meeting not found"}}}} =
+      assert {:error,
+              {:redirect,
+               %{
+                 to: "/",
+                 flash: %{
+                   "error" => "This meeting could not be found. Please refresh and try again."
+                 }
+               }}} =
                live(conn, "/claimed-before/meeting/#{UUID.generate()}/cancel")
     end
   end

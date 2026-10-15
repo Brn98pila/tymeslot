@@ -1,11 +1,11 @@
-## "msgid"s in this file come from POT (.pot) files.
-###
-### Do not add, change, or remove "msgid"s manually here as
-### they're tied to the ones in the corresponding POT file
-### (with the same domain).
-###
-### Use "mix gettext.extract --merge" or "mix gettext.merge"
-### to merge POT files into PO files.
+#  "msgid"s in this file come from POT (.pot) files.
+# #
+# # Do not add, change, or remove "msgid"s manually here as
+# # they're tied to the ones in the corresponding POT file
+# # (with the same domain).
+# #
+# # Use "mix gettext.extract --merge" or "mix gettext.merge"
+# # to merge POT files into PO files.
 msgid ""
 msgstr ""
 "Language: cs\n"
@@ -15,11 +15,6 @@ msgstr ""
 #, elixir-autogen
 msgid "We can't show this scheduling page yet"
 msgstr "Tato rezervační stránka zatím není k dispozici"
-
-#: lib/tymeslot_web/themes/shared/components/error_component.ex
-#, elixir-autogen
-msgid "If you are the organizer, please connect a calendar in your dashboard."
-msgstr "Pokud jste hostitel, připojte si prosím kalendář na své nástěnce."
 
 #: lib/tymeslot_web/gettext/ecto_error_msgids.ex
 #, elixir-autogen, elixir-format
@@ -1209,3 +1204,8 @@ msgstr "Obsahuje neplatné události: %{events}"
 #, elixir-autogen, elixir-format
 msgid "Must select at least one event"
 msgstr "Je třeba vybrat alespoň jednu událost"
+
+#: lib/tymeslot_web/themes/shared/components/error_component.ex
+#, elixir-autogen, elixir-format
+msgid "If you are the organiser, please connect a calendar in your dashboard."
+msgstr "Pokud jste hostitel, připojte si prosím kalendář na své nástěnce."

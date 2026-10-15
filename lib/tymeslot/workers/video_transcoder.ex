@@ -1,8 +1,16 @@
 defmodule Tymeslot.Workers.VideoTranscoder do
   @moduledoc """
-  Oban worker that generates responsive video variants from user-uploaded
-  background videos. Produces desktop (WebM + MP4), mobile, and low-quality
-  variants with faststart for immediate playback.
+  Oban worker that generates responsive video variants from a user-uploaded
+  video: desktop (WebM + MP4), mobile and low-quality variants, with
+  faststart for immediate playback.
+
+  One job per video: its args carry the customisation, the asset field the
+  video was uploaded into (`"background_video_path"`) and its path, and the
+  job is unique per customisation and field while it waits, so a theme's
+  second video gets a job of its own while a replacement upload into the
+  same field replaces the waiting job's args. The outcome is recorded under
+  the field, and only while the field still holds the job's video
+  (`ThemeCustomizationQueries.update_video_processing_status_for/4`).
   """
 
   use Oban.Worker,
@@ -12,10 +20,10 @@ defmodule Tymeslot.Workers.VideoTranscoder do
     # `:executing` is left out on purpose: a video replaced while its
     # predecessor encodes gets a job of its own, rather than rewriting the
     # args of a run that would never reread them. The stale run then finds
-    # the row has moved on and settles nothing (`settle/3`).
+    # the field has moved on and settles nothing (`settle/2`).
     unique: [
       fields: [:worker, :args],
-      keys: [:theme_customization_id],
+      keys: [:theme_customization_id, :field],
       states: [:available, :scheduled, :retryable, :suspended]
     ]
 
@@ -29,9 +37,18 @@ defmodule Tymeslot.Workers.VideoTranscoder do
   @status_completed "completed"
   @status_failed "failed"
 
-  @spec enqueue(pos_integer(), String.t()) :: {:ok, Oban.Job.t()} | {:error, term()}
-  def enqueue(theme_customization_id, video_path) do
-    %{theme_customization_id: theme_customization_id, video_path: video_path}
+  # Jobs queued before videos were tracked per field carry no field: every
+  # one of them was for the background video.
+  @legacy_field "background_video_path"
+
+  @spec enqueue(pos_integer(), atom() | String.t(), String.t()) ::
+          {:ok, Oban.Job.t()} | {:error, term()}
+  def enqueue(theme_customization_id, field, video_path) do
+    %{
+      theme_customization_id: theme_customization_id,
+      field: to_string(field),
+      video_path: video_path
+    }
     |> new(replace: [:args, :scheduled_at])
     |> Oban.insert()
   end
@@ -62,32 +79,39 @@ defmodule Tymeslot.Workers.VideoTranscoder do
 
   @impl Oban.Worker
   def perform(
-        %Oban.Job{args: %{"theme_customization_id" => id, "video_path" => video_path}} = job
+        %Oban.Job{args: %{"theme_customization_id" => id, "video_path" => video_path} = args} =
+          job
       ) do
+    video = {id, Map.get(args, "field", @legacy_field), video_path}
     transcoder = transcoder_impl()
 
     if transcoder.available?() do
-      run_transcoding(id, video_path, transcoder, job)
+      run_transcoding(video, transcoder, job)
     else
-      settle(id, video_path, @status_failed)
+      settle(video, @status_failed)
       {:cancel, "ffmpeg not available"}
     end
   end
 
   # Deterministic: no retry can make the path acceptable.
-  defp run_transcoding(id, video_path, transcoder, job) do
+  defp run_transcoding({id, field, video_path} = video, transcoder, job) do
     case Uploads.resolve(video_path) do
       {:ok, source_path} ->
-        transcode_variants(id, video_path, source_path, transcoder, job)
+        transcode_variants(video, source_path, transcoder, job)
 
       {:error, :path_traversal_attempt} ->
-        Logger.error("Path traversal attempt detected", video_path: video_path)
-        settle(id, video_path, @status_failed)
+        Logger.error("Path traversal attempt detected",
+          video_path: video_path,
+          theme_customization_id: id,
+          field: field
+        )
+
+        settle(video, @status_failed)
         {:cancel, @invalid_path}
     end
   end
 
-  defp transcode_variants(id, video_path, source_path, transcoder, job) do
+  defp transcode_variants({id, field, _path} = video, source_path, transcoder, job) do
     base_path = Path.rootname(source_path)
 
     result =
@@ -106,7 +130,7 @@ defmodule Tymeslot.Workers.VideoTranscoder do
 
     case result do
       :ok ->
-        complete(id, video_path, base_path)
+        complete(video, base_path)
 
       # Retrying cannot bring the bytes back. The status is deliberately not
       # touched: a replacement has its own job, and without one there is no
@@ -115,7 +139,8 @@ defmodule Tymeslot.Workers.VideoTranscoder do
         cleanup_variants(base_path)
 
         Logger.info("Video source no longer present, cancelling transcode",
-          theme_customization_id: id
+          theme_customization_id: id,
+          field: field
         )
 
         {:cancel, @source_gone}
@@ -125,47 +150,53 @@ defmodule Tymeslot.Workers.VideoTranscoder do
       # queue for every other video meanwhile, so the video is failed now.
       {:error, :timeout} ->
         cleanup_variants(base_path)
-        settle(id, video_path, @status_failed)
-        Logger.error("Video transcoding timed out", theme_customization_id: id)
+        settle(video, @status_failed)
+        Logger.error("Video transcoding timed out", theme_customization_id: id, field: field)
         {:cancel, @timed_out}
 
       {:error, reason} ->
         cleanup_variants(base_path)
-        handle_failure(id, video_path, job, reason)
+        handle_failure(video, job, reason)
     end
   end
 
-  # The variants just written belong to this run's video. If the row has
+  # The variants just written belong to this run's video. If the field has
   # moved on to a replacement, they are removed with the video they belong to
   # and the replacement's own job reports its outcome.
-  defp complete(id, video_path, base_path) do
-    case settle(id, video_path, @status_completed) do
+  defp complete({id, field, _path} = video, base_path) do
+    case settle(video, @status_completed) do
       :ok ->
-        Logger.info("Video transcoding completed", theme_customization_id: id)
+        Logger.info("Video transcoding completed", theme_customization_id: id, field: field)
         :ok
 
       {:error, :replaced} ->
         cleanup_variants(base_path)
 
         Logger.info("Video replaced mid-transcode, discarding its variants",
-          theme_customization_id: id
+          theme_customization_id: id,
+          field: field
         )
 
         {:cancel, @replaced}
     end
   end
 
-  defp handle_failure(id, video_path, job, reason) do
+  defp handle_failure({id, field, _path} = video, job, reason) do
     if job.attempt >= job.max_attempts do
-      settle(id, video_path, @status_failed)
+      settle(video, @status_failed)
     end
 
-    Logger.error("Video transcoding failed", theme_customization_id: id, reason: reason)
+    Logger.error("Video transcoding failed",
+      theme_customization_id: id,
+      field: field,
+      reason: reason
+    )
+
     {:error, reason}
   end
 
-  defp settle(id, video_path, status) do
-    ThemeCustomizationQueries.update_video_processing_status_for(id, video_path, status)
+  defp settle({id, field, video_path}, status) do
+    ThemeCustomizationQueries.update_video_processing_status_for(id, field, video_path, status)
   end
 
   defp cleanup_variants(base_path) do

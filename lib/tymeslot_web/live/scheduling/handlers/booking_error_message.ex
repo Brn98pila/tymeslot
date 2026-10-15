@@ -48,7 +48,7 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage do
   end
 
   def message(:organizer_required) do
-    dgettext("booking", "Organizer is required for booking")
+    dgettext("booking", "Organiser is required for booking")
   end
 
   def message(:booking_failed) do
@@ -188,7 +188,25 @@ defmodule TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage do
   def message(:end_before_start), do: dgettext("booking", "End time must be after start time")
   def message(:meeting_creation_failed), do: dgettext("booking", "Failed to create meeting")
 
-  def message(_other) do
+  def message(_other), do: unrecognised_message()
+
+  @doc """
+  Like `message/1`, but a reason it does not recognise renders `fallback`
+  instead of the booking-specific generic message, for callers outside the
+  booking submission (cancelling, rescheduling) whose generic failure reads
+  differently.
+  """
+  @spec message(term(), String.t()) :: String.t()
+  def message(reason, fallback) do
+    unrecognised = unrecognised_message()
+
+    case message(reason) do
+      ^unrecognised -> fallback
+      rendered -> rendered
+    end
+  end
+
+  defp unrecognised_message do
     dgettext("booking", "Failed to create appointment. Please try again.")
   end
 end

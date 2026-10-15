@@ -6,7 +6,7 @@ defmodule Tymeslot.Utils.DateTimeUtils do
 
     * `Tymeslot.Utils.DateTimeUtils.ICal` — iCal/CalDAV formatters and parsers.
     * `Tymeslot.Utils.DateTimeUtils.Duration` — ISO 8601 duration parsing and
-      URL formatting.
+      URL duration slugs.
     * `Tymeslot.Utils.DateTimeUtils.TimeFormat` — the 12- or 24-hour clock.
   """
 

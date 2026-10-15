@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: tymeslot\n"
@@ -244,11 +245,6 @@ msgstr "Nie udało się odłączyć Slacka"
 #, elixir-autogen, elixir-format
 msgid "Failed to generate link. Please try again."
 msgstr "Nie udało się wygenerować linku. Spróbuj ponownie."
-
-#: lib/tymeslot_web/live/dashboard/automation/telegram/form_handlers.ex
-#, elixir-autogen, elixir-format
-msgid "Failed to initialize integration. Please try again."
-msgstr "Nie udało się zainicjować integracji. Spróbuj ponownie."
 
 #: lib/tymeslot_web/live/dashboard/automation/slack/state_handlers.ex
 #: lib/tymeslot_web/live/dashboard/automation/telegram/state_handlers.ex
@@ -865,3 +861,8 @@ msgstr "Wspólny bot Telegram nie jest skonfigurowany"
 #, elixir-autogen, elixir-format
 msgid "Paused: your plan doesn't include automations. Upgrading resumes it."
 msgstr "Wstrzymana: twój plan nie obejmuje automatyzacji. Po przejściu na wyższy plan wznowi się sama."
+
+#: lib/tymeslot_web/live/dashboard/automation/telegram/form_handlers.ex
+#, elixir-autogen, elixir-format
+msgid "Failed to initialise integration. Please try again."
+msgstr "Nie udało się zainicjować integracji. Spróbuj ponownie."

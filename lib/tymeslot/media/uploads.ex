@@ -15,12 +15,13 @@ defmodule Tymeslot.Media.Uploads do
   alias Ecto.UUID
   alias Tymeslot.Infrastructure.AdminAlerts
 
-  @type kind :: :avatar | :image | :video
+  @type kind :: :avatar | :image | :video | :captions
 
   @max_sizes %{
     avatar: 10_000_000,
     image: 20_000_000,
-    video: 100_000_000
+    video: 100_000_000,
+    captions: 200_000
   }
 
   # Background videos are MP4 or WebM, the formats every browser plays.
@@ -29,7 +30,8 @@ defmodule Tymeslot.Media.Uploads do
   @extensions %{
     avatar: [".jpg", ".jpeg", ".png", ".gif", ".webp"],
     image: [".jpg", ".jpeg", ".png", ".webp"],
-    video: [".mp4", ".webm"]
+    video: [".mp4", ".webm"],
+    captions: [".vtt"]
   }
 
   @directory_mode 0o750
@@ -48,6 +50,15 @@ defmodule Tymeslot.Media.Uploads do
   @doc "The largest file, in bytes, accepted for `kind`."
   @spec max_file_size(kind()) :: pos_integer()
   def max_file_size(kind), do: Map.fetch!(@max_sizes, kind)
+
+  @doc """
+  The largest file accepted for `kind` in whole megabytes, as the dashboard
+  states it to the organiser. Captions are measured in kilobytes and have no
+  megabyte figure.
+  """
+  @spec max_file_size_mb(:avatar | :image | :video) :: pos_integer()
+  def max_file_size_mb(kind) when kind in [:avatar, :image, :video],
+    do: div(max_file_size(kind), 1_000_000)
 
   @doc """
   A fresh server-chosen file name carrying `extension` (with its dot), as

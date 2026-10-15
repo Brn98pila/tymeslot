@@ -1,11 +1,11 @@
-## "msgid"s in this file come from POT (.pot) files.
-###
-### Do not add, change, or remove "msgid"s manually here as
-### they're tied to the ones in the corresponding POT file
-### (with the same domain).
-###
-### Use "mix gettext.extract --merge" or "mix gettext.merge"
-### to merge POT files into PO files.
+#  "msgid"s in this file come from POT (.pot) files.
+# #
+# # Do not add, change, or remove "msgid"s manually here as
+# # they're tied to the ones in the corresponding POT file
+# # (with the same domain).
+# #
+# # Use "mix gettext.extract --merge" or "mix gettext.merge"
+# # to merge POT files into PO files.
 msgid ""
 msgstr ""
 "Language: de\n"
@@ -1254,8 +1254,7 @@ msgstr "Das Buchungsintervall muss mindestens %{min} Minuten betragen"
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
 msgid "A time shows how many spots are left, such as \"3 spots left\", only once it is down to its last few."
-msgstr ""
-"Ein Zeitfenster zeigt erst dann an, wie viele Plätze noch frei sind (etwa „3 Plätze frei“), wenn nur noch wenige übrig sind."
+msgstr "Ein Zeitfenster zeigt erst dann an, wie viele Plätze noch frei sind (etwa „3 Plätze frei“), wenn nur noch wenige übrig sind."
 
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
@@ -1276,13 +1275,20 @@ msgstr "Anzahl der letzten freien Plätze anzeigen"
 #, elixir-autogen, elixir-format
 msgid "The count appears once %{count} spot or fewer is left."
 msgid_plural "The count appears once %{count} spots or fewer are left."
-msgstr[0] ""
-"Die Anzahl erscheint, sobald nur noch %{count} Platz oder weniger frei ist."
-msgstr[1] ""
-"Die Anzahl erscheint, sobald nur noch %{count} Plätze oder weniger frei sind."
+msgstr[0] "Die Anzahl erscheint, sobald nur noch %{count} Platz oder weniger frei ist."
+msgstr[1] "Die Anzahl erscheint, sobald nur noch %{count} Plätze oder weniger frei sind."
 
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
 msgid "Times are marked green, amber or red, labelled \"Plenty left\", \"Filling up\" or \"Almost full\"."
-msgstr ""
-"Zeitfenster werden grün, gelb oder rot markiert und mit „Viele frei“, „Füllt sich“ oder „Fast voll“ beschriftet."
+msgstr "Zeitfenster werden grün, gelb oder rot markiert und mit „Viele frei“, „Füllt sich“ oder „Fast voll“ beschriftet."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Monday, as set in Calendar Settings."
+msgstr "Wochen beginnen am Montag, wie in den Kalendereinstellungen festgelegt."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Sunday, as set in Calendar Settings."
+msgstr "Wochen beginnen am Sonntag, wie in den Kalendereinstellungen festgelegt."

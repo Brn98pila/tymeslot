@@ -1,4 +1,4 @@
-## Ukrainian error translations
+#  Ukrainian error translations
 msgid ""
 msgstr ""
 "Language: uk\n"
@@ -8,11 +8,6 @@ msgstr ""
 #, elixir-autogen
 msgid "We can't show this scheduling page yet"
 msgstr "Ця сторінка бронювання поки що недоступна"
-
-#: lib/tymeslot_web/themes/shared/components/error_component.ex
-#, elixir-autogen
-msgid "If you are the organizer, please connect a calendar in your dashboard."
-msgstr "Якщо ви організатор, підключіть календар на панелі керування."
 
 #: lib/tymeslot_web/gettext/ecto_error_msgids.ex
 #, elixir-autogen, elixir-format
@@ -1202,3 +1197,8 @@ msgstr "Містить некоректні події: %{events}"
 #, elixir-autogen, elixir-format
 msgid "Must select at least one event"
 msgstr "Потрібно вибрати щонайменше одну подію"
+
+#: lib/tymeslot_web/themes/shared/components/error_component.ex
+#, elixir-autogen, elixir-format
+msgid "If you are the organiser, please connect a calendar in your dashboard."
+msgstr "Якщо ви організатор, підключіть календар на панелі керування."

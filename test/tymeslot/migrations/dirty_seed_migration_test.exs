@@ -150,6 +150,7 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
       assert_availability_rekeyed!(seeded)
       assert_buffers_split!()
       assert_seats_not_yet_notified!()
+      assert_theme_settings_backfilled!()
     end
   end
 
@@ -360,6 +361,81 @@ defmodule Tymeslot.Migrations.DirtySeedMigrationTest do
     for table <- ~w(meetings meeting_participants meeting_guests) do
       assert scalar!("SELECT COUNT(*) FROM #{table} WHERE notified_end_time IS NOT NULL") == 0
     end
+  end
+
+  # Every seeded theme customisation reached `settings`, each option column
+  # under its own name with the null ones left out (the defaults-only row
+  # keeps just the two NOT NULL defaults, the empty seed stays an empty
+  # string), and the one processing state moved under the background video.
+  defp assert_theme_settings_backfilled! do
+    %{rows: rows} =
+      SQL.query!(
+        Tymeslot.Repo,
+        """
+        SELECT u.email, t.theme_id, t.settings, t.video_processing_status
+        FROM theme_customizations AS t
+        JOIN profiles AS p ON p.id = t.profile_id
+        JOIN users AS u ON u.id = p.user_id
+        WHERE u.email LIKE 'seed-user-%@example.com'
+        ORDER BY u.email, t.theme_id
+        """,
+        []
+      )
+
+    [_quill, [_email, "2", %{"background_video_path" => video_path}, _status] | _rest] = rows
+
+    assert rows == [
+             [
+               "seed-user-1@example.com",
+               "1",
+               %{
+                 "color_scheme" => "custom",
+                 "custom_palette_seed" => "#AB34CD",
+                 "background_type" => "gradient",
+                 "background_value" => "gradient_2"
+               },
+               %{}
+             ],
+             [
+               "seed-user-1@example.com",
+               "2",
+               %{
+                 "color_scheme" => "monochrome",
+                 "background_type" => "video",
+                 "background_value" => "custom",
+                 "background_video_path" => video_path
+               },
+               %{"background_video_path" => "completed"}
+             ],
+             [
+               "seed-user-2@example.com",
+               "1",
+               %{
+                 "color_scheme" => "forest",
+                 "background_type" => "image",
+                 "background_value" => "preset:ocean-sunset"
+               },
+               %{}
+             ],
+             [
+               "seed-user-2@example.com",
+               "2",
+               %{"color_scheme" => "default", "background_type" => "gradient"},
+               %{}
+             ],
+             [
+               "seed-user-3@example.com",
+               "1",
+               %{
+                 "color_scheme" => "ocean",
+                 "custom_palette_seed" => "",
+                 "background_type" => "image"
+               },
+               %{}
+             ]
+           ]
+
+    assert video_path =~ ~r{^\d+/2/backgrounds/clip\.mp4$}
   end
 
   defp count_by_profile!(table) do

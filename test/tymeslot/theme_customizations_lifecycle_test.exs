@@ -18,12 +18,11 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
 
       assert %{
                customization: %ThemeCustomizationSchema{},
-               original: %ThemeCustomizationSchema{},
-               presets: presets
+               original: %ThemeCustomizationSchema{}
              } = result
 
-      assert Map.has_key?(presets, :color_schemes)
-      assert Map.has_key?(presets, :gradients)
+      assert result.customization.settings["background_value"] == "gradient_1"
+      assert result.customization.profile_id == profile.id
     end
 
     test "initialize_customization/2 returns existing customization when saved", %{
@@ -39,8 +38,8 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
 
       result = ThemeCustomizations.initialize_customization(profile.id, "1")
 
-      assert result.customization.color_scheme == "purple"
-      assert result.customization.background_value == "gradient_2"
+      assert result.customization.settings["color_scheme"] == "purple"
+      assert result.customization.settings["background_value"] == "gradient_2"
     end
 
     test "get_for_user/2 returns customization by user_id", %{user: user, profile: profile} do
@@ -53,7 +52,7 @@ defmodule Tymeslot.ThemeCustomizationsLifecycleTest do
 
       customization = ThemeCustomizations.get_for_user(user.id, "1")
 
-      assert customization.color_scheme == "forest"
+      assert customization.settings["color_scheme"] == "forest"
     end
 
     test "get_for_user/2 returns nil for non-existent user", %{} do

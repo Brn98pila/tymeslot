@@ -1,4 +1,4 @@
-## German error translations
+#  German error translations
 msgid ""
 msgstr ""
 "Language: de\n"
@@ -8,11 +8,6 @@ msgstr ""
 #, elixir-autogen
 msgid "We can't show this scheduling page yet"
 msgstr "Diese Buchungsseite ist noch nicht verfügbar"
-
-#: lib/tymeslot_web/themes/shared/components/error_component.ex
-#, elixir-autogen
-msgid "If you are the organizer, please connect a calendar in your dashboard."
-msgstr "Falls Sie der Gastgeber sind: Bitte verknüpfen Sie einen Kalender in Ihrem Dashboard."
 
 #: lib/tymeslot_web/gettext/ecto_error_msgids.ex
 #, elixir-autogen, elixir-format
@@ -1182,3 +1177,8 @@ msgstr "Enthält ungültige Ereignisse: %{events}"
 #, elixir-autogen, elixir-format
 msgid "Must select at least one event"
 msgstr "Mindestens ein Ereignis muss ausgewählt sein"
+
+#: lib/tymeslot_web/themes/shared/components/error_component.ex
+#, elixir-autogen, elixir-format
+msgid "If you are the organiser, please connect a calendar in your dashboard."
+msgstr "Falls Sie der Gastgeber sind: Bitte verknüpfen Sie einen Kalender in Ihrem Dashboard."

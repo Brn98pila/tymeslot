@@ -6,14 +6,17 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3, redirect: 2]
 
+  require Logger
+
   alias Tymeslot.Bookings.Policy
   alias Tymeslot.Bookings.Refusal
+  alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Meetings
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.DateTimeUtils.Duration
   alias TymeslotWeb.Helpers.ClientIP
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
-  alias TymeslotWeb.Themes.Core.MountHelpers
+  alias TymeslotWeb.Themes.Shared.TimezoneHelpers
 
   require Refusal
 
@@ -38,10 +41,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
   def validate_and_load_meeting(meeting_uid, action, organizer_user_id) do
     case Meetings.get_meeting_by_uid_for_organizer(meeting_uid, organizer_user_id) do
       {:ok, meeting} ->
-        case validate_meeting_action(meeting, action) do
-          :ok -> {:ok, meeting}
-          {:error, reason} -> {:error, reason}
-        end
+        with :ok <- validate_meeting_action(meeting, action), do: {:ok, meeting}
 
       {:error, :not_found} ->
         {:error, :not_found}
@@ -95,6 +95,11 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
               {:noreply, redirect(socket, to: cancel_confirmed_url)}
 
             {:error, reason} ->
+              Logger.warning("Guest cancellation failed",
+                meeting_uid: meeting.uid,
+                reason: LogFormat.reason(reason)
+              )
+
               {:noreply, put_flash(socket, :error, cancel_error_message(reason))}
           end
 
@@ -129,7 +134,7 @@ defmodule TymeslotWeb.Themes.Core.MeetingManagement do
     duration_str = Duration.format_for_url(meeting.duration)
 
     socket
-    |> MountHelpers.assign_user_timezone(params)
+    |> TimezoneHelpers.assign_user_timezone(params)
     |> assign(:duration, duration_str)
   end
 

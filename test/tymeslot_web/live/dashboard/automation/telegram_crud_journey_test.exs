@@ -220,6 +220,8 @@ defmodule TymeslotWeb.Dashboard.Automation.TelegramCrudJourneyTest do
       view |> element(edit_button(integration)) |> render_click()
 
       assert render(view) =~ "Original Bot"
+      # Empty required fields reach the server, which answers in the form.
+      assert has_element?(view, "#telegram-form[novalidate]")
     end
 
     test "the submit button is enabled without retyping the bot token", %{

@@ -87,7 +87,13 @@ defmodule Tymeslot.Availability.CalculateFallbackTimezoneTest do
       week: [sunday | _rest] = week
     } do
       days =
-        Calculate.get_calendar_days("America/Los_Angeles", sunday.year, sunday.month, config)
+        Calculate.get_calendar_days(
+          "America/Los_Angeles",
+          sunday.year,
+          sunday.month,
+          :sunday,
+          config
+        )
 
       week_strings = MapSet.new(week, &Date.to_string/1)
 

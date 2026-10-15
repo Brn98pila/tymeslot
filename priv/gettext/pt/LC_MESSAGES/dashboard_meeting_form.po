@@ -1,11 +1,11 @@
-## "msgid"s in this file come from POT (.pot) files.
-###
-### Do not add, change, or remove "msgid"s manually here as
-### they're tied to the ones in the corresponding POT file
-### (with the same domain).
-###
-### Use "mix gettext.extract --merge" or "mix gettext.merge"
-### to merge POT files into PO files.
+#  "msgid"s in this file come from POT (.pot) files.
+# #
+# # Do not add, change, or remove "msgid"s manually here as
+# # they're tied to the ones in the corresponding POT file
+# # (with the same domain).
+# #
+# # Use "mix gettext.extract --merge" or "mix gettext.merge"
+# # to merge POT files into PO files.
 msgid ""
 msgstr ""
 "Language: pt\n"
@@ -1254,8 +1254,7 @@ msgstr "O intervalo entre horários deve ser de pelo menos %{min} minutos"
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
 msgid "A time shows how many spots are left, such as \"3 spots left\", only once it is down to its last few."
-msgstr ""
-"Um horário só mostra quantas vagas restam, como “Restam 3 vagas”, quando chega às últimas."
+msgstr "Um horário só mostra quantas vagas restam, como “Restam 3 vagas”, quando chega às últimas."
 
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
@@ -1282,5 +1281,14 @@ msgstr[1] "O número aparece quando restam %{count} vagas ou menos."
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
 msgid "Times are marked green, amber or red, labelled \"Plenty left\", \"Filling up\" or \"Almost full\"."
-msgstr ""
-"Os horários aparecem em verde, amarelo ou vermelho, com os rótulos “Muitas vagas”, “Enchendo” ou “Quase cheio”."
+msgstr "Os horários aparecem em verde, amarelo ou vermelho, com os rótulos “Muitas vagas”, “Enchendo” ou “Quase cheio”."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Monday, as set in Calendar Settings."
+msgstr "As semanas começam na segunda-feira, conforme definido em Configurações de calendário."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Sunday, as set in Calendar Settings."
+msgstr "As semanas começam no domingo, conforme definido em Configurações de calendário."

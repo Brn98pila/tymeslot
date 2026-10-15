@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: tymeslot\n"
@@ -1253,8 +1254,7 @@ msgstr "Odstęp między terminami musi wynosić co najmniej %{min} min"
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
 msgid "A time shows how many spots are left, such as \"3 spots left\", only once it is down to its last few."
-msgstr ""
-"Termin pokazuje, ile miejsc zostało (np. „Zostały 3 miejsca”), dopiero gdy zostaje ich niewiele."
+msgstr "Termin pokazuje, ile miejsc zostało (np. „Zostały 3 miejsca”), dopiero gdy zostaje ich niewiele."
 
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
@@ -1282,5 +1282,14 @@ msgstr[2] "Liczba pojawia się, gdy zostanie %{count} miejsc lub mniej."
 #: lib/tymeslot_web/live/dashboard/meeting_settings/meeting_type_form/group_bookings_section.ex
 #, elixir-autogen, elixir-format
 msgid "Times are marked green, amber or red, labelled \"Plenty left\", \"Filling up\" or \"Almost full\"."
-msgstr ""
-"Terminy są oznaczane na zielono, żółto lub czerwono, z etykietami „Dużo miejsc”, „Zapełnia się” lub „Mało miejsc”."
+msgstr "Terminy są oznaczane na zielono, żółto lub czerwono, z etykietami „Dużo miejsc”, „Zapełnia się” lub „Mało miejsc”."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Monday, as set in Calendar Settings."
+msgstr "Tygodnie zaczynają się w poniedziałek, zgodnie z Ustawieniami kalendarza."
+
+#: lib/tymeslot_web/live/dashboard/meeting_settings/components/booking_limit_fields.ex
+#, elixir-autogen, elixir-format
+msgid "Weeks start on Sunday, as set in Calendar Settings."
+msgstr "Tygodnie zaczynają się w niedzielę, zgodnie z Ustawieniami kalendarza."

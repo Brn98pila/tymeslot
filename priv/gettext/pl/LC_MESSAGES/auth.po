@@ -1,3 +1,4 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: tymeslot\n"
@@ -6,11 +7,6 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-
-#: lib/tymeslot_web/controllers/auth/oauth_controller.ex
-#, elixir-autogen, elixir-format
-msgid "%{provider} authentication failed - missing authorization code or security token."
-msgstr "Logowanie przez konto %{provider} nie powiodło się – brak kodu autoryzacji lub tokenu bezpieczeństwa."
 
 #: lib/tymeslot_web/controllers/auth/oauth_controller.ex
 #, elixir-autogen, elixir-format
@@ -965,3 +961,8 @@ msgstr "Nie udało się wysłać e-maila potwierdzającego. Spróbuj ponownie."
 #, elixir-autogen, elixir-format
 msgid "Email address"
 msgstr "Adres e-mail"
+
+#: lib/tymeslot_web/controllers/auth/oauth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "%{provider} authentication failed - missing authorisation code or security token."
+msgstr "Logowanie przez konto %{provider} nie powiodło się – brak kodu autoryzacji lub tokenu bezpieczeństwa."

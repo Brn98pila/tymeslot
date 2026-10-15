@@ -120,7 +120,7 @@ defmodule Tymeslot.Emails.Templates.RescheduleRequest do
     #{dgettext("emails_booking_requests", "CANCELLED APPOINTMENT DETAILS:")}
     #{TextBodyHelper.format_meeting_details(details, locale)}
 
-    #{dgettext("emails_booking_requests", "I apologize for any inconvenience this may cause. Your current appointment has been cancelled, and I'd like to help you reschedule at your earliest convenience.")}
+    #{dgettext("emails_booking_requests", "I apologise for any inconvenience this may cause. Your current appointment has been cancelled, and I'd like to help you reschedule at your earliest convenience.")}
 
     #{dgettext("emails_booking_requests", "Choose a New Time:")}
     #{meeting.reschedule_url}

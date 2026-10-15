@@ -517,14 +517,14 @@ defmodule Tymeslot.Security.RateLimiter.Limits do
       window_ms: @hour,
       operation: "avatar upload"
     ],
-    # Shared across image and video backgrounds: video encoding is the
-    # expensive part, and a budget per kind would double the ceiling.
+    # Shared across every theme upload field: video encoding is the
+    # expensive part, and a budget per field would multiply the ceiling.
     theme_upload: [
       prefix: "theme_upload",
       scope: :user,
       limit: 5,
       window_ms: 10 * @minute,
-      operation: "theme background upload",
+      operation: "theme asset upload",
       log: false
     ],
     theme_customization: [

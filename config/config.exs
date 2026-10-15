@@ -405,21 +405,25 @@ config :tailwind,
       --output=../priv/static/assets/app.css
     ),
     cd: Path.expand("../assets", __DIR__)
-  ],
-  quill: [
-    args: ~w(
-      --input=css/scheduling/themes/quill/theme.css
-      --output=../priv/static/assets/scheduling-theme-quill.css
-    ),
-    cd: Path.expand("../assets", __DIR__)
-  ],
-  rhythm: [
-    args: ~w(
-      --input=css/scheduling/themes/rhythm/theme.css
-      --output=../priv/static/assets/scheduling-theme-rhythm.css
-    ),
-    cd: Path.expand("../assets", __DIR__)
   ]
+
+# One profile per booking-page theme, named by its key, building the
+# stylesheet the layout loads for it (see theme_stylesheets.exs).
+{theme_stylesheets, _binding} = Code.eval_file("theme_stylesheets.exs", __DIR__)
+
+config :tailwind,
+       for(
+         key <- theme_stylesheets,
+         do:
+           {String.to_atom(key),
+            [
+              args: [
+                "--input=css/scheduling/themes/#{key}/theme.css",
+                "--output=../priv/static/assets/scheduling-theme-#{key}.css"
+              ],
+              cd: Path.expand("../assets", __DIR__)
+            ]}
+       )
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
@@ -704,6 +708,14 @@ config :tymeslot, :error_tracking_occurrences_max, 1_000
 # a crash arriving while all are busy is dropped.
 config :tymeslot, :error_tracking_throttle, max_per_window: 10, window_seconds: 60
 config :tymeslot, :error_tracking_max_concurrent_reports, 10
+
+# WebVTT captions: served from /uploads as text/vtt, which a <track> needs,
+# and accepted by LiveView uploads, which refuse an extension MIME does not
+# know. MIME compiles its type table from this; Mix recompiles `mime` by
+# itself when the setting changes. `config :mime, :types` replaces rather
+# than merges, so a later `config :mime, :types` anywhere (including a
+# config that imports this file) must list `vtt` again or drops it.
+config :mime, :types, %{"text/vtt" => ["vtt"]}
 
 # Import environment specific config
 import_config "#{config_env()}.exs"
