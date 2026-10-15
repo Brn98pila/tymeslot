@@ -1,8 +1,9 @@
 defmodule Tymeslot.Onboarding.PreviewVideoBackgroundsTest do
   @moduledoc """
-  Onboarding's preview video is a background choice like any other: saved
-  through the background option group, it drops the upload it replaces and
-  deletes its file, and leaves the rest of the customisation alone.
+  Onboarding's preview video is a background choice like any other: an
+  uploaded image stays stored, and the rest of the customisation is left
+  alone. It is made only where the row stores no video background yet,
+  decided on the locked row.
   """
   use Tymeslot.DataCase, async: false
 
@@ -69,5 +70,19 @@ defmodule Tymeslot.Onboarding.PreviewVideoBackgroundsTest do
     saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
     assert saved.settings["color_scheme"] == "forest"
     assert saved.settings["background_type"] == "video"
+  end
+
+  test "leaves a video background the row stores alone", %{profile: profile} do
+    {:ok, _existing} =
+      ThemeCustomizations.apply_option(profile.id, "1", :background, %{
+        "field" => "video",
+        "value" => "preset:leaves"
+      })
+
+    assert :ok = Onboarding.ensure_preview_video_backgrounds(profile, ["1"])
+
+    assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1").settings[
+             "background_value"
+           ] == "preset:leaves"
   end
 end
