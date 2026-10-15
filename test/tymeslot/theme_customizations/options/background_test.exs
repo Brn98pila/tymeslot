@@ -202,6 +202,28 @@ defmodule Tymeslot.ThemeCustomizations.Options.BackgroundTest do
       end
     end
 
+    test "an image preset chosen beside a kept upload shows the preset" do
+      assert Background.descriptor(%{
+               "background_type" => "image",
+               "background_value" => "preset:ocean-sunset",
+               "background_image_path" => "themes/1/1/images/kept.png"
+             }) == %{kind: :image, url: "/images/themes/backgrounds/ocean-sunset.webp"}
+    end
+
+    test "a video preset chosen beside a kept upload plays the preset" do
+      %{kind: :video, sources: sources, poster: poster} =
+        Background.descriptor(%{
+          "background_type" => "video",
+          "background_value" => "preset:space",
+          "background_video_path" => "themes/1/1/videos/kept.mp4"
+        })
+
+      srcs = Enum.map(sources, & &1.src)
+      assert srcs != []
+      assert Enum.all?(srcs, &String.starts_with?(&1, "/videos/backgrounds/"))
+      assert is_binary(poster) and poster =~ "/images/ui/posters/"
+    end
+
     test "an unknown video preset has no sources and no poster" do
       assert Background.descriptor(%{
                "background_type" => "video",

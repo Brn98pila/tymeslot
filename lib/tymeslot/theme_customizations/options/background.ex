@@ -173,7 +173,9 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
   @doc """
   Resolves the stored background into a descriptor the theme wrapper renders.
 
-  Every path in it is already safe to emit. Returns `nil` when the settings
+  Every path in it is already safe to emit. An upload is shown only while it
+  is the chosen background (`"custom"`): a preset of the same kind chosen
+  beside a kept upload shows the preset. Returns `nil` when the settings
   name nothing that resolves (an unknown preset, an image kind with neither
   upload nor preset); the wrapper then falls back to the theme's own
   background.
@@ -193,7 +195,11 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
     end
   end
 
-  def descriptor(%{"background_type" => "image", "background_image_path" => path})
+  def descriptor(%{
+        "background_type" => "image",
+        "background_value" => "custom",
+        "background_image_path" => path
+      })
       when is_binary(path) and path != "" do
     %{kind: :image, url: upload_url(path)}
   end
@@ -256,7 +262,10 @@ defmodule Tymeslot.ThemeCustomizations.Options.Background do
 
   def vars(_media_or_nil, _palette_vars), do: %{}
 
-  defp video_sources(%{"background_video_path" => path}) when is_binary(path) and path != "" do
+  # The upload plays only while it is the chosen background: a preset beside
+  # a kept upload plays the preset.
+  defp video_sources(%{"background_value" => "custom", "background_video_path" => path})
+       when is_binary(path) and path != "" do
     sanitized = Validation.sanitize_path(path)
     base = Path.rootname(sanitized)
 
