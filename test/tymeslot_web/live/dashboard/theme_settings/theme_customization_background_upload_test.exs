@@ -26,6 +26,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Test.JobRefusal
   alias Tymeslot.Test.MediaFixtures
+  alias Tymeslot.Test.UploadRoot
   alias Tymeslot.ThemeCustomizations
   alias Tymeslot.ThemeCustomizations.Presets
   alias Tymeslot.ThemeCustomizations.Specs
@@ -60,20 +61,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   setup :verify_on_exit!
   setup :setup_dashboard_user_with_theme
 
-  defp isolated_upload_root(_context) do
-    upload_root =
-      Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
-
-    original_root = Application.get_env(:tymeslot, :upload_directory)
-    Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-    on_exit(fn ->
-      Application.put_env(:tymeslot, :upload_directory, original_root)
-      File.rm_rf(upload_root)
-    end)
-
-    %{upload_root: upload_root}
-  end
+  defp isolated_upload_root(_context), do: %{upload_root: UploadRoot.isolate()}
 
   defp stored_file(profile, theme_id, relative) do
     path = "themes/#{profile.id}/#{theme_id}/#{relative}"
@@ -117,6 +105,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   end
 
   describe "background image upload" do
+    setup :isolated_upload_root
+
     test "a successful upload pushes upload-complete so the AutoUpload hook clears the picker",
          %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme")
