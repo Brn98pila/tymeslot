@@ -189,10 +189,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
       confirm_scope(lv, "following")
 
       eventually(
-        fn -> assert render(lv) =~ "the new end comes before this event" end,
+        fn ->
+          assert render(lv) =~
+                   "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+        end,
         timeout: @task_timeout
       )
 
+      refute render(lv) =~ "the new end comes before this event"
       refute render(lv) =~ "Failed to update event - changes reverted"
       refute_receive {:put, _url, _body}, 200
     end

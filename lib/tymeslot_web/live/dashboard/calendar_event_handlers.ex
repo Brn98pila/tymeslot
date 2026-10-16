@@ -19,7 +19,6 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
   alias TymeslotWeb.Dashboard.CalendarGrid.EditWorkflow
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.EventCrud
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.IcsImport
-  alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared
   alias TymeslotWeb.Dashboard.CalendarGridComponent
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
@@ -210,9 +209,21 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
 
   # What is left of a count is counted again when the change is written, from
   # the series as it is then, which a sync may have changed since the scope
-  # was chosen.
-  defp update_failed_message(reason) when reason in [:ends_before, :start_unknown],
-    do: RecurrenceEdit.unavailable_message_for(reason)
+  # was chosen. The prompt offered that scope, so these say the series moved
+  # on under the organiser rather than repeating why a scope is not offered.
+  defp update_failed_message(:ends_before) do
+    dgettext(
+      "dashboard_calendar_events",
+      "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+    )
+  end
+
+  defp update_failed_message(:start_unknown) do
+    dgettext(
+      "dashboard_calendar_events",
+      "This series changed while you were editing it, and its first event can no longer be read from your calendar, so the events left in it can't be counted. Nothing was saved. Refresh the calendar and try again."
+    )
+  end
 
   defp update_failed_message(:rule_not_supported_by_outlook),
     do: EditWorkflow.rule_not_supported_by_outlook_message()
