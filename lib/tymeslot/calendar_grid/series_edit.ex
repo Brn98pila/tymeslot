@@ -268,7 +268,8 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
 
   `{:error, :ends_before}` when nothing is left of the count, and
   `{:error, :start_unknown}` when the series' first start, or where the
-  series put the occurrence, has not been read from the calendar.
+  series put the occurrence, has not been read from the calendar, or the
+  cached row no longer carries the series' rule.
   """
   @spec following_rule(map(), String.t(), String.t() | nil) ::
           {:ok, String.t()} | {:error, :ends_before | :start_unknown}

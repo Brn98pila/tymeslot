@@ -218,10 +218,13 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
     )
   end
 
+  # Either the series' first start can no longer be read, or a sync cleared
+  # its rule while it is still marked a series: both leave nothing to count
+  # from.
   defp update_failed_message(:start_unknown) do
     dgettext(
       "dashboard_calendar_events",
-      "This series changed while you were editing it, and its first event can no longer be read from your calendar, so the events left in it can't be counted. Nothing was saved. Refresh the calendar and try again."
+      "This series changed while you were editing it, so the events left in it can no longer be counted. Nothing was saved. Refresh the calendar and try again."
     )
   end
 

@@ -1352,10 +1352,10 @@ msgstr ""
 
 #: lib/tymeslot_web/live/dashboard/calendar_event_handlers.ex
 #, elixir-autogen, elixir-format
-msgid "This series changed while you were editing it, and its first event can no longer be read from your calendar, so the events left in it can't be counted. Nothing was saved. Refresh the calendar and try again."
-msgstr "Questa serie è cambiata mentre la stavi modificando e il suo primo evento non può più essere letto dal tuo calendario, quindi non è possibile contare gli eventi rimanenti. Non è stato salvato nulla. Aggiorna il calendario e riprova."
+msgid "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+msgstr "Questa serie è cambiata mentre la stavi modificando e, a partire da questo evento, non ne rimane più nulla. Non è stato salvato nulla."
 
 #: lib/tymeslot_web/live/dashboard/calendar_event_handlers.ex
 #, elixir-autogen, elixir-format
-msgid "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
-msgstr "Questa serie è cambiata mentre la stavi modificando e, a partire da questo evento, non ne rimane più nulla. Non è stato salvato nulla."
+msgid "This series changed while you were editing it, so the events left in it can no longer be counted. Nothing was saved. Refresh the calendar and try again."
+msgstr "Questa serie è cambiata mentre la stavi modificando, quindi non è più possibile contare gli eventi rimanenti. Non è stato salvato nulla. Aggiorna il calendario e riprova."

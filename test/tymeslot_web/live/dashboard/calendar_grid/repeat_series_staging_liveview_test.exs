@@ -237,6 +237,47 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
       refute_receive {:put, _url, _body}, 200
     end
 
+    # A sync between the prompt and the choice leaves the series' document
+    # without its rule, so its first start can no longer be read and what
+    # is left of the count cannot be counted.
+    test "nothing is written when the series' start cannot be read when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      without_master =
+        "FREQ=WEEKLY;BYDAY=WE;COUNT=10"
+        |> caldav_series()
+        |> String.replace("RRULE:FREQ=WEEKLY;BYDAY=WE;COUNT=10\r\n", "")
+
+      event |> Changeset.change(raw_ical: without_master) |> Repo.update!()
+
+      confirm_scope(lv, "following")
+
+      eventually(
+        fn ->
+          assert render(lv) =~
+                   "This series changed while you were editing it, so the events left in it can no longer be counted. Nothing was saved. Refresh the calendar and try again."
+        end,
+        timeout: @task_timeout
+      )
+
+      refute render(lv) =~ "Failed to update event - changes reverted"
+      refute_receive {:put, _url, _body}, 200
+    end
+
     test "an end before the occurrence says why this and following is not offered", %{
       conn: conn,
       user: user
