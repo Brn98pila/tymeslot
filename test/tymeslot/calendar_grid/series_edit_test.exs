@@ -14,6 +14,7 @@ defmodule Tymeslot.CalendarGrid.SeriesEditTest do
 
   import Mox
 
+  alias Ecto.Changeset
   alias Tymeslot.CalendarGrid
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
@@ -496,6 +497,31 @@ defmodule Tymeslot.CalendarGrid.SeriesEditTest do
                )
 
       refute_received {:provider_update, _uid, _payload, _context}
+    end
+
+    # The prompt was opened on a member of the series; a sync since made
+    # the cached event a one-off. Writing the rule there would start a new
+    # series of the whole count from this event.
+    test "following is refused when a sync has made the event a one-off", %{
+      user: user,
+      integration: integration,
+      event: event
+    } do
+      cache_master_start(integration, ~U[2026-06-01 09:00:00Z])
+
+      event
+      |> Changeset.change(recurrence_rule: nil, recurring_event_id: nil)
+      |> Repo.update!()
+
+      assert {:error, %{reason: :ends_before, retry: :not_queued}} =
+               CalendarGrid.update_event(user.id, event, %{recurrence_rule: @every_two_weeks},
+                 recurrence_scope: :following
+               )
+
+      refute_received {:provider_update, _uid, _payload, _context}
+
+      assert {:ok, %{recurrence_rule: nil}} =
+               ProviderCalendarEventQueries.get_by_uid(integration.id, event.uid)
     end
 
     test "all writes the count as given", %{

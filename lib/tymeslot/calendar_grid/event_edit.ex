@@ -110,7 +110,10 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
 
     * `:recurrence_scope` - which occurrences of a recurring series the edit
       applies to, a `t:Tymeslot.CalendarGrid.RecurrenceScope.t/0`; defaults to
-      `:this_only`, and is ignored for an event outside a series. Anything
+      `:this_only`, and is ignored for an event outside a series, but for
+      a change of `recurrence_rule` in `:following`: the event was a member
+      of a series when that scope was chosen, and the change is refused
+      with `:ends_before` (see `SeriesEdit.following_rule/3`). Anything
       else raises `ArgumentError`: a scope arriving from a form is parsed with
       `RecurrenceScope.parse/1` first. See `Tymeslot.CalendarGrid.SeriesEdit`.
     * `:conference_data` - a change to a Google event's own conference, sent
@@ -146,10 +149,21 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
     stored = stored_row(event)
 
     case Occurrence.series_family(stored || event) do
-      :single -> write_edit(user_id, event, stored, changes, opts, :queue_recoverable)
+      :single -> update_single(user_id, event, stored, scope, changes, opts)
       family -> SeriesEdit.update_event(user_id, event, stored, family, scope, changes, opts)
     end
   end
+
+  # A change of repeat rule for this and the following events was chosen
+  # for a member of a series, with a `COUNT` given for the whole series. A
+  # sync since may have made the cached event a one-off, and writing the
+  # rule to it would start a new series of the whole count from here, so it
+  # is refused as a series with nothing left of it from this event on.
+  defp update_single(_user_id, _event, _stored, :following, %{recurrence_rule: _rule}, _opts),
+    do: {:error, %{reason: :ends_before, retry: :not_queued}}
+
+  defp update_single(user_id, event, stored, _scope, changes, opts),
+    do: write_edit(user_id, event, stored, changes, opts, :queue_recoverable)
 
   @doc """
   How `event` may be edited from the grid: `{:ok, :single}` for an event

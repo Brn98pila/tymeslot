@@ -201,6 +201,42 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
       refute_receive {:put, _url, _body}, 200
     end
 
+    # A sync between the prompt and the choice turns the cached occurrence
+    # into a one-off. Writing the rule to it would start a new series of all
+    # ten from this event.
+    test "nothing is written when a sync has made the event a one-off when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      event |> Changeset.change(recurrence_rule: nil) |> Repo.update!()
+
+      confirm_scope(lv, "following")
+
+      eventually(
+        fn ->
+          assert render(lv) =~
+                   "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+        end,
+        timeout: @task_timeout
+      )
+
+      refute render(lv) =~ "Failed to update event - changes reverted"
+      refute_receive {:put, _url, _body}, 200
+    end
+
     test "an end before the occurrence says why this and following is not offered", %{
       conn: conn,
       user: user
