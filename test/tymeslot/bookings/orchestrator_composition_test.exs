@@ -29,6 +29,7 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Ecto.UUID
   alias Tymeslot.Bookings.Orchestrator
   alias Tymeslot.Meetings.MeetingQueries
@@ -57,12 +58,12 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
     profile = insert(:profile, user: user, timezone: "Europe/Berlin")
     # Booking composition is the subject here, so the host offers every hour
     # of every day and the schedule never refuses the bookings these tests make.
-    _schedule = open_schedule_for(profile)
+    schedule = open_schedule_for(profile)
 
     meeting_type =
       insert(:meeting_type, user: user, name: "Intro", duration_minutes: 30, is_active: true)
 
-    %{user: user, profile: profile, meeting_type: meeting_type}
+    %{user: user, profile: profile, schedule: schedule, meeting_type: meeting_type}
   end
 
   describe "submit_booking/2 — new booking" do
@@ -100,8 +101,11 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
   describe "submit_booking/2 — a refused booking time" do
     test "passes the refusal through as the booking rules gave it", %{
       user: user,
+      schedule: schedule,
       meeting_type: meeting_type
     } do
+      Repo.update!(Changeset.change(schedule, advance_booking_days: 30))
+
       params = %{
         form_data: %{"name" => "Attendee", "email" => "attendee@example.com", "message" => ""},
         meeting_params: %{
@@ -114,8 +118,7 @@ defmodule Tymeslot.Bookings.OrchestratorCompositionTest do
         }
       }
 
-      assert {:error, {:too_far_ahead, days}} = Orchestrator.submit_booking(params)
-      assert is_integer(days)
+      assert {:error, {:too_far_ahead, 30}} = Orchestrator.submit_booking(params)
       assert Repo.aggregate(MeetingSchema, :count) == 0
     end
   end
