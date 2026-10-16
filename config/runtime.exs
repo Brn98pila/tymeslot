@@ -794,29 +794,18 @@ end
 
 # Admin-editable settings whose environment variable the operator has set.
 # A pinned setting outranks a value saved on the admin settings page, which
-# shows it greyed out and names the variable. Blank counts as unset. Not
-# seeded in test, for the same reason as the reCAPTCHA flags above: tests pin
-# settings explicitly.
+# shows it greyed out and names the variable. Only a value the variable's
+# parse above explicitly recognises pins it; an unrecognised one (say
+# REGISTRATION_ENABLED=1) is logged at boot and leaves the admin page in
+# charge. Not seeded in test, for the same reason as the reCAPTCHA flags
+# above: tests pin settings explicitly.
 if config_env() != :test do
-  env_pinned_settings =
-    [
-      registration_enabled: "REGISTRATION_ENABLED",
-      password_auth_enabled: "PASSWORD_AUTH_ENABLED",
-      google_auth_enabled: "ENABLE_GOOGLE_AUTH",
-      github_auth_enabled: "ENABLE_GITHUB_AUTH",
-      oauth_auth_enabled: "ENABLE_OAUTH_AUTH",
-      recaptcha_signup_enabled: "RECAPTCHA_SIGNUP_ENABLED",
-      recaptcha_booking_enabled: "RECAPTCHA_BOOKING_ENABLED",
-      recaptcha_signup_min_score: "RECAPTCHA_SIGNUP_MIN_SCORE",
-      recaptcha_booking_min_score: "RECAPTCHA_BOOKING_MIN_SCORE",
-      admin_alerts_enabled: "ADMIN_ALERTS_ENABLED",
-      admin_alert_email: "ADMIN_ALERT_EMAIL",
-      meeting_payments_enabled: "MEETING_PAYMENTS_ENABLED"
-    ]
-    |> Enum.filter(fn {_key, var} -> String.trim(System.get_env(var, "")) != "" end)
-    |> Map.new()
+  {env_pinned_settings, env_unrecognised_settings} =
+    Tymeslot.AppSettings.EnvPins.from_env(System.get_env())
 
-  config :tymeslot, :env_pinned_settings, env_pinned_settings
+  config :tymeslot,
+    env_pinned_settings: env_pinned_settings,
+    env_unrecognised_settings: env_unrecognised_settings
 end
 
 # Webhook base URL for inbound push notifications from calendar providers.

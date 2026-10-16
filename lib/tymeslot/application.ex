@@ -259,6 +259,9 @@ defmodule Tymeslot.Application do
     # makes the Connect webhook secret required.
     _missing = SecretCheck.check()
 
+    # A variable set to a value it does not recognise fixes nothing.
+    AppSettings.warn_unrecognised_env_values()
+
     # A variable fixing a sign-in setting can lock every admin out.
     AppSettings.warn_if_pins_block_sign_in()
   end

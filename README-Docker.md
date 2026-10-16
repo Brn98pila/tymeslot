@@ -565,7 +565,9 @@ OUTLOOK_CLIENT_SECRET=       # From Azure AD App Registration (used for both Out
 OUTLOOK_STATE_SECRET=        # Self-generated random string (required with Microsoft OAuth)
 # Sign-in settings you can also change on the /admin settings page: a variable
 # set here takes precedence, and the admin page shows that setting greyed out.
-# Leave it unset to manage the setting from the admin page instead.
+# Leave it unset to manage the setting from the admin page instead. Only true
+# or false takes precedence: another value logs a warning at boot and leaves
+# the admin page in charge.
 # ENABLE_GOOGLE_AUTH=true    # Enable Google login/signup
 # ENABLE_GITHUB_AUTH=true    # Enable GitHub login/signup
 ```

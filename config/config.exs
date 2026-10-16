@@ -16,6 +16,10 @@ config :tymeslot,
   # `%{setting_key => "ENV_VAR"}`. Filled by config/runtime.exs; such a
   # setting wins over the admin settings page and is shown greyed out there.
   env_pinned_settings: %{},
+  # Environment variables set to a value that does not pin their setting,
+  # as `%{var:, value:, accepted:}` maps. Filled by config/runtime.exs and
+  # logged as warnings at boot.
+  env_unrecognised_settings: [],
   # Controls whether the self-host admin UI is mounted. SaaS overrides this
   # to false so the /admin scope 404s in the cloud deployment.
   enable_admin_ui: true,

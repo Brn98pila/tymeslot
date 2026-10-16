@@ -9,9 +9,11 @@ defmodule Tymeslot.AppSettingsEnvPinsTest do
 
   @moduletag :infrastructure
 
+  import ExUnit.CaptureLog
   import Tymeslot.AppSettingsEnvHelpers
 
   alias Tymeslot.AppSettings
+  alias Tymeslot.AppSettings.EnvPins
   alias Tymeslot.Auth
   alias TymeslotWeb.Helpers.ClientIP
 
@@ -114,6 +116,30 @@ defmodule Tymeslot.AppSettingsEnvPinsTest do
       {:ok, _settings} = AppSettings.update(%{registration_enabled: false})
 
       assert %{source: :db, env_var: nil} = AppSettings.effective_values()[:registration_enabled]
+    end
+  end
+
+  describe "warn_unrecognised_env_values/0" do
+    setup do
+      original = Application.get_env(:tymeslot, :env_unrecognised_settings)
+      on_exit(fn -> Application.put_env(:tymeslot, :env_unrecognised_settings, original) end)
+    end
+
+    test "names the variable, its value and what it accepts" do
+      {_pins, unrecognised} = EnvPins.from_env(%{"REGISTRATION_ENABLED" => "1"})
+      Application.put_env(:tymeslot, :env_unrecognised_settings, unrecognised)
+
+      log = capture_log(fn -> assert :ok = AppSettings.warn_unrecognised_env_values() end)
+
+      assert log =~ ~s(REGISTRATION_ENABLED="1" is not a recognised value)
+      assert log =~ "the admin settings page can still change it"
+      assert log =~ "REGISTRATION_ENABLED accepts true or false"
+    end
+
+    test "logs nothing when every set variable was recognised" do
+      Application.put_env(:tymeslot, :env_unrecognised_settings, [])
+
+      assert capture_log(fn -> AppSettings.warn_unrecognised_env_values() end) == ""
     end
   end
 end

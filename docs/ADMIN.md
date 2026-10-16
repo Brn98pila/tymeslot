@@ -151,7 +151,7 @@ The settings page at `/admin` controls sign-up, sign-in methods, reCAPTCHA, admi
 
 Each setting takes its value from the first of these layers that provides one:
 
-1. **Environment variable**: the setting's variable from the table above, when it is set and not blank. The admin page shows the setting greyed out and names the variable, and refuses to change it.
+1. **Environment variable**: the setting's variable from the table above, when it is set to a value it recognises (`true` or `false`; also `1`, `yes`, `0` and `no` for `ADMIN_ALERTS_ENABLED` and `MEETING_PAYMENTS_ENABLED`; a number from 0.0 to 1.0 for the two scores; any non-blank value for `ADMIN_ALERT_EMAIL`). An unrecognised value, such as `REGISTRATION_ENABLED=1`, logs a warning at boot and does not take precedence, so the admin page keeps managing the setting. The admin page shows the setting greyed out and names the variable, and refuses to change it.
 2. **Admin page**: the value saved on `/admin`, stored in the database.
 3. **Application config**: what `config.exs` or `runtime.exs` sets on boot, other than from the variable.
 4. **Built-in default**: the value Core falls back to if none of the above is set.

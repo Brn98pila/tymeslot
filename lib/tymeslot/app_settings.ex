@@ -311,6 +311,27 @@ defmodule Tymeslot.AppSettings do
   end
 
   @doc """
+  Logs a warning for each environment variable whose value does not fix its
+  setting, as `Tymeslot.AppSettings.EnvPins` decided in `config/runtime.exs`,
+  naming the variable, its value and the values it accepts. Run at boot, so
+  the warning reaches the configured log handlers, which runtime.exs runs
+  before.
+  """
+  @spec warn_unrecognised_env_values() :: :ok
+  def warn_unrecognised_env_values do
+    :tymeslot
+    |> Application.get_env(:env_unrecognised_settings, [])
+    |> Enum.each(fn %{var: var, value: value, accepted: accepted} ->
+      Logger.warning(
+        "#{var}=#{inspect(value)} is not a recognised value, so it does not fix the " <>
+          "setting: the admin settings page can still change it. #{var} accepts " <>
+          "#{accepted}.",
+        env_var: var
+      )
+    end)
+  end
+
+  @doc """
   Clears the DB override for `key`, falling back to the config layer or
   built-in default. Convenience wrapper over `update/1`.
   """
