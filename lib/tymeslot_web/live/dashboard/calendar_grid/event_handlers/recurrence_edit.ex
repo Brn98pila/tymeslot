@@ -26,7 +26,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
   again from that start, which may name another day (monthly "on day 30"
   is "on day 14" from a 14 October occurrence). A `COUNT` there counts what
   is left of the series: the occurrences before the split stay, and are
-  taken off it.
+  taken off it, counted again from the series as it is when the change is
+  written (`CalendarGrid.following_rule/3`).
 
   The scope prompt shows each scope's pattern as it will be written. A
   scope whose calendar would refuse its rule (`CalendarGrid.repeat_refusal/4`)
@@ -289,7 +290,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
           kind: :recurrence_rule,
           event: event,
           optimistic_event: %{event | recurrence_rule: first.rule},
-          recurrence_rule: first.rule,
+          recurrence_rule: first.written_rule,
           scope_rules: scopes,
           # The zone the editor ended the rule's UNTIL day in, which the
           # series' writers read the end date back in.
@@ -326,11 +327,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
   # What each scope writes, in the order the prompt lists them: from where
   # the series put the opened occurrence on, then the whole series, from its
   # first start when that is known.
+  #
+  # `:rule` is the pattern as the prompt shows it and `:written_rule` what
+  # confirming the scope sends. They differ only for this and following
+  # events with a `COUNT`: the prompt shows what is left of the series now,
+  # while the count as given for the whole series is sent, and what is left
+  # of it is counted again when it is written, from the series as it is then
+  # (`CalendarGrid.following_rule/3`).
   defp scope_rules(socket, event, draft) do
     tz = socket.assigns.user_timezone
     {series_start, known?} = Shared.series_anchor(event, socket.assigns[:recurrence_edit], tz)
 
-    following = following_rule(event, draft, {series_start, known?}, tz)
+    following = following_rule(event, draft, tz)
 
     all =
       if known?,
@@ -346,43 +354,18 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
     Enum.reject([following, all], &is_nil/1)
   end
 
-  defp following_rule(event, draft, series, tz) do
+  defp following_rule(event, draft, tz) do
     with %{} = at <- CalendarGrid.occurrence_slot(event),
          slot = Shared.in_recurrence_zone(at, event, tz),
          rule when is_binary(rule) <- compose(draft.params, event, slot, tz),
-         {:ok, rule} <- remaining_count(rule, event, series, slot) do
-      scope_rule(:following, rule, slot, event, tz)
+         {:ok, left} <-
+           CalendarGrid.following_rule(event, rule, Shared.recurrence_timezone(event, tz)) do
+      :following |> scope_rule(left, slot, event, tz) |> Map.put(:written_rule, rule)
     else
       {:error, :until_before_start} -> unavailable(:following, :ends_before)
-      :ends_before -> unavailable(:following, :ends_before)
-      :start_unknown -> unavailable(:following, :start_unknown)
+      {:error, :ends_before} -> unavailable(:following, :ends_before)
+      {:error, :start_unknown} -> unavailable(:following, :start_unknown)
       _no_slot -> nil
-    end
-  end
-
-  # The occurrences before the split stay in the series, so a new series
-  # from the split repeats what is left of the `COUNT`.
-  defp remaining_count(rule, event, {series_start, known?}, slot) do
-    case RRule.parse(rule) do
-      {:ok, %RRule{count: count} = parsed}
-      when is_integer(count) and known? and is_binary(event.recurrence_rule) ->
-        before =
-          CalendarGrid.occurrences_before(
-            Map.get(event, :provider),
-            event.recurrence_rule,
-            series_start,
-            slot
-          )
-
-        if count > before,
-          do: {:ok, RRule.format(%{parsed | count: count - before})},
-          else: :ends_before
-
-      {:ok, %RRule{count: count}} when is_integer(count) ->
-        :start_unknown
-
-      _no_count ->
-        {:ok, rule}
     end
   end
 
@@ -392,6 +375,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
     %{
       scope: scope,
       rule: rule,
+      written_rule: rule,
       summary: RecurrenceEditor.summary(rule, start),
       refusal:
         CalendarGrid.repeat_refusal(Map.get(event, :provider), rule, date_of(start), timezone),
@@ -400,7 +384,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit do
   end
 
   defp unavailable(scope, reason),
-    do: %{scope: scope, rule: nil, summary: nil, refusal: nil, unavailable: reason}
+    do: %{
+      scope: scope,
+      rule: nil,
+      written_rule: nil,
+      summary: nil,
+      refusal: nil,
+      unavailable: reason
+    }
 
   defp following_notes(event, scopes) do
     case Enum.find(scopes, &(&1.scope == :following and is_binary(&1.rule))) do

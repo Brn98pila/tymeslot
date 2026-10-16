@@ -22,6 +22,7 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.CalendarGrid.IcsImport
   alias Tymeslot.CalendarGrid.RepeatRefusal
   alias Tymeslot.CalendarGrid.SeriesCarry
+  alias Tymeslot.CalendarGrid.SeriesEdit
   alias Tymeslot.CalendarGrid.SeriesStart
   alias Tymeslot.CalendarGrid.WriteQueue.SeriesActivity
   alias Tymeslot.Integrations.Calendar
@@ -435,6 +436,16 @@ defmodule Tymeslot.CalendarGrid do
   defdelegate occurrences_before(provider, rule, first, boundary),
     to: SeriesStart,
     as: :count_before
+
+  @doc """
+  The rule an edit of `event` and every following occurrence writes to the
+  series it starts, given the new `rule` with its `COUNT` as given for the
+  whole series: the `COUNT` less the occurrences before the split, counted
+  on the wall clock of `zone` (see `SeriesEdit.following_rule/3`).
+  """
+  @spec following_rule(map(), String.t(), String.t() | nil) ::
+          {:ok, String.t()} | {:error, :ends_before | :start_unknown}
+  defdelegate following_rule(event, rule, zone), to: SeriesEdit
 
   @doc """
   Why a calendar of `provider` would refuse `rule` for a series starting on

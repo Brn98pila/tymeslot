@@ -141,8 +141,11 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   alias Tymeslot.CalendarGrid.Occurrence
   alias Tymeslot.CalendarGrid.RecurrenceScope
   alias Tymeslot.CalendarGrid.SeriesCarry
+  alias Tymeslot.CalendarGrid.SeriesStart
   alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Integrations.Calendar.Recurrence.RRule
   alias Tymeslot.Integrations.Calendar.SyncSchedule
+  alias Tymeslot.Timezones
 
   require Logger
 
@@ -219,7 +222,8 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   def update_event(user_id, event, stored, family, scope, changes, opts)
       when (family == :caldav and scope in [:this_only, :following, :all]) or
              (family == :provider_ids and scope in [:following, :all]) do
-    with :ok <- ensure_series_edit(stored, scope, changes) do
+    with :ok <- ensure_series_edit(stored, scope, changes),
+         {:ok, changes} <- count_what_is_left(scope, stored, changes, opts) do
       EventEdit.write_edit(
         user_id,
         event,
@@ -248,6 +252,78 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   def update_event(_user_id, _event, _stored, _family, scope, _changes, _opts)
       when scope in [:following, :all],
       do: refuse(:unsupported_scope)
+
+  @doc """
+  The rule an edit of `event` and every following occurrence writes to the
+  series it starts there, given `rule`, the new repeat rule with its
+  `COUNT`, if any, as the organiser gave it for the whole series.
+
+  The occurrences before the split stay where they are, so a `COUNT` is what
+  is left of the series: as many as the series' rule makes from its first
+  start up to the occurrence (`SeriesStart.count_before/4`) are taken off
+  it. The series is read as it is cached now, as `update_event/7` reads it
+  when the edit is written. `zone` is the zone the series repeats in, on
+  whose wall clock the occurrences are counted. A rule without a `COUNT`
+  is answered as it is.
+
+  `{:error, :ends_before}` when nothing is left of the count, and
+  `{:error, :start_unknown}` when the series' first start, or where the
+  series put the occurrence, has not been read from the calendar.
+  """
+  @spec following_rule(map(), String.t(), String.t() | nil) ::
+          {:ok, String.t()} | {:error, :ends_before | :start_unknown}
+  def following_rule(event, rule, zone) do
+    case RRule.parse(rule) do
+      {:ok, %RRule{count: count} = parsed} when is_integer(count) ->
+        with {:ok, before} <- occurrences_before(Occurrence.cached_row(event), zone) do
+          if count > before,
+            do: {:ok, RRule.format(%{parsed | count: count - before})},
+            else: {:error, :ends_before}
+        end
+
+      _no_count ->
+        {:ok, rule}
+    end
+  end
+
+  defp occurrences_before(stored, zone) do
+    with series_rule when is_binary(series_rule) <- Map.get(stored, :recurrence_rule),
+         %{} = first <- SeriesStart.of(stored),
+         %{} = slot <- SeriesStart.slot(stored) do
+      {:ok,
+       SeriesStart.count_before(
+         Map.get(stored, :provider),
+         series_rule,
+         in_zone(first, zone),
+         in_zone(slot, zone)
+       )}
+    else
+      _not_read -> {:error, :start_unknown}
+    end
+  end
+
+  defp in_zone(%DateTime{} = at, zone) do
+    if Timezones.valid?(zone), do: DateTime.shift_zone!(at, zone), else: at
+  end
+
+  defp in_zone(%Date{} = date, _zone), do: date
+
+  # A new rule written from the split counts what is left of the series as
+  # it is when the edit is written (`following_rule/3`), not as it was when
+  # the organiser chose the rule: a sync since may have moved its start or
+  # changed its rule. The rule's end day was chosen in `:until_timezone`,
+  # the zone the series repeats in.
+  defp count_what_is_left(:following, stored, %{recurrence_rule: rule} = changes, opts)
+       when is_binary(rule) do
+    zone = Keyword.get(opts, :until_timezone) || Map.get(stored, :timezone)
+
+    case following_rule(stored, rule, zone) do
+      {:ok, rule} -> {:ok, %{changes | recurrence_rule: rule}}
+      {:error, reason} -> refuse(reason)
+    end
+  end
+
+  defp count_what_is_left(_scope, _stored, changes, _opts), do: {:ok, changes}
 
   # A row naming its master is one instance of it; a master's own row (a
   # series Tymeslot created) is the series, and keeps its rule.

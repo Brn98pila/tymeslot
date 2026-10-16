@@ -19,6 +19,7 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
   alias TymeslotWeb.Dashboard.CalendarGrid.EditWorkflow
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.EventCrud
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.IcsImport
+  alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.RecurrenceEdit
   alias TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared
   alias TymeslotWeb.Dashboard.CalendarGridComponent
   alias TymeslotWeb.Live.Scheduling.Handlers.BookingErrorMessage
@@ -206,6 +207,12 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
       "This series' repeat rule cannot be split here. Please make this change in your calendar app."
     )
   end
+
+  # What is left of a count is counted again when the change is written, from
+  # the series as it is then, which a sync may have changed since the scope
+  # was chosen.
+  defp update_failed_message(reason) when reason in [:ends_before, :start_unknown],
+    do: RecurrenceEdit.unavailable_message_for(reason)
 
   defp update_failed_message(:rule_not_supported_by_outlook),
     do: EditWorkflow.rule_not_supported_by_outlook_message()

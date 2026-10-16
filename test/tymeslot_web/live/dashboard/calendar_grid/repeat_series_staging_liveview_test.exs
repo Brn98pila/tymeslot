@@ -23,12 +23,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
   import Tymeslot.Factory
   import TymeslotWeb.RepeatSeriesFixtures
 
+  alias Ecto.Changeset
   alias Plug.Test
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
   alias Tymeslot.Integrations.Calendar.Runtime.Operations
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
+  alias Tymeslot.Repo
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -122,6 +124,77 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
 
       [{_tail_url, tail}, {@series_url, _head}] = await_puts(2)
       assert "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=WE;COUNT=8" in LineFolder.unfold_lines(tail)
+    end
+
+    # A sync between the prompt and the choice moves the series' start to 7
+    # October: one occurrence comes before the split now, so nine are left,
+    # not the eight the prompt counted.
+    test "a count is what is left of the series as it is when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      moved =
+        "FREQ=WEEKLY;BYDAY=WE;COUNT=10"
+        |> caldav_series()
+        |> String.replace("20260930T", "20261007T")
+
+      event |> Changeset.change(raw_ical: moved) |> Repo.update!()
+
+      expect_puts(2)
+      confirm_scope(lv, "following")
+
+      [{_tail_url, tail}, {@series_url, _head}] = await_puts(2)
+      assert "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=WE;COUNT=9" in LineFolder.unfold_lines(tail)
+    end
+
+    # A sync between the prompt and the choice moves the series' start back
+    # to 5 August: its ten occurrences all come before the split now.
+    test "nothing is written when nothing is left of the series when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      moved =
+        "FREQ=WEEKLY;BYDAY=WE;COUNT=10"
+        |> caldav_series()
+        |> String.replace("20260930T", "20260805T")
+
+      event |> Changeset.change(raw_ical: moved) |> Repo.update!()
+
+      confirm_scope(lv, "following")
+
+      eventually(
+        fn -> assert render(lv) =~ "the new end comes before this event" end,
+        timeout: @task_timeout
+      )
+
+      refute render(lv) =~ "Failed to update event - changes reverted"
+      refute_receive {:put, _url, _body}, 200
     end
 
     test "an end before the occurrence says why this and following is not offered", %{
