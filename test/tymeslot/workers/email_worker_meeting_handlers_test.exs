@@ -97,6 +97,46 @@ defmodule Tymeslot.Workers.EmailWorkerMeetingHandlersTest do
                })
     end
 
+    for status <- ["expired", "completed"] do
+      test "drops a reschedule request for a meeting already #{status}" do
+        meeting =
+          insert(:meeting,
+            status: unquote(status),
+            reschedule_requested_at: DateTime.utc_now(:second)
+          )
+
+        expect(EmailServiceMock, :send_reschedule_request, 0, fn _meeting -> {:ok, "sent"} end)
+
+        assert {:discard, "Meeting expired or completed" = reason} =
+                 EmailHandlers.execute_email_action("send_reschedule_request", %{
+                   "meeting_id" => meeting.id
+                 })
+
+        assert EmailHandlers.expected_discard?(reason)
+      end
+
+      # A job queued before the move's status was carried has nothing else
+      # that would catch a booking that has since lapsed.
+      test "drops the notices of a move for a meeting since #{status}" do
+        meeting = insert(:meeting, status: unquote(status))
+
+        expect(EmailServiceMock, :send_reschedule_email_to_organizer, 0, fn _email, _content ->
+          {:ok, "sent"}
+        end)
+
+        expect(EmailServiceMock, :send_reschedule_email_to_attendee, 0, fn _email, _content ->
+          {:ok, "sent"}
+        end)
+
+        assert {:discard, "Meeting expired or completed" = reason} =
+                 EmailHandlers.execute_email_action("send_reschedule_emails", %{
+                   "meeting_id" => meeting.id
+                 })
+
+        assert EmailHandlers.expected_discard?(reason)
+      end
+    end
+
     test "handles send_email_verification" do
       user = insert(:user)
       expect(EmailServiceMock, :send_email_verification, fn _user, _url -> {:ok, "sent"} end)

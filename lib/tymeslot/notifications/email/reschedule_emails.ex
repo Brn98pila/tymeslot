@@ -37,6 +37,7 @@ defmodule Tymeslot.Notifications.Email.RescheduleEmails do
   # reason is the one `MeetingEmails` gives, the void-slot one the one
   # `SeatJobs` gives.
   @meeting_cancelled "Meeting cancelled"
+  @meeting_closed "Meeting expired or completed"
   @slot_void "Meeting time no longer holds"
   @moved_again "Meeting moved again"
   @status_changed "Meeting status changed"
@@ -50,13 +51,20 @@ defmodule Tymeslot.Notifications.Email.RescheduleEmails do
   @spec expected_discard?(term()) :: boolean()
   def expected_discard?(reason),
     do:
-      reason in [@meeting_cancelled, @slot_void, @moved_again, @status_changed, @meeting_started]
+      reason in [
+        @meeting_cancelled,
+        @meeting_closed,
+        @slot_void,
+        @moved_again,
+        @status_changed,
+        @meeting_started
+      ]
 
   @doc """
   Sends the notices for the move the job announces, unless the booking has
-  moved on since: cancelled, sent back for a new time, moved again (the later
-  move's own job tells everyone the time it now has), approved or declined
-  into another status, or already started. Each of those discards the job
+  moved on since: cancelled, expired or completed, sent back for a new time,
+  moved again (the later move's own job tells everyone the time it now has),
+  approved or declined into another status, or already started. Each of those discards the job
   rather than sending times nobody should act on.
   """
   @spec handle_reschedule_emails(%{String.t() => term()}, DeliveryClaims.job_id()) ::
@@ -80,7 +88,8 @@ defmodule Tymeslot.Notifications.Email.RescheduleEmails do
 
   defp overtaken(meeting, args) do
     cond do
-      meeting.status == "cancelled" -> @meeting_cancelled
+      MeetingState.cancelled?(meeting) -> @meeting_cancelled
+      MeetingState.terminal?(meeting) -> @meeting_closed
       MeetingState.slot_void?(meeting) -> @slot_void
       moved_again?(meeting, args["rescheduled_to"]) -> @moved_again
       status_changed?(meeting, args["status"]) -> @status_changed

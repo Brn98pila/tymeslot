@@ -15,6 +15,7 @@ defmodule Tymeslot.Notifications.Email.RescheduleRequestEmails do
   alias Tymeslot.Notifications.Email.MeetingEmails
 
   @meeting_cancelled "Meeting cancelled"
+  @meeting_closed "Meeting expired or completed"
   @request_not_pending "Reschedule request no longer pending"
 
   @doc """
@@ -23,19 +24,28 @@ defmodule Tymeslot.Notifications.Email.RescheduleRequestEmails do
   (see `Tymeslot.Infrastructure.ExpectedJobOutcome`).
   """
   @spec expected_discard?(term()) :: boolean()
-  def expected_discard?(reason), do: reason in [@meeting_cancelled, @request_not_pending]
+  def expected_discard?(reason),
+    do: reason in [@meeting_cancelled, @meeting_closed, @request_not_pending]
 
   @spec handle_reschedule_request(%{String.t() => term()}) ::
           :ok | {:error, term()} | {:discard, String.t()}
   def handle_reschedule_request(%{"meeting_id" => meeting_id} = args) do
     MeetingEmails.with_meeting(meeting_id, "reschedule request", fn meeting ->
       cond do
-        meeting.status == "cancelled" ->
+        MeetingState.cancelled?(meeting) ->
           Logger.info("Skipping reschedule request for cancelled meeting",
             meeting_id: meeting_id
           )
 
           {:discard, @meeting_cancelled}
+
+        MeetingState.terminal?(meeting) ->
+          Logger.info("Skipping reschedule request for a meeting already over",
+            meeting_id: meeting_id,
+            status: meeting.status
+          )
+
+          {:discard, @meeting_closed}
 
         not request_pending?(meeting, args["requested_at"]) ->
           Logger.info("Skipping reschedule request no longer pending", meeting_id: meeting_id)
