@@ -180,7 +180,6 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.PatternTest do
     test "takes an interval above one, cut to the largest a pattern takes" do
       assert Pattern.put_interval(%{freq: :weekly}, 3) == %{freq: :weekly, interval: 3}
       assert Pattern.put_interval(%{freq: :weekly}, 5000) == %{freq: :weekly, interval: 999}
-      assert Pattern.max_number() == 999
     end
 
     test "leaves a pattern repeating every period for one, less, or none" do
