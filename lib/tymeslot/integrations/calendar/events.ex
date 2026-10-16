@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
 
   Handles listing, creating, updating, and deleting calendar events.
   Adds context validation and normalisation before invoking the
-  configured behaviour module (defaults to `Calendar.Operations`).
+  configured behaviour module (defaults to `Calendar.Runtime.Operations`).
   """
 
   alias Tymeslot.Availability.Reach
@@ -17,11 +17,11 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   alias Tymeslot.Integrations.Calendar.CalDAV.SeriesWrites
   alias Tymeslot.Integrations.Calendar.CreatedEvent
   alias Tymeslot.Integrations.Calendar.Google.SeriesTransfer, as: GoogleSeriesTransfer
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Outlook.SeriesTransfer, as: OutlookSeriesTransfer
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
   alias Tymeslot.Integrations.Calendar.Sync
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck.Alerting
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
@@ -349,7 +349,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   # so an integration of anyone else resolves to nothing.
   defp caldav_client(integration_id, user_id, missing) do
     with {:ok, integration} <-
-           CalendarManagement.fetch_integration_for_user(integration_id, user_id),
+           Management.fetch_integration_for_user(integration_id, user_id),
          {:ok, %{client: %CalDAVClient{} = client}} <-
            ProviderAdapter.new_client_from_integration(integration) do
       {:ok,
@@ -437,7 +437,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
   end
 
   defp user_integration(provider, integration_id, user_id, missing) do
-    case CalendarManagement.fetch_integration_for_user(integration_id, user_id) do
+    case Management.fetch_integration_for_user(integration_id, user_id) do
       {:ok, %{provider: ^provider} = integration} -> {:ok, integration}
       _none -> {:error, missing}
     end
@@ -502,7 +502,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
       Application.get_env(
         :tymeslot,
         :calendar_module,
-        Tymeslot.Integrations.Calendar.Operations
+        Tymeslot.Integrations.Calendar.Runtime.Operations
       )
 
     if Code.ensure_loaded?(mod) do
@@ -512,7 +512,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
         calendar_module: LogFormat.reason(mod)
       )
 
-      Tymeslot.Integrations.Calendar.Operations
+      Tymeslot.Integrations.Calendar.Runtime.Operations
     end
   end
 

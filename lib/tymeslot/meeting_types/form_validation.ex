@@ -32,7 +32,7 @@ defmodule Tymeslot.MeetingTypes.FormValidation do
   alias Tymeslot.Availability.Schedules
   alias Tymeslot.Features
   alias Tymeslot.Integrations.Calendar
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Profiles
   alias Tymeslot.Utils.UriUtils
@@ -295,7 +295,7 @@ defmodule Tymeslot.MeetingTypes.FormValidation do
          user_id
        )
        when is_integer(id) do
-    with {:ok, integration} <- CalendarManagement.fetch_integration_for_user(id, user_id),
+    with {:ok, integration} <- Management.fetch_integration_for_user(id, user_id),
          :ok <- validate_target_calendar(target_calendar_id, integration) do
       :ok
     else

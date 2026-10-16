@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
   import Mox
   import Tymeslot.Factory
   alias Tymeslot.Integrations.Calendar.Creation
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Profiles.ProfileQueries
 
   setup :verify_on_exit!
@@ -296,7 +296,7 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
       assert integration.name == "Test Calendar"
       assert integration.base_url == "https://caldav.example.com"
 
-      assert [%{id: id}] = CalendarManagement.list_calendar_integrations(user.id)
+      assert [%{id: id}] = Management.list_calendar_integrations(user.id)
       assert id == integration.id
 
       assert {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
@@ -315,7 +315,7 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
       assert Creation.create_with_validation(user.id, params) ==
                {:error, {:form_errors, %{name: "Integration name is required"}}}
 
-      assert CalendarManagement.list_calendar_integrations(user.id) == []
+      assert Management.list_calendar_integrations(user.id) == []
     end
 
     test "reports a malicious URL against the url field", %{user: user} do
@@ -333,7 +333,7 @@ defmodule Tymeslot.Integrations.Calendar.CreationTest do
                 {:form_errors,
                  %{url: "Please enter a valid server URL (e.g., https://cloud.example.com)"}}}
 
-      assert CalendarManagement.list_calendar_integrations(user.id) == []
+      assert Management.list_calendar_integrations(user.id) == []
     end
 
     test "surfaces a failed connection probe as a form-level error", %{user: user} do

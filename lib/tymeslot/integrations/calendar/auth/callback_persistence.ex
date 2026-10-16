@@ -11,8 +11,8 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.CalendarManagement
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Management
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
 
   @providers %{
@@ -96,7 +96,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
 
   # Re-authorisation of a specific integration
   defp match(_provider, user_id, integration_id, account_id, token_attrs) do
-    case CalendarManagement.fetch_integration_for_user(integration_id, user_id) do
+    case Management.fetch_integration_for_user(integration_id, user_id) do
       {:ok, existing} ->
         AccountMatch.verify_account_match(existing, account_id, fn ->
           reconnect(existing, token_attrs)
@@ -118,7 +118,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
         base_url: base_url
       })
 
-    create_fn = fn -> CalendarManagement.insert_integration(attrs) end
+    create_fn = fn -> Management.insert_integration(attrs) end
 
     result =
       if is_binary(account_id) do
@@ -159,7 +159,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   # primary; the activation rule adopts it again, under the primary lock and
   # before discovery goes to the network.
   defp reconnect(existing, token_attrs, discovery \\ :if_unlisted) do
-    with {:ok, updated} <- CalendarManagement.reconnect_integration(existing, token_attrs) do
+    with {:ok, updated} <- Management.reconnect_integration(existing, token_attrs) do
       discover(updated, discovery)
     end
   end
@@ -167,12 +167,12 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   # A reactivated integration has been out of use for a while, so its
   # calendar list is read afresh; an active one only when it has none yet.
   defp discover(integration, :always),
-    do: CalendarPrimary.discover_and_configure_calendars(integration)
+    do: Primary.discover_and_configure_calendars(integration)
 
   defp discover(integration, :if_unlisted), do: configure_if_unlisted(integration)
 
   defp configure_if_unlisted(%{calendar_list: []} = integration),
-    do: CalendarPrimary.discover_and_configure_calendars(integration)
+    do: Primary.discover_and_configure_calendars(integration)
 
   defp configure_if_unlisted(integration), do: {:ok, integration}
 end

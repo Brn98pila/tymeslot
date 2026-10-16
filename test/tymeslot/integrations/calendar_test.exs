@@ -9,7 +9,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.ColourWriteBackWorker
   alias Tymeslot.Workers.SyncIcsCalendarWorker
@@ -25,7 +25,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
 
       # Set integration1 as primary
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, integration1.id)
+               Primary.set_primary_calendar_integration(user.id, integration1.id)
 
       integrations = Calendar.list_integrations(user.id)
 
@@ -124,22 +124,6 @@ defmodule Tymeslot.Integrations.CalendarTest do
                )
 
       assert event.uid == "fallback-event"
-    end
-  end
-
-  describe "selected_calendars/1" do
-    test "includes selected read-only calendars, for conflict-checking visibility" do
-      calendars =
-        Enum.map(
-          [
-            %{id: "cal-1", selected: true, read_only: false},
-            %{id: "cal-2", selected: true, read_only: true},
-            %{id: "cal-3", selected: false, read_only: false}
-          ],
-          &CalendarEntry.normalize/1
-        )
-
-      assert Enum.map(Calendar.selected_calendars(calendars), & &1.id) == ["cal-1", "cal-2"]
     end
   end
 

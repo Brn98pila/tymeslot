@@ -79,7 +79,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActionsTest do
 
     test "cannot have its calendars unticked", %{intruder: intruder, integration: integration} do
       assert {:error, :not_found} =
-               Calendar.toggle_calendar_selection(intruder.id, integration.id, "/cal/a/")
+               Calendar.set_calendar_state(intruder.id, integration.id, "/cal/a/", :off)
 
       assert [%{selected: true}] = Repo.reload!(integration).calendar_list
     end
@@ -109,7 +109,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActionsTest do
       assert {:error, :rate_limited, _message} = exhaust_write_budget(user.id)
 
       assert {:error, {:rate_limited, message}} =
-               Calendar.toggle_calendar_selection(user.id, integration.id, "/cal/a/")
+               Calendar.set_calendar_state(user.id, integration.id, "/cal/a/", :off)
 
       assert byte_size(message) > 0
       assert [%{selected: true}] = Repo.reload!(integration).calendar_list

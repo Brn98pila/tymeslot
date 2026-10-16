@@ -8,7 +8,7 @@ defmodule Tymeslot.Dashboard.DashboardContext do
 
   alias Tymeslot.Agenda
   alias Tymeslot.Integrations.Calendar
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Video
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Venues
@@ -73,7 +73,7 @@ defmodule Tymeslot.Dashboard.DashboardContext do
     %{
       meeting_types: MeetingTypes.get_all_meeting_types(user_id),
       video_integrations: Video.list_active_integrations(user_id),
-      calendar_integrations: CalendarManagement.list_calendar_integrations(user_id),
+      calendar_integrations: Management.list_calendar_integrations(user_id),
       venues: Venues.list_venues(user_id)
     }
   end

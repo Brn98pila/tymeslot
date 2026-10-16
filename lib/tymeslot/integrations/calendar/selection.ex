@@ -9,9 +9,9 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.RemovedCalendars
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Utils.UriUtils
 
   @doc """
@@ -294,7 +294,7 @@ defmodule Tymeslot.Integrations.Calendar.Selection do
         ) ::
           {:ok, Tymeslot.Integrations.Calendar.CalendarIntegrationSchema.t()} | {:error, any()}
   def persist_calendar_list(integration, calendar_list) when is_list(calendar_list) do
-    CalendarManagement.update_calendar_integration(
+    Management.update_calendar_integration(
       integration,
       calendar_list_attrs(calendar_list)
     )

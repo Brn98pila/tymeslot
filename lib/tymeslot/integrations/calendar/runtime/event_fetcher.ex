@@ -16,9 +16,9 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventFetcher do
   require Logger
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.CalDAV.Base
-  alias Tymeslot.Integrations.Calendar.EventsRead
-  alias Tymeslot.Integrations.Calendar.RequestCoalescer
   alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
+  alias Tymeslot.Integrations.Calendar.Runtime.EventsRead
+  alias Tymeslot.Integrations.Calendar.Runtime.RequestCoalescer
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
 

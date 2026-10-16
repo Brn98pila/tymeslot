@@ -12,7 +12,7 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateQueries
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.RoomCreationError
@@ -458,7 +458,7 @@ defmodule Tymeslot.Notifications.Email.IntegrationEmails do
         not_found
 
       {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
+        Management.handle_reauth_required(integration)
         {:error, :not_found}
     end
   end

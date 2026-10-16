@@ -31,8 +31,8 @@ defmodule TymeslotWeb.ZeroLengthFeedEventJourneyTest do
   alias Plug.Test
   alias Req.Test, as: ReqTest
   alias Tymeslot.Infrastructure.AvailabilityCache
-  alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption

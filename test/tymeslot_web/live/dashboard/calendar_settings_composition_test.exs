@@ -75,7 +75,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsCompositionTest do
 
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
   alias Tymeslot.Security.RateLimiter
@@ -474,7 +474,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsCompositionTest do
           is_active: true
         )
 
-      {:ok, _profile} = CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+      {:ok, _profile} = Primary.set_primary_calendar_integration(user.id, primary.id)
 
       {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
 
@@ -518,7 +518,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettingsCompositionTest do
           is_active: true
         )
 
-      {:ok, _profile} = CalendarPrimary.set_primary_calendar_integration(user.id, integration.id)
+      {:ok, _profile} = Primary.set_primary_calendar_integration(user.id, integration.id)
 
       {:ok, view, _html} = live(conn, ~p"/dashboard/integrations?tab=calendars")
 

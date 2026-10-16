@@ -5,18 +5,17 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   """
 
   alias Tymeslot.Infrastructure.Logging.LogFormat
-  alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Connection
   alias Tymeslot.Integrations.Calendar.Ics.Feed
   alias Tymeslot.Integrations.Calendar.InputValidation, as: CalendarInputValidation
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderRegistry
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.SanitizeMerge
   alias Tymeslot.Workers.SyncIcsCalendarWorker
@@ -30,8 +29,8 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   @caldav_provider_strings ProviderConfig.caldav_based_provider_strings()
 
   @doc """
-  Validates incoming params (security-aware), creates the integration via Calendar,
-  and ensures the first integration becomes primary.
+  Validates incoming params (security-aware), creates the integration with
+  `create/2`, and ensures the first integration becomes primary.
 
   Returns:
     {:ok, %CalendarIntegrationSchema{}}
@@ -59,7 +58,7 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
          :ok <- check_write_budget(user_id),
          validated <- SanitizeMerge.merge(params, sanitized),
          :ok <- check_no_duplicate_calendar(user_id, validated),
-         {:ok, integration} <- Calendar.create_integration(validated, user_id) do
+         {:ok, integration} <- create(validated, user_id) do
       {:ok, integration}
     else
       {:error, :duplicate_integration} ->
@@ -78,6 +77,25 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
 
       {:error, validation_errors} when is_map(validation_errors) ->
         {:error, {:form_errors, validation_errors}}
+    end
+  end
+
+  @doc """
+  Creates a calendar integration from params that have already passed form
+  validation, with provider-specific parsing and the pre-validation probe.
+  """
+  @spec create(%{String.t() => term()}, user_id()) ::
+          {:ok, CalendarIntegrationSchema.t()} | {:error, Ecto.Changeset.t() | term()}
+  def create(params, user_id) when is_map(params) and is_integer(user_id) do
+    # The changeset runs before the pre-validation probe, not after it. A
+    # submission it rejects is decided entirely in-process, while the probe is
+    # an outbound request to an address the organiser typed and is metered as
+    # one; charging their connection budget for a local rejection is what made a
+    # save report itself as too many connection tests.
+    with {:ok, attrs} <- prepare_attrs(params, user_id),
+         :ok <- CalendarIntegrationSchema.validate_new(attrs),
+         {:ok, attrs} <- prevalidate_config(attrs) do
+      Management.create_calendar_integration(attrs)
     end
   end
 
@@ -116,7 +134,7 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
          # A subscription is never made the primary: it can never receive a
          # booking, and `PrimaryElection.adopt_if_vacant/1` refuses a read-only
          # provider.
-         {:ok, integration} <- CalendarManagement.create_calendar_integration(attrs) do
+         {:ok, integration} <- Management.create_calendar_integration(attrs) do
       enqueue_initial_sync(integration)
       {:ok, integration}
     else

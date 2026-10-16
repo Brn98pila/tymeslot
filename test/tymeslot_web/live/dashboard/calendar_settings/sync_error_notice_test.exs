@@ -27,7 +27,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SyncErrorNoticeTest do
   alias Plug.Conn
   alias Req.Test, as: ReqTest
   alias Tymeslot.ExchangeCase
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.HealthCheck.Monitor
   alias Tymeslot.Security.Encryption
@@ -124,7 +124,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SyncErrorNoticeTest do
       )
 
     assert {:ok, reconnected} =
-             CalendarManagement.update_calendar_integration(integration, %{
+             Management.update_calendar_integration(integration, %{
                username: "alice",
                password: "new-password"
              })

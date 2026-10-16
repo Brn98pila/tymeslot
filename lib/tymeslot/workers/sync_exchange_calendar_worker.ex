@@ -52,7 +52,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.EventRole
   alias Tymeslot.Integrations.Calendar.Exchange.SyncCycle
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
@@ -114,7 +114,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
       calendar_integration_id: integration.id
     )
 
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",
@@ -128,7 +128,7 @@ defmodule Tymeslot.Workers.SyncExchangeCalendarWorker do
   # that can be addressed. No retry can invent one; the owner has to supply an
   # address, so the dashboard is told and the job discarded.
   defp handle_result({:error, :no_mailbox_address}, integration) do
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",

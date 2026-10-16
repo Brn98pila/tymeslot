@@ -13,7 +13,7 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadFallbackShapesTest do
   @moduletag :calendar
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Calendar.EventsRead
+  alias Tymeslot.Integrations.Calendar.Runtime.EventsRead
 
   @base_time ~U[2024-01-01 12:00:00Z]
 

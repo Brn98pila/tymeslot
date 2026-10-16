@@ -41,13 +41,13 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookCalendarAPI
   alias Tymeslot.Integrations.Calendar.Outlook.Provider, as: OutlookProvider
   alias Tymeslot.Integrations.Calendar.Outlook.SeriesMaster
   alias Tymeslot.Integrations.Calendar.SeriesRules
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Calendar.Tokens
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.RetryHelpers
@@ -178,7 +178,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   # emails them, and the scheduler's uniqueness window backstops the race
   # between two event jobs flagging at once.
   defp handle_credentials_rejected(integration) do
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",

@@ -19,11 +19,11 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.AvailabilityView
   alias Tymeslot.Integrations.Calendar.BookingEligibility
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
   alias Tymeslot.Integrations.Calendar.Runtime.BookingIntegrationResolver
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
 
@@ -196,7 +196,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   """
   @spec get_client_by_integration_id(integration_id(), user_id()) :: client() | nil
   def get_client_by_integration_id(integration_id, user_id) do
-    case CalendarManagement.fetch_integration_for_user(integration_id, user_id) do
+    case Management.fetch_integration_for_user(integration_id, user_id) do
       {:error, :not_found} ->
         nil
 
@@ -334,7 +334,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManager do
   defp fetch_active_integrations(nil), do: {:error, :user_id_required}
 
   defp fetch_active_integrations(user_id) do
-    case CalendarManagement.partition_active_calendar_integrations(user_id) do
+    case Management.partition_active_calendar_integrations(user_id) do
       {[], []} -> :not_found
       {integrations, unreadable} -> {:ok, integrations, unreadable}
     end

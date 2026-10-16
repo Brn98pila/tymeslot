@@ -3,7 +3,7 @@ defmodule Tymeslot.Integrations.Calendar.RequestCoalescerTest do
   @moduletag :integrations
 
   alias Tymeslot.Infrastructure.ErrorTracking
-  alias Tymeslot.Integrations.Calendar.RequestCoalescer
+  alias Tymeslot.Integrations.Calendar.Runtime.RequestCoalescer
   alias Tymeslot.Test.LogCapture
 
   @receive_timeout 2_000

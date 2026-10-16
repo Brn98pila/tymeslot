@@ -32,7 +32,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
 
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
   alias Tymeslot.Integrations.Calendar.Google.SyncCycle
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
@@ -121,7 +121,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
       calendar_integration_id: integration.id
     )
 
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",
@@ -144,7 +144,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   # reconnection. Flagging twice is harmless — only the false-to-true
   # transition emails the owner.
   defp handle_credentials_rejected(integration) do
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",
@@ -164,7 +164,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
       calendar_integration_id: integration.id
     )
 
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",

@@ -37,8 +37,8 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
   alias Tymeslot.Integrations.Calendar.CreatedEvent
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
   alias Tymeslot.Integrations.Calendar.ICalBuilder
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Outlook.EventMapper
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.MeetingProvisioning
   alias Tymeslot.Integrations.Video.EventDetails
   alias Tymeslot.Integrations.Video.Rooms, as: VideoRooms
@@ -553,7 +553,7 @@ defmodule Tymeslot.CalendarGrid.EventCreation do
         {integration.provider, integration.default_booking_calendar_id, false}
 
       {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
+        Management.handle_reauth_required(integration)
         {nil, nil, true}
 
       {:error, _reason} ->

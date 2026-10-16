@@ -15,7 +15,7 @@ defmodule Tymeslot.Polls.Confirm do
   alias Tymeslot.Bookings.Activation
   alias Tymeslot.Bookings.CreateAdHoc
   alias Tymeslot.Emails.EmailScheduler
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Polls
@@ -167,7 +167,7 @@ defmodule Tymeslot.Polls.Confirm do
   end
 
   defp primary_calendar_id(user_id) do
-    case CalendarPrimary.get_primary_calendar_integration(user_id) do
+    case Primary.get_primary_calendar_integration(user_id) do
       {:ok, integration} -> integration.id
       {:error, _reason} -> nil
     end

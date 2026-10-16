@@ -22,7 +22,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.OneOffRuleUnsentLiveViewTest do
 
   alias Plug.Test
   alias Tymeslot.Clock
-  alias Tymeslot.Integrations.Calendar.Operations
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
   alias Tymeslot.Repo
 
   # Events are built from "today" and read in the organiser's zone, which is

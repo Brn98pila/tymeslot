@@ -26,7 +26,7 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Ics.Feed
   alias Tymeslot.Integrations.Calendar.Ics.SyncCycle
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
@@ -60,7 +60,7 @@ defmodule Tymeslot.Workers.SyncIcsCalendarWorker do
         :ok
 
       {:error, :unauthorised} ->
-        CalendarManagement.handle_reauth_required(integration, cause: :rejected_subscription_url)
+        Management.handle_reauth_required(integration, cause: :rejected_subscription_url)
 
       {:error, :missing_url} ->
         Logger.error("Calendar subscription has no feed URL stored",
