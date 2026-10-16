@@ -12,6 +12,10 @@ config :tymeslot,
   # --- Feature Flags ---
   # Controls whether new user registration is allowed
   registration_enabled: true,
+  # Admin settings an operator has fixed through the environment, as
+  # `%{setting_key => "ENV_VAR"}`. Filled by config/runtime.exs; such a
+  # setting wins over the admin settings page and is shown greyed out there.
+  env_pinned_settings: %{},
   # Controls whether the self-host admin UI is mounted. SaaS overrides this
   # to false so the /admin scope 404s in the cloud deployment.
   enable_admin_ui: true,
