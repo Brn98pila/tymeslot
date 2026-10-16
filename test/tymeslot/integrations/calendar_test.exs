@@ -9,7 +9,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.ColourWriteBackWorker
   alias Tymeslot.Workers.SyncIcsCalendarWorker
@@ -25,7 +25,7 @@ defmodule Tymeslot.Integrations.CalendarTest do
 
       # Set integration1 as primary
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, integration1.id)
+               Primary.set_primary_calendar_integration(user.id, integration1.id)
 
       integrations = Calendar.list_integrations(user.id)
 

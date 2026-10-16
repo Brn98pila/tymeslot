@@ -12,7 +12,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Management
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
 
   @providers %{
@@ -167,12 +167,12 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   # A reactivated integration has been out of use for a while, so its
   # calendar list is read afresh; an active one only when it has none yet.
   defp discover(integration, :always),
-    do: CalendarPrimary.discover_and_configure_calendars(integration)
+    do: Primary.discover_and_configure_calendars(integration)
 
   defp discover(integration, :if_unlisted), do: configure_if_unlisted(integration)
 
   defp configure_if_unlisted(%{calendar_list: []} = integration),
-    do: CalendarPrimary.discover_and_configure_calendars(integration)
+    do: Primary.discover_and_configure_calendars(integration)
 
   defp configure_if_unlisted(integration), do: {:ok, integration}
 end

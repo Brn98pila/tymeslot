@@ -17,8 +17,8 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.OwnerActions
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.MeetingTypes
   alias Tymeslot.TestMocks
 
@@ -289,7 +289,7 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
         ])
 
       assert {:ok, updated} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, integration.id)
+               Primary.set_primary_calendar_integration(user.id, integration.id)
 
       assert updated.default_booking_calendar_id == "work"
       assert blocks?(integration, "work")

@@ -1,7 +1,8 @@
 defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   @moduledoc """
-  Decides which calendar is a user's primary (booking) calendar, by two rules
-  and under one lock.
+  Picks a user's primary (booking) calendar without being asked, when the
+  primary goes or a usable calendar arrives; `Calendar.Primary` sets it when
+  the user chooses. It decides by two rules and under one lock.
 
   When the primary stops being usable (it was deleted, switched off by its
   owner, or paused for being unhealthy), `elect_next/2` promotes the newest
@@ -27,7 +28,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
   alias Tymeslot.Integrations.Calendar.Management
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
 
@@ -84,7 +85,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   `exclude_ids`, the primary, or clears the primary when none is eligible.
   Call it inside `under_lock/3`.
 
-  A candidate refused by `CalendarPrimary.set_primary_calendar_integration/2`
+  A candidate refused by `Calendar.Primary.set_primary_calendar_integration/2`
   (it changed or vanished since it was listed) is excluded and the next one
   tried; each pass excludes one more id, so this terminates.
   """
@@ -99,7 +100,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
 
     case candidates do
       [next | _rest] ->
-        case CalendarPrimary.set_primary_calendar_integration(user_id, next.id) do
+        case Primary.set_primary_calendar_integration(user_id, next.id) do
           {:ok, _integration} -> {:promoted, next.id}
           {:error, _reason} -> elect_next(user_id, [next.id | exclude_ids])
         end
@@ -120,7 +121,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   write. Nor is one waiting to be reconnected, which `elect_next/2` would
   pass over too: its writes fail until its owner reconnects it, and the
   reconnect clears the flag before adopting. Whether `integration` is still active is checked on the stored row
-  by `CalendarPrimary.set_primary_calendar_integration/2`, so a struct read
+  by `Calendar.Primary.set_primary_calendar_integration/2`, so a struct read
   before the lock cannot adopt a calendar paused since.
 
   The decision reads the stored primary row, not a decrypted one: a primary
@@ -132,7 +133,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
     with false <- integration.needs_reauth,
          true <- BookingEligibility.bookable?(integration),
          false <- active_primary?(user_id),
-         {:ok, _primary} <- CalendarPrimary.set_primary_calendar_integration(user_id, id) do
+         {:ok, _primary} <- Primary.set_primary_calendar_integration(user_id, id) do
       :adopted
     else
       _keep -> :unchanged

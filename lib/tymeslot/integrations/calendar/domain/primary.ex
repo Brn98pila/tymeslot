@@ -1,9 +1,11 @@
-defmodule Tymeslot.Integrations.CalendarPrimary do
+defmodule Tymeslot.Integrations.Calendar.Primary do
   @moduledoc """
-  Context for managing primary and booking calendar selection.
+  Sets a user's primary calendar integration when they choose one, and reads
+  it back; `Calendar.PrimaryElection` is what picks one without being asked.
 
-  Handles setting primary calendars, managing booking calendars,
-  and automatic primary calendar selection logic.
+  Making an integration the primary checks that it is active and bookable,
+  and gives it a booking calendar. An integration just connected through
+  OAuth has its booking calendar chosen here too, from what discovery finds.
   """
 
   alias Tymeslot.Integrations.Calendar, as: CalendarContext

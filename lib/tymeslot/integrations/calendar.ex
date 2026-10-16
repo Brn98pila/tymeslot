@@ -48,12 +48,12 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.OAuth
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.OwnerActions
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Reconnection
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Shared.Providers.Directory
   alias Tymeslot.Meetings
   alias Tymeslot.Security.EncryptedString
@@ -101,7 +101,7 @@ defmodule Tymeslot.Integrations.Calendar do
     integrations = Management.list_calendar_integrations(user_id)
 
     primary_id =
-      case CalendarPrimary.get_primary_calendar_integration(user_id) do
+      case Primary.get_primary_calendar_integration(user_id) do
         {:ok, primary} -> primary.id
         {:error, :not_found} -> nil
         {:error, :no_primary_set} -> nil

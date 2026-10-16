@@ -5,7 +5,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Deletion
   alias Tymeslot.Integrations.Calendar.Management
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Security.Encryption
 
@@ -208,7 +208,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       exchange = insert_exchange(user)
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, exchange.id)
+               Primary.set_primary_calendar_integration(user.id, exchange.id)
 
       {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == exchange.id
@@ -238,7 +238,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       exchange = insert_exchange(user, inserted_at: ~N[2024-01-03 10:00:00])
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+               Primary.set_primary_calendar_integration(user.id, primary.id)
 
       assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
@@ -267,7 +267,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       exchange = insert_exchange(user, inserted_at: ~N[2024-01-03 10:00:00])
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+               Primary.set_primary_calendar_integration(user.id, primary.id)
 
       assert {:ok, toggled} = Management.toggle_with_primary_rebalance(primary)
       refute toggled.is_active
@@ -288,7 +288,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       exchange = insert_exchange(user)
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+               Primary.set_primary_calendar_integration(user.id, primary.id)
 
       assert {:ok, toggled} = Management.toggle_with_primary_rebalance(primary)
       refute toggled.is_active
@@ -355,7 +355,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       _subscription = insert_subscription(user)
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+               Primary.set_primary_calendar_integration(user.id, primary.id)
 
       assert {:ok, toggled} = Management.toggle_with_primary_rebalance(primary)
       refute toggled.is_active
@@ -376,7 +376,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       _subscription = insert_subscription(user)
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+               Primary.set_primary_calendar_integration(user.id, primary.id)
 
       assert {:ok, toggled} = Management.toggle_with_primary_rebalance(primary)
       refute toggled.is_active
@@ -404,7 +404,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       _subscription = insert_subscription(user)
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+               Primary.set_primary_calendar_integration(user.id, primary.id)
 
       assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
@@ -424,7 +424,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       _subscription = insert_subscription(user)
 
       assert {:ok, _result} =
-               CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+               Primary.set_primary_calendar_integration(user.id, primary.id)
 
       assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
@@ -444,7 +444,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
       )
 
     assert {:ok, updated} =
-             CalendarPrimary.set_primary_calendar_integration(user.id, integration.id)
+             Primary.set_primary_calendar_integration(user.id, integration.id)
 
     assert updated.default_booking_calendar_id == "work"
 
@@ -467,7 +467,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
         calendar_list: [%{"id" => "primary", "selected" => true, "path" => "/cal/primary"}]
       )
 
-    assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, second.id)
+    assert {:ok, _result} = Primary.set_primary_calendar_integration(user.id, second.id)
 
     {:ok, cleared_first} = CalendarIntegrationQueries.get_for_user(first.id, user.id)
     assert cleared_first.default_booking_calendar_id == "old-default"
@@ -488,7 +488,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
         calendar_paths: ["/dav/fallback"]
       )
 
-    assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+    assert {:ok, _result} = Primary.set_primary_calendar_integration(user.id, primary.id)
 
     assert {:ok, _result} = Deletion.delete_with_primary_reassignment(user.id, primary.id)
 
@@ -513,7 +513,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
         calendar_paths: ["/dav/fallback"]
       )
 
-    assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+    assert {:ok, _result} = Primary.set_primary_calendar_integration(user.id, primary.id)
 
     assert {:ok, toggled_primary} =
              Management.toggle_with_primary_rebalance(primary)
@@ -534,7 +534,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
         calendar_list: [%{"id" => "primary", "selected" => true}]
       )
 
-    assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, only.id)
+    assert {:ok, _result} = Primary.set_primary_calendar_integration(user.id, only.id)
 
     assert {:ok, toggled} = Management.toggle_with_primary_rebalance(only)
     refute toggled.is_active
@@ -583,7 +583,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
     paused = insert(:calendar_integration, user: user, is_active: false)
 
     assert {:error, :inactive} =
-             CalendarPrimary.set_primary_calendar_integration(user.id, paused.id)
+             Primary.set_primary_calendar_integration(user.id, paused.id)
   end
 
   test "toggling the primary off never promotes a calendar waiting to be reconnected", %{
@@ -598,7 +598,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryTest do
         inserted_at: ~N[2024-01-02 10:00:00]
       )
 
-    assert {:ok, _result} = CalendarPrimary.set_primary_calendar_integration(user.id, primary.id)
+    assert {:ok, _result} = Primary.set_primary_calendar_integration(user.id, primary.id)
     assert {:ok, _toggled} = Management.toggle_with_primary_rebalance(primary)
 
     {:ok, profile} = ProfileQueries.get_by_user_id(user.id)

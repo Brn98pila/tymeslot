@@ -27,7 +27,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.BookingIntegrationResolver do
 
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.Management
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
 
@@ -71,7 +71,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.BookingIntegrationResolver do
   def resolve(%MeetingTypeSchema{user_id: user_id}), do: resolve(user_id)
 
   def resolve(user_id) when is_integer(user_id) do
-    case CalendarPrimary.get_primary_calendar_integration(user_id) do
+    case Primary.get_primary_calendar_integration(user_id) do
       {:ok, integration} when is_binary(integration.default_booking_calendar_id) ->
         if booking_target?(integration),
           do: integration,
