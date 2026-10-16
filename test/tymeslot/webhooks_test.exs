@@ -420,15 +420,21 @@ defmodule Tymeslot.WebhooksTest do
   # Feature Access Denial
   # ============================================================================
 
-  describe "test_webhook/1 - feature access denied" do
+  describe "test_webhook/2" do
     setup :verify_on_exit!
+
+    test "returns :not_found for another user's webhook" do
+      webhook = insert(:webhook)
+
+      assert {:error, :not_found} = Webhooks.test_webhook(insert(:user).id, webhook.id)
+    end
 
     test "sends nothing while the plan doesn't include automations" do
       setup_config(:tymeslot, feature_access_checker: Tymeslot.WebhooksTest.DenyAccessChecker)
       webhook = insert(:webhook)
       expect(Tymeslot.HTTPClientMock, :post, 0, fn _url, _body, _headers, _opts -> :unused end)
 
-      assert {:error, :insufficient_plan} = Webhooks.test_webhook(webhook)
+      assert {:error, :insufficient_plan} = Webhooks.test_webhook(webhook.user_id, webhook.id)
     end
   end
 

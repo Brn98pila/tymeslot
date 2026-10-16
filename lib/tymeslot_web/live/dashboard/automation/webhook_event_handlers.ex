@@ -218,7 +218,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
       id,
       :testing_connection,
       &AutomationHelpers.get_webhook_for_user(&1, id),
-      &Webhooks.test_webhook/1,
+      &Webhooks.test_webhook(&1.user_id, &1.id),
       {dgettext("dashboard_automation", "Webhook test successful! Check your endpoint."),
        dgettext("dashboard_automation", "Webhook not found")}
     )

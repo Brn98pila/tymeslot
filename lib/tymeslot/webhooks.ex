@@ -223,14 +223,17 @@ defmodule Tymeslot.Webhooks do
   @test_connection_deadline_ms 20_000
 
   @doc """
-  Sends `webhook` a test payload (see `test_webhook_connection/2`). Refused,
-  sending nothing, while the owner's plan doesn't include automations.
+  Sends one of `user_id`'s webhooks a test payload (see
+  `test_webhook_connection/2`). Refused, sending nothing, while the owner's
+  plan doesn't include automations.
   """
-  @spec test_webhook(WebhookSchema.t()) ::
-          :ok | {:error, String.t() | Features.access_error()}
-  def test_webhook(%WebhookSchema{} = webhook) do
-    with :ok <- Features.check_access(webhook.user_id, :automations_allowed),
-         do: test_webhook_connection(webhook.url, webhook.webhook_token)
+  @spec test_webhook(integer(), integer()) ::
+          :ok | {:error, :not_found | String.t() | Features.access_error()}
+  def test_webhook(user_id, id) do
+    with_webhook(user_id, id, fn webhook ->
+      with :ok <- Features.check_access(user_id, :automations_allowed),
+           do: test_webhook_connection(webhook.url, webhook.webhook_token)
+    end)
   end
 
   @doc """
