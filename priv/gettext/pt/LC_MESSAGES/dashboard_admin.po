@@ -387,11 +387,6 @@ msgstr "Não é possível desativar este provedor de login enquanto ele for a ú
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
-msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to fall back to the ADMIN_ALERT_EMAIL environment variable."
-msgstr "Endereço de e-mail que recebe os alertas de administração quando a opção acima está ativada. Deixe em branco para usar a variável de ambiente ADMIN_ALERT_EMAIL."
-
-#: lib/tymeslot_web/live/admin_live/formatters.ex
-#, elixir-autogen, elixir-format
 msgid "Email operational alerts (webhook failures, integration health issues, background job errors) to the admin alert recipient. Requires a recipient address to be set below."
 msgstr "Envia alertas operacionais por e-mail (falhas de webhook, problemas de saúde de integrações, erros em tarefas em segundo plano) para o destinatário dos alertas de administração. Exige um endereço definido abaixo."
 
@@ -650,3 +645,8 @@ msgstr "As alterações feitas aqui entram em vigor imediatamente. Uma configura
 #, elixir-autogen, elixir-format
 msgid "Set by the %{variable} environment variable. To change it here, remove the variable and restart Tymeslot."
 msgstr "Definida pela variável de ambiente %{variable}. Para alterá-la aqui, remova a variável e reinicie o Tymeslot."
+
+#: lib/tymeslot_web/live/admin_live/formatters.ex
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
+msgstr "Endereço de e-mail que recebe os alertas de administração quando a opção acima está ativada. Deixe em branco para usar a variável de ambiente ADMIN_ALERT_EMAIL."

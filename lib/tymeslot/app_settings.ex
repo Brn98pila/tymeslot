@@ -15,7 +15,8 @@ defmodule Tymeslot.AppSettings do
     4. **Built-in default**: the fallback in `default_for/1`.
 
   At application boot, `load!/0` snapshots the current config-layer value for
-  each key, then pushes any non-nil DB overrides into `Application.put_env/3`.
+  each key, then pushes any non-nil DB overrides into `Application.put_env/3`,
+  skipping pinned keys so their config value stands.
   Existing call sites (e.g. `Tymeslot.Infrastructure.Config.registration_enabled?/0`)
   read via `Application.get_env/3` and transparently see the DB-backed value
   without any code changes.
@@ -90,8 +91,9 @@ defmodule Tymeslot.AppSettings do
 
   @doc """
   Snapshots the current config-layer values, then applies any DB overrides on
-  top. Safe to call multiple times — the baseline is only captured once per
-  BEAM lifetime, so subsequent calls just re-apply current DB overrides.
+  top, except to pinned keys. Safe to call multiple times — the baseline is
+  only captured once per BEAM lifetime, so subsequent calls just re-apply
+  current DB overrides.
   Returns `:ok` even if the DB is unreachable (defaults remain in effect).
   """
   @spec load!() :: :ok

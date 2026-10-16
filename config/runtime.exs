@@ -749,9 +749,10 @@ end
 
 # reCAPTCHA configuration (runtime)
 # Signup and booking protection are configurable and will automatically
-# disable if keys are missing. The flags below seed the application config
-# from the matching env vars; admins can override them at runtime via the
-# admin settings UI (which writes through Tymeslot.AppSettings).
+# disable if keys are missing. The settings below come from the matching env
+# vars. One left unset can be changed at runtime from the admin settings UI
+# (which writes through Tymeslot.AppSettings); one that is set fixes the
+# setting, and the admin UI shows it greyed out.
 
 recaptcha_signup_min_score =
   case Float.parse(System.get_env("RECAPTCHA_SIGNUP_MIN_SCORE", "0.3")) do

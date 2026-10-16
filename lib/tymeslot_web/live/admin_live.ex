@@ -3,8 +3,9 @@ defmodule TymeslotWeb.AdminLive do
   Self-hosted admin control panel. One `live_action` per tab:
 
     * the settings tabs (`:authentication`, `:email`, `:general`) each render
-      the sections `TymeslotWeb.AdminLive.Tabs` assigns them. Their overrides
-      shadow any matching environment variable / application config value.
+      the sections `TymeslotWeb.AdminLive.Tabs` assigns them. A saved value
+      outranks the application config, but not a set environment variable:
+      a setting that variable fixes is shown greyed out.
     * `:users` — list users with counts at the top and
       promote/demote admin actions.
 

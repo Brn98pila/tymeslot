@@ -387,11 +387,6 @@ msgstr "Tohoto poskytovatele přihlášení nelze vypnout, dokud je jedinou funk
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
-msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to fall back to the ADMIN_ALERT_EMAIL environment variable."
-msgstr "E-mailová adresa, která dostává upozornění pro správce, když je přepínač výše zapnutý. Ponechte prázdné a použije se proměnná prostředí ADMIN_ALERT_EMAIL."
-
-#: lib/tymeslot_web/live/admin_live/formatters.ex
-#, elixir-autogen, elixir-format
 msgid "Email operational alerts (webhook failures, integration health issues, background job errors) to the admin alert recipient. Requires a recipient address to be set below."
 msgstr "Odesílá provozní upozornění (selhání webhooků, problémy se stavem integrací, chyby úloh na pozadí) e-mailem příjemci upozornění pro správce. Níže je nutné nastavit adresu příjemce."
 
@@ -650,3 +645,8 @@ msgstr "Změny se projeví okamžitě. Nastavení určené proměnnou prostřed�
 #, elixir-autogen, elixir-format
 msgid "Set by the %{variable} environment variable. To change it here, remove the variable and restart Tymeslot."
 msgstr "Nastaveno proměnnou prostředí %{variable}. Chcete-li hodnotu změnit zde, odstraňte proměnnou a restartujte Tymeslot."
+
+#: lib/tymeslot_web/live/admin_live/formatters.ex
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
+msgstr "E-mailová adresa, která dostává upozornění pro správce, když je přepínač výše zapnutý. Ponechte prázdné a použije se proměnná prostředí ADMIN_ALERT_EMAIL."

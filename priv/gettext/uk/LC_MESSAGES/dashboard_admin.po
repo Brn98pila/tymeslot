@@ -387,11 +387,6 @@ msgstr "Неможливо вимкнути цей провайдер входу
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
-msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to fall back to the ADMIN_ALERT_EMAIL environment variable."
-msgstr "Адреса електронної пошти, на яку надходитимуть сповіщення для адміністратора, якщо ввімкнено перемикач вище. Залиште поле порожнім, щоб використовувати змінну середовища ADMIN_ALERT_EMAIL."
-
-#: lib/tymeslot_web/live/admin_live/formatters.ex
-#, elixir-autogen, elixir-format
 msgid "Email operational alerts (webhook failures, integration health issues, background job errors) to the admin alert recipient. Requires a recipient address to be set below."
 msgstr "Надсилати операційні сповіщення (збої вебхуків, проблеми з інтеграціями, помилки фонових завдань) на електронну пошту отримувача адміністративних сповіщень. Адресу отримувача потрібно вказати нижче."
 
@@ -650,3 +645,8 @@ msgstr "Зміни тут набирають чинності негайно. Н
 #, elixir-autogen, elixir-format
 msgid "Set by the %{variable} environment variable. To change it here, remove the variable and restart Tymeslot."
 msgstr "Задано змінною середовища %{variable}. Щоб змінити це налаштування тут, видаліть змінну й перезапустіть Tymeslot."
+
+#: lib/tymeslot_web/live/admin_live/formatters.ex
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
+msgstr "Адреса електронної пошти, на яку надходитимуть сповіщення для адміністратора, якщо ввімкнено перемикач вище. Залиште поле порожнім, щоб використовувати змінну середовища ADMIN_ALERT_EMAIL."

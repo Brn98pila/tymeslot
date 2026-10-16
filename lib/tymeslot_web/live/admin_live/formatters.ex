@@ -122,7 +122,7 @@ defmodule TymeslotWeb.AdminLive.Formatters do
   def describe(:admin_alert_email) do
     dgettext(
       "dashboard_admin",
-      "Email address that receives admin alerts when the toggle above is enabled. Leave blank to fall back to the ADMIN_ALERT_EMAIL environment variable."
+      "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
     )
   end
 
