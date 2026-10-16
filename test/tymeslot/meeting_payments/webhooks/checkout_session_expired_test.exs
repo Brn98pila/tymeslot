@@ -12,6 +12,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
   import Ecto.Query, only: [from: 2]
   import Tymeslot.Factory
 
+  alias Tymeslot.MeetingPayments
   alias Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpired
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Meetings.MeetingSchema, as: Meeting
@@ -155,6 +156,35 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionExpiredTest do
 
       assert :ok = CheckoutSessionExpired.handle(event)
       assert_receive :expired, 1_000
+    end
+
+    # An organiser can cancel a booking still awaiting payment, and that
+    # cancel says nothing on the payment topic, so the attendee waiting on
+    # the payment hears of it only when the payment itself fails.
+    test "tells the waiting attendee when the payment fails behind a cancelled meeting" do
+      meeting = insert(:meeting, status: "cancelled")
+
+      bp =
+        insert(:booking_payment,
+          stripe_account_id: @account,
+          meeting: meeting,
+          status: "pending",
+          stripe_checkout_session_id: "cs_CANCELLED_PENDING"
+        )
+
+      Phoenix.PubSub.subscribe(Tymeslot.PubSub, MeetingPayments.payment_topic(meeting.id))
+
+      event =
+        expired_event("evt_CANCELLED_PENDING", %{
+          "id" => "cs_CANCELLED_PENDING",
+          "client_reference_id" => meeting.id
+        })
+
+      assert :ok = CheckoutSessionExpired.handle(event)
+      assert_receive :expired, 1_000
+
+      assert Repo.reload!(bp).status == "failed"
+      assert {:ok, %{status: "cancelled"}} = MeetingQueries.get_meeting(meeting.id)
     end
   end
 

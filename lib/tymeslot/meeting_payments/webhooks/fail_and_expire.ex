@@ -73,7 +73,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
         %BookingPaymentSchema{status: "pending"} = locked ->
           with {:ok, _bp} <- mark_failed(locked, event_id, reason),
                {:ok, outcome} <- expire_meeting(locked.meeting_id) do
-            {:ok, {:failed, outcome}}
+            {:ok, {:failed, failed_outcome(outcome, locked.meeting_id)}}
           end
 
         %BookingPaymentSchema{status: "failed"} = locked ->
@@ -106,6 +106,14 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
         # offer, exactly as confirming the payment does.
         HeldMeetings.announce_expired(meeting)
 
+      # The payment failed but its meeting had moved on already (an
+      # organiser cancelling it, say, which says nothing on the payment
+      # topic), so no slot is released; an attendee still waiting on the
+      # payment is told all the same.
+      {:ok, {:failed, {:moved_on, meeting_id}}} ->
+        HeldMeetings.broadcast(meeting_id, :expired)
+        :ok
+
       {:ok, {:failed, :unchanged}} ->
         :ok
 
@@ -113,6 +121,10 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
         {:error, rollback_reason}
     end
   end
+
+  defp failed_outcome(%MeetingSchema{} = meeting, _meeting_id), do: meeting
+  defp failed_outcome(:unchanged, nil), do: :unchanged
+  defp failed_outcome(:unchanged, meeting_id), do: {:moved_on, meeting_id}
 
   defp mark_failed(payment, event_id, reason) do
     case BookingPaymentQueries.update(payment, %{status: "failed", last_event_id: event_id}) do
