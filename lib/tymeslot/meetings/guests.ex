@@ -275,7 +275,7 @@ defmodule Tymeslot.Meetings.Guests do
     Repo.transaction(fn ->
       meeting = GroupMeetingQueries.lock_for_update(guest.meeting_id)
 
-      with true <- Seats.seats_left(meeting, meeting.capacity) > 0 || {:error, :full},
+      with true <- seat_for_yes?(guest, meeting) || {:error, :full},
            {:ok, updated} <- GuestQueries.update_rsvp(guest, rsvp_attrs("accepted")) do
         updated
       else
@@ -285,6 +285,13 @@ defmodule Tymeslot.Meetings.Guests do
   end
 
   defp update_response(guest, response), do: GuestQueries.update_rsvp(guest, rsvp_attrs(response))
+
+  # The status is re-read under the lock: a yes submitted twice finds the
+  # seat the first submit took already its own, rather than none left.
+  defp seat_for_yes?(guest, meeting),
+    do:
+      GuestQueries.get_status(guest) != "declined" or
+        Seats.seats_left(meeting, meeting.capacity) > 0
 
   defp rsvp_attrs(response), do: %{status: response, responded_at: now()}
 
