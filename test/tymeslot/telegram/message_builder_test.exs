@@ -4,6 +4,7 @@ defmodule Tymeslot.Telegram.MessageBuilderTest do
   @moduletag :telegram
   @moduletag :unit
 
+  alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Telegram.MessageBuilder
 
   @meeting %{
@@ -22,6 +23,26 @@ defmodule Tymeslot.Telegram.MessageBuilderTest do
   # The organiser's timezone, deliberately different from the attendee's: these
   # messages land in the organiser's chat, so every time below is theirs.
   @timezone "UTC"
+
+  describe "build_message/3 for every subscribable event" do
+    test "each one has a dedicated message rather than the generic fallback" do
+      meeting = Map.merge(@meeting, %{approval_deadline_at: nil, decline_reason: nil})
+
+      assert EventTypes.all() != []
+
+      generic =
+        Enum.filter(EventTypes.all(), fn event ->
+          MessageBuilder.build_message(event, meeting, @timezone) =~ "Meeting Update"
+        end)
+
+      assert generic == []
+    end
+
+    test "an unknown event name still builds the generic message" do
+      assert MessageBuilder.build_message("meeting.renamed", @meeting, @timezone) =~
+               "<b>Meeting Update</b>"
+    end
+  end
 
   describe "build_message/3" do
     test "builds meeting.requested message with the deadline to respond by" do
