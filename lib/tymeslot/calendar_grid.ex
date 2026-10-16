@@ -423,21 +423,6 @@ defmodule Tymeslot.CalendarGrid do
   defdelegate occurrence_slot(event), to: SeriesStart, as: :slot
 
   @doc """
-  How many occurrences `rule` makes from `first` up to, but not including,
-  `boundary`, as a split of a series on a calendar of `provider` counts
-  them off its `COUNT` (see `SeriesStart.count_before/4`).
-  """
-  @spec occurrences_before(
-          atom() | String.t() | nil,
-          String.t(),
-          Date.t() | DateTime.t(),
-          Date.t() | DateTime.t()
-        ) :: non_neg_integer()
-  defdelegate occurrences_before(provider, rule, first, boundary),
-    to: SeriesStart,
-    as: :count_before
-
-  @doc """
   The rule an edit of `event` and every following occurrence writes to the
   series it starts, given the new `rule` with its `COUNT` as given for the
   whole series: the `COUNT` less the occurrences before the split, counted
