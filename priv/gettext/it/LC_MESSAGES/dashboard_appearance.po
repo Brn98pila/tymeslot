@@ -674,3 +674,8 @@ msgstr "Questo tipo di file non è supportato. Carica un'immagine JPG, PNG o Web
 #, elixir-autogen, elixir-format
 msgid "This file type is not supported. Please upload an MP4 or WebM video."
 msgstr "Questo tipo di file non è supportato. Carica un video MP4 o WebM."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/components.ex
+#, elixir-autogen, elixir-format
+msgid "You are customising %{theme}, but your booking page uses %{current}. These changes appear on your booking page once you choose %{theme} as your style."
+msgstr "Stai personalizzando %{theme}, ma la tua pagina di prenotazione usa %{current}. Le modifiche compariranno sulla tua pagina di prenotazione quando sceglierai %{theme} come stile."
