@@ -118,11 +118,13 @@ defmodule Tymeslot.Release do
       bin/tymeslot rpc 'Tymeslot.Release.reopen_registration()'
 
   Refuses when the admin UI is disabled, where registration is not the
-  operator's to change.
+  operator's to change, and returns `{:error, {:pinned, :registration_enabled,
+  "REGISTRATION_ENABLED"}}` when that environment variable is set, since it
+  fixes the setting: set it to `true` and restart instead.
   """
   @spec reopen_registration() ::
           {:ok, AppSettingsSchema.t()}
-          | {:error, :admin_ui_disabled | :would_lock_out | Ecto.Changeset.t()}
+          | {:error, :admin_ui_disabled | AppSettings.update_error()}
   def reopen_registration do
     ensure_started()
 
