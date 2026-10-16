@@ -292,8 +292,8 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
 
   defp occurrences_before(stored, zone) do
     with series_rule when is_binary(series_rule) <- Map.get(stored, :recurrence_rule),
-         %{} = first <- SeriesStart.of(stored),
-         %{} = slot <- SeriesStart.slot(stored) do
+         %{} = first <- SeriesStart.of_cached(stored),
+         %{} = slot <- SeriesStart.slot_of_cached(stored) do
       {:ok,
        SeriesStart.count_before(
          Map.get(stored, :provider),
