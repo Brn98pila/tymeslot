@@ -47,7 +47,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomExpiry do
   alias Tymeslot.CalendarGrid.EventVideoRoomSchema
   alias Tymeslot.CalendarGrid.EventVideoRoomTimes
   alias Tymeslot.Clock
-  alias Tymeslot.Integrations.Calendar.Operations, as: CalendarOperations
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations, as: CalendarOperations
   alias Tymeslot.Integrations.Calendar.SeriesRules
 
   @seconds_per_day 86_400

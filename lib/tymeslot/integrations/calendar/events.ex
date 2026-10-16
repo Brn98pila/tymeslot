@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
 
   Handles listing, creating, updating, and deleting calendar events.
   Adds context validation and normalisation before invoking the
-  configured behaviour module (defaults to `Calendar.Operations`).
+  configured behaviour module (defaults to `Calendar.Runtime.Operations`).
   """
 
   alias Tymeslot.Availability.Reach
@@ -502,7 +502,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
       Application.get_env(
         :tymeslot,
         :calendar_module,
-        Tymeslot.Integrations.Calendar.Operations
+        Tymeslot.Integrations.Calendar.Runtime.Operations
       )
 
     if Code.ensure_loaded?(mod) do
@@ -512,7 +512,7 @@ defmodule Tymeslot.Integrations.Calendar.Events do
         calendar_module: LogFormat.reason(mod)
       )
 
-      Tymeslot.Integrations.Calendar.Operations
+      Tymeslot.Integrations.Calendar.Runtime.Operations
     end
   end
 

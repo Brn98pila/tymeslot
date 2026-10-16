@@ -21,7 +21,7 @@ defmodule Tymeslot.CalendarGrid.CalDAVZonedSeriesEditTest do
   alias Tymeslot.CalendarGrid
   alias Tymeslot.CalendarGrid.EventCreation
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
-  alias Tymeslot.Integrations.Calendar.Operations
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
 
   setup :verify_on_exit!
 

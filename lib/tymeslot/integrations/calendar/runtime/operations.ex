@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Calendar.Operations do
+defmodule Tymeslot.Integrations.Calendar.Runtime.Operations do
   @moduledoc """
   Implements CalendarBehaviour for testing and configuration compatibility.
 

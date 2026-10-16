@@ -31,7 +31,7 @@ defmodule Tymeslot.Dev.Calendar do
   Nothing is persisted — a restart clears them along with the rest.
 
   To exercise genuine calendar sync locally, leave both variables unset and the
-  real `Calendar.Operations` module is used.
+  real `Calendar.Runtime.Operations` module is used.
   """
 
   @behaviour Tymeslot.Integrations.Calendar.CalendarBehaviour

@@ -22,7 +22,7 @@ defmodule Tymeslot.CalendarGrid.CalDAVSeriesTimeZoneWriteTest do
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.ICalNormaliser
   alias Tymeslot.Integrations.Calendar.ICalParser
-  alias Tymeslot.Integrations.Calendar.Operations
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
 
   setup :verify_on_exit!
 

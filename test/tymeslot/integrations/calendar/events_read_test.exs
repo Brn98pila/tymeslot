@@ -2,7 +2,7 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadTest do
   use ExUnit.Case, async: true
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Calendar.EventsRead
+  alias Tymeslot.Integrations.Calendar.Runtime.EventsRead
   alias Tymeslot.Integrations.Calendar.Shared.FetchAggregate.Outcome
   alias Tymeslot.Test.LogCapture
 

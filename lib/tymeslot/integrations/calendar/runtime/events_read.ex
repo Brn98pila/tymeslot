@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Calendar.EventsRead do
+defmodule Tymeslot.Integrations.Calendar.Runtime.EventsRead do
   @moduledoc """
   Read-path calendar operations (per-client range fetch with fallback,
   extracted from runtime operations).

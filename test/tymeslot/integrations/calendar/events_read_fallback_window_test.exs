@@ -12,7 +12,7 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadFallbackWindowTest do
   @moduletag :calendar
   @moduletag :integrations
 
-  alias Tymeslot.Integrations.Calendar.EventsRead
+  alias Tymeslot.Integrations.Calendar.Runtime.EventsRead
 
   # A provider that answers honestly for the range it is asked, but fails any
   # read narrower than the fallback's, so every read below is the fallback's.

@@ -40,8 +40,8 @@ defmodule Tymeslot.Bookings.TeamsDoubleRescheduleTest do
   import Tymeslot.MeetingTestHelpers
 
   alias Tymeslot.Bookings.Reschedule
-  alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.LocationOption
   alias Tymeslot.Repo

@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.Calendar.RequestCoalescer do
+defmodule Tymeslot.Integrations.Calendar.Runtime.RequestCoalescer do
   @moduledoc """
   Coalesces identical calendar API requests to prevent duplicate calls.
 

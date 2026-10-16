@@ -6,7 +6,7 @@ defmodule Tymeslot.Integrations.Calendar.EventsReadSeriesTest do
   @moduletag :integrations
   @moduletag :calendar
 
-  alias Tymeslot.Integrations.Calendar.EventsRead
+  alias Tymeslot.Integrations.Calendar.Runtime.EventsRead
 
   # A CalDAV collection as the server returns it: a `TZID=Europe/Berlin`
   # weekly series written in January (CET, UTC+1), plus one occurrence moved
