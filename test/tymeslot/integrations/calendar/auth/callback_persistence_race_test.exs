@@ -82,7 +82,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistenceRaceTest do
     contender = fn token ->
       fn hold ->
         Process.put(:race_token, token)
-        RaceConductor.arm(hold, &reactivation_lookup?/1)
+        RaceConductor.arm(hold, &reactivation_lookup?/1, must_park: true)
         CallbackPersistence.upsert("google", user.id, nil, tokens(token))
       end
     end
