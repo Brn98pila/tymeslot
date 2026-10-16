@@ -10,13 +10,17 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandlerTest do
   @moduletag :controllers
   @moduletag :integrations
 
+  import Ecto.Query, only: [from: 2]
   import Tymeslot.AuthTestHelpers, only: [log_in_user: 2]
   import Tymeslot.RateLimiterTestHelpers, only: [exhaust_limit!: 2]
 
   alias Phoenix.Flash
   alias Tymeslot.Auth.UserQueries
   alias Tymeslot.Factory
+  alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Shared.OAuth.State
+  alias Tymeslot.Integrations.Video.VideoIntegrationSchema
+  alias Tymeslot.Repo
   alias TymeslotWeb.Helpers.ClientIP
 
   @calendars "/dashboard/integrations?tab=calendars"
@@ -113,6 +117,10 @@ defmodule TymeslotWeb.Integrations.OAuthCallbackHandlerTest do
         assert redirected_to(conn) == "/auth/restore"
         assert Flash.get(conn.assigns.flash, :error) == nil
         assert Flash.get(conn.assigns.flash, :info) == nil
+
+        for schema <- [CalendarIntegrationSchema, VideoIntegrationSchema] do
+          assert Repo.all(from(i in schema, where: i.user_id == ^user.id)) == []
+        end
       end
 
       test "a rate-limited callback is turned away", %{conn: conn} do
