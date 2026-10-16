@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Media.UploadConstraints
+  alias TymeslotWeb.Dashboard.ThemeSettings.AssetUploads
 
   @doc """
   Renders the video picker.
@@ -141,7 +142,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
               <%= for err <- upload_errors(@uploads.background_video_path) do %>
                 <div class="mt-4 p-3 bg-red-50 border border-red-100 rounded-token-xl text-red-600 text-xs font-bold flex items-center gap-2">
                   <.icon name="hero-exclamation-circle" class="w-4 h-4" />
-                  {Phoenix.Naming.humanize(err)}
+                  {AssetUploads.error_message(:video, err)}
                 </div>
               <% end %>
 
@@ -164,7 +165,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomization.Pickers.VideoPi
                   <%= for err <- upload_errors(@uploads.background_video_path, entry) do %>
                     <div class="mt-2 p-3 bg-red-50 border border-red-100 rounded-token-xl text-red-600 text-xs font-bold flex items-center gap-2">
                       <.icon name="hero-exclamation-circle" class="w-4 h-4" />
-                      {Phoenix.Naming.humanize(err)}
+                      {AssetUploads.error_message(:video, err)}
                     </div>
                   <% end %>
                 </div>

@@ -129,6 +129,7 @@
   --chrome-surface-hover: rgba(0, 0, 0, 0.65);
   --chrome-line-hover: rgba(255, 255, 255, 0.3);
   --chrome-ink: #ffffff;
+  --preview-notice-ground: rgb(15 23 42 / 0.85);
 
   --print-line: #cccccc;
 }

@@ -128,10 +128,16 @@ defmodule Tymeslot.Utils.MediaValidator do
 
   @doc """
   Validates if a file at the given path is a supported image format.
+
+  Reads the whole file, not just its header: a JPEG's dimensions sit in its
+  SOF marker, after every APP segment, and the EXIF block of a phone photo
+  (with its embedded thumbnail) or an embedded colour profile routinely pushes
+  that marker well past the first few kilobytes. Image uploads are capped in
+  size before they reach here.
   """
   @spec valid_image_file?(String.t()) :: boolean()
   def valid_image_file?(path) when is_binary(path) do
-    case read_header(path) do
+    case File.read(path) do
       {:ok, binary} -> valid_image?(binary)
       _other -> false
     end
