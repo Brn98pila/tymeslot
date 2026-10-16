@@ -272,10 +272,14 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   """
   @spec following_rule(map(), String.t(), String.t() | nil) ::
           {:ok, String.t()} | {:error, :ends_before | :start_unknown}
-  def following_rule(event, rule, zone) do
+  def following_rule(event, rule, zone),
+    do: following_rule_of_cached(Occurrence.cached_row(event), rule, zone)
+
+  # `following_rule/3` for a `stored` row that is already the cached one.
+  defp following_rule_of_cached(stored, rule, zone) do
     case RRule.parse(rule) do
       {:ok, %RRule{count: count} = parsed} when is_integer(count) ->
-        with {:ok, before} <- occurrences_before(Occurrence.cached_row(event), zone) do
+        with {:ok, before} <- occurrences_before(stored, zone) do
           if count > before,
             do: {:ok, RRule.format(%{parsed | count: count - before})},
             else: {:error, :ends_before}
@@ -309,7 +313,8 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
   defp in_zone(%Date{} = date, _zone), do: date
 
   # A new rule written from the split counts what is left of the series as
-  # it is when the edit is written (`following_rule/3`), not as it was when
+  # it is when the edit is written (`following_rule/3`, from `stored`, the
+  # row already read for the write), not as it was when
   # the organiser chose the rule: a sync since may have moved its start or
   # changed its rule. The rule's end day was chosen in `:until_timezone`,
   # the zone the series repeats in.
@@ -317,7 +322,7 @@ defmodule Tymeslot.CalendarGrid.SeriesEdit do
        when is_binary(rule) do
     zone = Keyword.get(opts, :until_timezone) || Map.get(stored, :timezone)
 
-    case following_rule(stored, rule, zone) do
+    case following_rule_of_cached(stored, rule, zone) do
       {:ok, rule} -> {:ok, %{changes | recurrence_rule: rule}}
       {:error, reason} -> refuse(reason)
     end

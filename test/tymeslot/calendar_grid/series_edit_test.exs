@@ -401,6 +401,45 @@ defmodule Tymeslot.CalendarGrid.SeriesEditTest do
       rule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO;UNTIL=20261231T235959Z"
       assert CalendarGrid.following_rule(event, rule, "Etc/UTC") == {:ok, rule}
     end
+
+    test "keeps the whole count when the split is at the first occurrence", %{
+      integration: integration
+    } do
+      cache_master_start(integration, ~U[2026-06-01 09:00:00Z])
+
+      first =
+        insert_event(integration, %{
+          uid: "series-1@google.com_20260601T090000Z",
+          provider_event_id: "series-1_20260601T090000Z",
+          recurrence_rule: @series_rule
+        })
+
+      assert CalendarGrid.following_rule(first, @every_two_weeks, "Etc/UTC") ==
+               {:ok, @every_two_weeks}
+    end
+
+    # 09:00 in Berlin is 07:00Z until the clocks go back on 25 October and
+    # 08:00Z after, so counted in UTC the occurrence of 2 November would
+    # have three before it rather than two.
+    test "counts the occurrences on the wall clock of the series' zone across a DST change",
+         %{integration: integration} do
+      cache_master_start(integration, ~U[2026-10-19 07:00:00Z])
+
+      after_the_change =
+        insert_event(integration, %{
+          uid: "series-1@google.com_20261102T080000Z",
+          provider_event_id: "series-1_20261102T080000Z",
+          start_at: ~U[2026-11-02 08:00:00.000000Z],
+          end_at: ~U[2026-11-02 09:00:00.000000Z],
+          recurrence_rule: @series_rule
+        })
+
+      assert CalendarGrid.following_rule(after_the_change, @series_rule, "Europe/Berlin") ==
+               {:ok, "FREQ=WEEKLY;BYDAY=MO;COUNT=8"}
+
+      assert CalendarGrid.following_rule(after_the_change, @series_rule, "Etc/UTC") ==
+               {:ok, "FREQ=WEEKLY;BYDAY=MO;COUNT=7"}
+    end
   end
 
   describe "update_event/4 of a counted rule" do
