@@ -228,9 +228,12 @@ defmodule TymeslotWeb.Themes.Shared.Journey.Runtime do
 
   # The route whose entry the booking starts again on: the overview, or the
   # meeting type's own link (`/:username/:slug`, live action `:schedule`),
-  # so a restart opens where a fresh visit by the same way in would.
+  # so a restart opens where a fresh visit by the same way in would. A page
+  # holding no meeting type (a direct visit to `/:username/thank-you`) has no
+  # schedule to return to, so it starts again on the overview.
   defp restart_route(%{entered_via_overview: true}), do: :overview
-  defp restart_route(_assigns), do: :schedule
+  defp restart_route(%{meeting_type: %{}}), do: :schedule
+  defp restart_route(_assigns), do: :overview
 
   defp restart?(assigns, moment_key, event) do
     event == :schedule_another and moment_key == :confirmation and
