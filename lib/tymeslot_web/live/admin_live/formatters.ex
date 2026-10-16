@@ -320,6 +320,19 @@ defmodule TymeslotWeb.AdminLive.Formatters do
 
   def lock_reason(_key, _state), do: nil
 
+  @doc """
+  Why a setting fixed by the environment variable `env_var` cannot be changed
+  from the admin page.
+  """
+  @spec pinned_reason(String.t()) :: String.t()
+  def pinned_reason(env_var) do
+    dgettext(
+      "dashboard_admin",
+      "Set by the %{variable} environment variable. To change it here, remove the variable and restart Tymeslot.",
+      variable: env_var
+    )
+  end
+
   defp sso_lock_reason do
     dgettext(
       "dashboard_admin",
