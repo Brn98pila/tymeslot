@@ -13,7 +13,6 @@ defmodule Tymeslot.Profiles do
 
   alias Tymeslot.Availability
   alias Tymeslot.Availability.Schedules
-  alias Tymeslot.BookingPage.Publication
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.MeetingTypes
   alias Tymeslot.Profiles.Avatars
@@ -28,7 +27,6 @@ defmodule Tymeslot.Profiles do
   alias Tymeslot.Repo
   alias Tymeslot.Security.EncryptedString
   alias Tymeslot.Security.FieldValidators.UsernameValidator
-  alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Themes.Catalog
   alias Tymeslot.Timezones
 
@@ -406,50 +404,22 @@ defmodule Tymeslot.Profiles do
 
   Submitting the profile's current username writes nothing and costs nothing.
   A username refused by validation does not count towards the change rate
-  limit; only an attempt that reaches the database does. `skip_rate_limit:
-  true` is for system writes, such as the default username given when
-  onboarding finishes without one.
+  limit; only an attempt that reaches the database does.
   """
-  @spec change_username(profile(), username(), keyword()) :: result(profile())
-  def change_username(profile, username, opts \\ [])
+  @spec change_username(profile(), username()) :: result(profile())
+  defdelegate change_username(profile, username), to: Usernames, as: :change
 
-  def change_username(%ProfileSchema{username: username} = profile, username, _opts),
-    do: {:ok, profile}
+  @doc """
+  Gives a profile without a username the system default
+  (`generate_default_username/1`), as when onboarding moves on without one.
+  A profile that already has a username is returned unchanged.
 
-  def change_username(%ProfileSchema{} = profile, username, opts) do
-    with :ok <- UsernameValidator.validate(username),
-         :ok <- refuse_reserved_username(username),
-         :ok <- username_rate_limit(profile, opts),
-         {:ok, updated_profile} <- ProfileQueries.update_username(profile, username) do
-      Publication.maybe_publish(updated_profile.user_id)
-      {:ok, updated_profile}
-    else
-      {:error, :rate_limited, _message} ->
-        {:error,
-         dgettext(
-           "dashboard_profile",
-           "Too many username change attempts. Please try again later."
-         )}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  # Every reserved username, the demo provider's included, is refused here,
-  # before the rate limit, so a refused choice costs no change attempt.
-  defp refuse_reserved_username(username) do
-    case username_reserved_status(String.trim(username)) do
-      :ok -> :ok
-      :reserved -> {:error, dgettext("errors", "This username is reserved")}
-    end
-  end
-
-  defp username_rate_limit(profile, opts) do
-    if Keyword.get(opts, :skip_rate_limit, false),
-      do: :ok,
-      else: RateLimiter.check(:username_change, "user:" <> Integer.to_string(profile.user_id))
-  end
+  A system write: it is validated and can publish the booking page like any
+  other username write, but is not counted against the user's change rate
+  limit, so a user who spent their allowance still gets a resolvable page.
+  """
+  @spec ensure_default_username(profile()) :: result(profile())
+  defdelegate ensure_default_username(profile), to: Usernames, as: :ensure_default
 
   @doc """
   Returns a list of reserved paths.

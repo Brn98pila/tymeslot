@@ -34,25 +34,20 @@ defmodule Tymeslot.Profiles.ChangeUsernameTest do
       profile = insert(:profile, user: user, username: nil)
       insert(:meeting_type, user: user, is_active: true)
 
-      assert {:ok, _updated} =
-               Profiles.change_username(profile, "autohost", skip_rate_limit: true)
+      assert {:ok, _updated} = Profiles.ensure_default_username(profile)
 
       {:ok, reloaded} = ProfileQueries.get_by_user_id(user.id)
       assert %DateTime{} = reloaded.booking_page_published_at
     end
   end
 
-  describe "change_username/3" do
-    test "skip_rate_limit writes through an exhausted change allowance" do
+  describe "change_username/2" do
+    test "refuses a change once the user's change allowance is spent" do
       profile = insert(:profile, username: nil)
-      key = "user:" <> Integer.to_string(profile.user_id)
-      for _n <- 1..6, do: RateLimiter.check(:username_change, key)
+      exhaust_username_changes(profile)
 
       assert {:error, "Too many username change attempts. Please try again later."} =
                Profiles.change_username(profile, "limited-host")
-
-      assert {:ok, %{username: "system-host"}} =
-               Profiles.change_username(profile, "system-host", skip_rate_limit: true)
     end
 
     test "writes nothing for the profile's current username" do
@@ -60,5 +55,36 @@ defmodule Tymeslot.Profiles.ChangeUsernameTest do
 
       assert {:ok, ^profile} = Profiles.change_username(profile, "same-host")
     end
+  end
+
+  describe "ensure_default_username/1" do
+    test "gives a blank username the default even with the change allowance spent" do
+      profile = insert(:profile, username: nil)
+      exhaust_username_changes(profile)
+      expected = "user_#{profile.user_id}"
+
+      assert {:ok, %{username: ^expected}} = Profiles.ensure_default_username(profile)
+      assert {:ok, %{username: ^expected}} = ProfileQueries.get_by_user_id(profile.user_id)
+    end
+
+    test "gives an empty-string username the default" do
+      profile = insert(:profile, username: nil)
+      profile = %{profile | username: ""}
+      expected = "user_#{profile.user_id}"
+
+      assert {:ok, %{username: ^expected}} = Profiles.ensure_default_username(profile)
+    end
+
+    test "leaves an existing username alone" do
+      profile = insert(:profile, username: "chosen-host")
+
+      assert {:ok, ^profile} = Profiles.ensure_default_username(profile)
+      assert {:ok, %{username: "chosen-host"}} = ProfileQueries.get_by_user_id(profile.user_id)
+    end
+  end
+
+  defp exhaust_username_changes(profile) do
+    key = "user:" <> Integer.to_string(profile.user_id)
+    for _n <- 1..6, do: RateLimiter.check(:username_change, key)
   end
 end

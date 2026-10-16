@@ -136,7 +136,7 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ThemeShellTest do
       test "the cancelled page offers the way back to the meeting type's booking page",
            %{conn: conn, profile: profile, user: user} do
         username = "rebook#{unquote(theme_id)}"
-        {:ok, _profile} = Profiles.change_username(profile, username, skip_rate_limit: true)
+        {:ok, _profile} = Profiles.change_username(profile, username)
 
         meeting_type =
           insert(:meeting_type, user: user, name: "Paid Consultation", slug: "vip-consult")

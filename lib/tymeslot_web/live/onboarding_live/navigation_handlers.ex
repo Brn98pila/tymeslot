@@ -231,7 +231,7 @@ defmodule TymeslotWeb.OnboardingLive.NavigationHandlers do
         )
 
       {:ok, profile} ->
-        case ensure_username(profile, user.id) do
+        case Profiles.ensure_default_username(profile) do
           {:ok, _profile} ->
             is_debug = socket.assigns.live_action in [:debug_welcome, :debug_step]
 
@@ -274,15 +274,6 @@ defmodule TymeslotWeb.OnboardingLive.NavigationHandlers do
               dgettext("onboarding_wizard", "Could not set up your profile. Please try again.")
             )
         end
-    end
-  end
-
-  defp ensure_username(profile, user_id) do
-    if profile.username && profile.username != "" do
-      {:ok, profile}
-    else
-      default_username = Profiles.generate_default_username(user_id)
-      Profiles.change_username(profile, default_username, skip_rate_limit: true)
     end
   end
 
