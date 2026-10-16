@@ -63,19 +63,24 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
              "Repeats weekly on Mon, Wed"
   end
 
-  test "starts each weekday toggle with a capital, as a label of its own" do
-    html =
-      Gettext.with_locale(TymeslotWeb.Gettext, "fr", fn ->
-        render_editor(%{recurrence_rule: "FREQ=WEEKLY;BYDAY=MO,WE"})
-      end)
+  for {locale, expected} <- [
+        {"fr", ~w(Lun. Mar. Mer. Jeu. Ven. Sam. Dim.)},
+        {"pl", ~w(Pon. Wt. Śr. Czw. Pt. Sob. Niedz.)}
+      ] do
+    test "#{locale}: starts each weekday toggle with a capital, as a label of its own" do
+      html =
+        Gettext.with_locale(TymeslotWeb.Gettext, unquote(locale), fn ->
+          render_editor(%{recurrence_rule: "FREQ=WEEKLY;BYDAY=MO,WE"})
+        end)
 
-    labels =
-      html
-      |> LazyHTML.from_fragment()
-      |> LazyHTML.query("label:has(input[name='by_day[]'])")
-      |> Enum.map(&String.trim(LazyHTML.text(&1)))
+      labels =
+        html
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("label:has(input[name='by_day[]'])")
+        |> Enum.map(&String.trim(LazyHTML.text(&1)))
 
-    assert labels == ~w(Lun Mar Mer Jeu Ven Sam Dim)
+      assert labels == unquote(expected)
+    end
   end
 
   describe "a monthly or yearly rule" do
@@ -149,12 +154,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
 
       Gettext.with_locale(TymeslotWeb.Gettext, "fr", fn ->
         assert RecurrenceEditor.summary(rule, @monday) ==
-                 "Se répète chaque semaine les lun, mer 10 fois"
+                 "Se répète chaque semaine les lun., mer. 10 fois"
       end)
 
       Gettext.with_locale(TymeslotWeb.Gettext, "pl", fn ->
         assert RecurrenceEditor.summary(rule, @monday) ==
-                 "Powtarza się co tydzień (pon, śr) łącznie 10 razy"
+                 "Powtarza się co tydzień (pon., śr.) łącznie 10 razy"
       end)
 
       Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->

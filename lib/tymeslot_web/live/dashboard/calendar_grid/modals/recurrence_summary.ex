@@ -167,7 +167,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
 
   @doc """
   The short label of a weekday atom (`:mo` .. `:su`) in the process's
-  Gettext locale, in the case the locale gives it mid-sentence ("lun" in
+  Gettext locale, in the case the locale gives it mid-sentence ("lun." in
   French, "Mo" in German).
   """
   @spec weekday_label(atom()) :: String.t()

@@ -170,7 +170,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormat do
     },
     "fr" => %{
       full: ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
-      short: ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"],
+      short: ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."],
       narrow: ["D", "L", "M", "M", "J", "V", "S"]
     },
     "it" => %{
@@ -185,7 +185,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormat do
     },
     "pl" => %{
       full: ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"],
-      short: ["niedz", "pon", "wt", "śr", "czw", "pt", "sob"],
+      short: ["niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob."],
       narrow: ["N", "P", "W", "Ś", "C", "P", "S"]
     },
     "pt" => %{
@@ -389,7 +389,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormat do
   `format_short_date/2` led by the abbreviated weekday.
   - en: Mon 5 Feb
   - de: Mo 5. Feb
-  - fr: lun 5 févr.
+  - fr: lun. 5 févr.
   """
   @spec format_short_weekday_date(Calendar.date(), String.t()) :: String.t()
   def format_short_weekday_date(date, locale) do

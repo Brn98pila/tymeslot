@@ -340,8 +340,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormatTest do
 
     test "returns French short weekday names" do
       weekdays = LocaleFormat.get_weekday_names("fr", :short)
-      assert Enum.at(weekdays, 0) == "dim"
-      assert Enum.at(weekdays, 1) == "lun"
+      assert weekdays == ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."]
     end
 
     test "returns French narrow weekday names" do
@@ -410,7 +409,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormatTest do
 
     test "returns Polish short weekday names" do
       weekdays = LocaleFormat.get_weekday_names("pl", :short)
-      assert weekdays == ["niedz", "pon", "wt", "śr", "czw", "pt", "sob"]
+      assert weekdays == ["niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob."]
     end
 
     test "returns Polish narrow weekday names" do
