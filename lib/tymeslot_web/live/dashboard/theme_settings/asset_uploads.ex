@@ -84,6 +84,17 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
 
   A rate-limited or not-yet-finished upload returns the socket untouched: the
   entry stays put and the next form event (`upload_asset`) tries again.
+
+  ## Each entry is consumed once
+
+  Both entry points fire for the same finished upload: the progress callback,
+  and the form's submit, which `AutoUpload` clicks on selection and LiveView
+  holds back until the upload completes. A consumed channel upload stays in
+  `entries` until the LiveView handles its upload channel's exit, so the
+  second trigger would otherwise find it still finished, charge the rate limit
+  again and call into the stopped channel, which crashes the LiveView after
+  the file was saved. The refs of consumed entries are therefore remembered
+  (`:consumed_upload_refs`) and never count as ready again.
   """
   @spec consume(Phoenix.LiveView.Socket.t(), atom()) :: Phoenix.LiveView.Socket.t()
   def consume(socket, field) do
@@ -134,6 +145,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
 
     # The file must be stored inside the callback: the temporary upload is
     # deleted as soon as it returns.
+    socket = remember_consumed(socket, field)
+
     results =
       consume_uploaded_entries(socket, field, fn %{path: path}, entry ->
         {:ok,
@@ -184,12 +197,29 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
   defp success_message(_field), do: dgettext("dashboard_appearance", "File uploaded successfully")
 
   # Consuming an in-flight entry would truncate the file, so every entry must
-  # have finished or been cancelled first.
+  # have finished or been cancelled first; one already consumed is not
+  # waiting to be (see "Each entry is consumed once" in the module docs).
   defp ready?(socket, field) do
-    case socket.assigns[:uploads][field] do
-      nil -> false
-      %{entries: []} -> false
-      %{entries: entries} -> Enum.all?(entries, &(&1.done? or &1.cancelled?))
+    case pending_entries(socket, field) do
+      [] -> false
+      entries -> Enum.all?(entries, &(&1.done? or &1.cancelled?))
     end
   end
+
+  defp pending_entries(socket, field) do
+    consumed = consumed_refs(socket)
+
+    case socket.assigns[:uploads][field] do
+      %{entries: entries} -> Enum.reject(entries, &MapSet.member?(consumed, &1.ref))
+      nil -> []
+    end
+  end
+
+  defp remember_consumed(socket, field) do
+    refs = socket.assigns.uploads[field].entries |> Enum.map(& &1.ref) |> MapSet.new()
+    assign(socket, :consumed_upload_refs, MapSet.union(consumed_refs(socket), refs))
+  end
+
+  defp consumed_refs(socket), do: socket.assigns[:consumed_upload_refs] || MapSet.new()
+
 end
