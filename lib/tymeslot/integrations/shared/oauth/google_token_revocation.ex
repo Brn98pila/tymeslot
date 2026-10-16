@@ -35,8 +35,11 @@ defmodule Tymeslot.Integrations.Shared.OAuth.GoogleTokenRevocation do
   that, its access token. An integration with neither holds no grant, so
   there is nothing to revoke and it counts as done.
   """
-  @spec revoke_grant(%{refresh_token: String.t() | nil, access_token: String.t() | nil}) ::
-          :ok | {:error, term()}
+  @spec revoke_grant(%{
+          :refresh_token => String.t() | nil,
+          :access_token => String.t() | nil,
+          optional(atom()) => term()
+        }) :: :ok | {:error, term()}
   def revoke_grant(%{refresh_token: refresh_token, access_token: access_token}) do
     case Enum.find([refresh_token, access_token], &(is_binary(&1) and &1 != "")) do
       nil -> :ok
