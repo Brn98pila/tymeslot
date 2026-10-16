@@ -312,6 +312,23 @@ defmodule TymeslotWeb.Helpers.LocaleFormat do
   @spec format_weekday_name(integer(), String.t(), :full | :short | :narrow) :: String.t()
   def format_weekday_name(_invalid_weekday, _locale, _format), do: ""
 
+  # French, Italian and Portuguese write the first of a month as an ordinal.
+  @first_of_month %{"fr" => "1er", "it" => "1°", "pt" => "1º"}
+
+  @doc """
+  The day of the month as it is written in a date, without the month:
+  French, Italian and Portuguese write the first as an ordinal ("le 1er
+  octobre", "il 1° ottobre", "1º de outubro"), and every other day, and
+  every day in the other languages, is a plain number.
+  - en: 1, 2
+  - fr: 1er, 2
+  - it: 1°, 2
+  - pt: 1º, 2
+  """
+  @spec format_day_of_month(1..31, String.t()) :: String.t()
+  def format_day_of_month(1, locale), do: Map.get(@first_of_month, locale, "1")
+  def format_day_of_month(day, _locale) when day in 2..31, do: Integer.to_string(day)
+
   @doc """
   Formats a date led by its full weekday name, in the locale's order and
   punctuation. The weekday keeps the case the locale gives it, so French and

@@ -45,6 +45,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
   alias Phoenix.LiveView.JS
   alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
   alias TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary
+  alias TymeslotWeb.Helpers.LocaleFormat
 
   attr :recurrence_rule, :string, default: nil
   attr :timezone, :string, default: nil
@@ -341,8 +342,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
 
   defp interval_unit(:yearly, n), do: dngettext("dashboard_calendar_repeat", "year", "years", n)
 
-  defp weekdays,
-    do: for(day <- ~w(mo tu we th fr sa su)a, do: {day, RecurrenceSummary.weekday_label(day)})
+  # A day's chip stands on its own, so it starts with a capital even in
+  # the languages that write weekdays lowercase mid-sentence.
+  defp weekdays do
+    for day <- ~w(mo tu we th fr sa su)a,
+        do: {day, LocaleFormat.capitalize_first(RecurrenceSummary.weekday_label(day))}
+  end
 
   defp freq_options do
     [

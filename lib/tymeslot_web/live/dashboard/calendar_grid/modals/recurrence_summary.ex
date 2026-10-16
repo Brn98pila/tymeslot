@@ -31,8 +31,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
     {:weekday, "weekday"},
     {:weekend_day, "weekend day"}
   ]
-  # French, Italian and Portuguese write the first of a month as an ordinal.
-  @first_of_month %{"fr" => "1er", "it" => "1°", "pt" => "1º"}
+  @weekday_numbers %{mo: 1, tu: 2, we: 3, th: 4, fr: 5, sa: 6, su: 7}
   @months ~w(January February March April May June July August September October November December)
 
   @doc """
@@ -163,21 +162,20 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary do
 
   defp end_phrase(_pattern), do: nil
 
-  # French, Italian and Portuguese write the first of a month as an ordinal
-  # ("le 1er octobre", "il 1° ottobre", "1º de outubro"); every other day,
-  # and every day in the other languages, is a plain number.
-  defp day_number(1),
-    do: Map.get(@first_of_month, Gettext.get_locale(TymeslotWeb.Gettext), "1")
+  defp day_number(day),
+    do: LocaleFormat.format_day_of_month(day, Gettext.get_locale(TymeslotWeb.Gettext))
 
-  defp day_number(day), do: Integer.to_string(day)
-
-  @doc "The short label of a weekday atom (`:mo` .. `:su`)."
+  @doc """
+  The short label of a weekday atom (`:mo` .. `:su`) in the process's
+  Gettext locale, in the case the locale gives it mid-sentence ("lun" in
+  French, "Mo" in German).
+  """
   @spec weekday_label(atom()) :: String.t()
-  def weekday_label(:mo), do: dgettext("dashboard_calendar_repeat", "Mon")
-  def weekday_label(:tu), do: dgettext("dashboard_calendar_repeat", "Tue")
-  def weekday_label(:we), do: dgettext("dashboard_calendar_repeat", "Wed")
-  def weekday_label(:th), do: dgettext("dashboard_calendar_repeat", "Thu")
-  def weekday_label(:fr), do: dgettext("dashboard_calendar_repeat", "Fri")
-  def weekday_label(:sa), do: dgettext("dashboard_calendar_repeat", "Sat")
-  def weekday_label(:su), do: dgettext("dashboard_calendar_repeat", "Sun")
+  def weekday_label(day) do
+    LocaleFormat.format_weekday_name(
+      Map.fetch!(@weekday_numbers, day),
+      Gettext.get_locale(TymeslotWeb.Gettext),
+      :short
+    )
+  end
 end
