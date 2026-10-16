@@ -563,8 +563,11 @@ GOOGLE_STATE_SECRET=         # Self-generated random string (required with Googl
 OUTLOOK_CLIENT_ID=           # From Azure AD App Registration (used for both Outlook & Teams)
 OUTLOOK_CLIENT_SECRET=       # From Azure AD App Registration (used for both Outlook & Teams)
 OUTLOOK_STATE_SECRET=        # Self-generated random string (required with Microsoft OAuth)
-ENABLE_GOOGLE_AUTH=false     # Enable Google login/signup
-ENABLE_GITHUB_AUTH=false     # Enable GitHub login/signup
+# Sign-in settings you can also change on the /admin settings page: a variable
+# set here takes precedence, and the admin page shows that setting greyed out.
+# Leave it unset to manage the setting from the admin page instead.
+# ENABLE_GOOGLE_AUTH=true    # Enable Google login/signup
+# ENABLE_GITHUB_AUTH=true    # Enable GitHub login/signup
 ```
 
 ### Error tracking
