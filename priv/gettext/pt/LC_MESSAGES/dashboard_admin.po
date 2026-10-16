@@ -647,6 +647,6 @@ msgid "Set by the %{variable} environment variable. To change it here, remove th
 msgstr "Definida pela variável de ambiente %{variable}. Para alterá-la aqui, remova a variável e reinicie o Tymeslot."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
-msgstr "Endereço de e-mail que recebe os alertas de administração quando a opção acima está ativada. Deixe em branco para usar a variável de ambiente ADMIN_ALERT_EMAIL."
+msgstr "Endereço de e-mail que recebe os alertas de administração quando a opção acima está ativada. Deixe em branco para não enviar alertas por e-mail."

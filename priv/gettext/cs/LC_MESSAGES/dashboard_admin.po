@@ -647,6 +647,6 @@ msgid "Set by the %{variable} environment variable. To change it here, remove th
 msgstr "Nastaveno proměnnou prostředí %{variable}. Chcete-li hodnotu změnit zde, odstraňte proměnnou a restartujte Tymeslot."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
-msgstr "E-mailová adresa, která dostává upozornění pro správce, když je přepínač výše zapnutý. Ponechte prázdné a použije se proměnná prostředí ADMIN_ALERT_EMAIL."
+msgstr "E-mailová adresa, která dostává upozornění pro správce, když je přepínač výše zapnutý. Ponechte prázdné a žádná upozornění se e-mailem odesílat nebudou."

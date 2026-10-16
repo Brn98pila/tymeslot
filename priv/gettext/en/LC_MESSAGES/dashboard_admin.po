@@ -647,6 +647,6 @@ msgid "Set by the %{variable} environment variable. To change it here, remove th
 msgstr ""
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
 msgstr ""
