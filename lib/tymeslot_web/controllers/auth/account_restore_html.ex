@@ -18,7 +18,7 @@ defmodule TymeslotWeb.AccountRestoreHTML do
   @spec show(map()) :: Phoenix.LiveView.Rendered.t()
   def show(assigns) do
     ~H"""
-    <.auth_card_layout title={dgettext("auth", "Your account is being deleted")}>
+    <.auth_card_layout title={dgettext("auth", "Your account is being deleted")} video={false}>
       <:heading><.clock_badge /></:heading>
       <:form>
         <p class="text-center text-token-base text-tymeslot-600">
@@ -47,7 +47,7 @@ defmodule TymeslotWeb.AccountRestoreHTML do
   @spec expired(map()) :: Phoenix.LiveView.Rendered.t()
   def expired(assigns) do
     ~H"""
-    <.auth_card_layout title={dgettext("auth", "Your account is being deleted")}>
+    <.auth_card_layout title={dgettext("auth", "Your account is being deleted")} video={false}>
       <:heading><.clock_badge /></:heading>
       <:form>
         <p class="text-center text-token-base text-tymeslot-600">
