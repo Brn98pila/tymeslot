@@ -253,19 +253,6 @@ defmodule Tymeslot.Integrations.Calendar do
   defdelegate toggle_calendar_selection(user_id, integration_id, calendar_id), to: OwnerActions
 
   @doc """
-  Returns the entries from an integration's `calendar_list` whose `selected`
-  flag is truthy, including read-only ones. See
-  `Tymeslot.Integrations.Calendar.Selection.selected_calendars/1`.
-
-  Use this for conflict-checking visibility — a calendar the user cannot
-  write to can still surface existing events. Callers that need a booking or
-  sync target (which must be writable) should use `writable_calendars/1`
-  instead.
-  """
-  @spec selected_calendars([CalendarEntry.t()] | nil) :: [CalendarEntry.t()]
-  defdelegate selected_calendars(calendar_list), to: Selection
-
-  @doc """
   Returns the selected entries from an integration's `calendar_list` that
   are also writable — the calendars available as booking/sync targets. See
   `Tymeslot.Integrations.Calendar.Selection.writable_calendars/1`.
@@ -296,12 +283,13 @@ defmodule Tymeslot.Integrations.Calendar do
   Returns whether the integration has calendars selected but none of them
   are writable — the booking-target picker has nothing to offer even
   though the user has enabled calendars for this account. Distinguishes
-  that dead end from "nothing selected yet" (`selected_calendars/1` is
-  empty), which is a different, unremarkable state.
+  that dead end from "nothing selected yet" (`Selection.selected_calendars/1`
+  is empty), which is a different, unremarkable state.
   """
   @spec all_selected_read_only?([CalendarEntry.t()] | nil) :: boolean()
   def all_selected_read_only?(calendar_list) do
-    selected_calendars(calendar_list) != [] and writable_calendars(calendar_list) == []
+    Selection.selected_calendars(calendar_list) != [] and
+      writable_calendars(calendar_list) == []
   end
 
   @doc """

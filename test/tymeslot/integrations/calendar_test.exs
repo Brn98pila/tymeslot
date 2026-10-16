@@ -127,22 +127,6 @@ defmodule Tymeslot.Integrations.CalendarTest do
     end
   end
 
-  describe "selected_calendars/1" do
-    test "includes selected read-only calendars, for conflict-checking visibility" do
-      calendars =
-        Enum.map(
-          [
-            %{id: "cal-1", selected: true, read_only: false},
-            %{id: "cal-2", selected: true, read_only: true},
-            %{id: "cal-3", selected: false, read_only: false}
-          ],
-          &CalendarEntry.normalize/1
-        )
-
-      assert Enum.map(Calendar.selected_calendars(calendars), & &1.id) == ["cal-1", "cal-2"]
-    end
-  end
-
   describe "writable_calendars/1" do
     test "excludes selected calendars that are read-only" do
       calendars =
