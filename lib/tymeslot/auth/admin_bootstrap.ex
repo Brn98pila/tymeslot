@@ -84,19 +84,39 @@ defmodule Tymeslot.Auth.AdminBootstrap do
   end
 
   @doc """
-  Logs a warning when the database has users but no admins. Surfaced at
-  application start so the operator notices a "stranded" install — typically
-  the result of demoting every admin or restoring a backup from before the
-  is_admin column was populated. Recovery is `mix tymeslot.promote_admin
-  <email>` (or `bin/tymeslot rpc` in production releases).
+  Logs a warning at application start when nobody can administer the
+  install, so the operator notices it is stranded:
+
+    * users exist but none is an admin, typically after demoting every
+      admin or restoring a backup from before the is_admin column was
+      populated. Recovery is `Tymeslot.Release.promote_admin/1`.
+    * the first-user bootstrap has run but no accounts are left, so the next
+      sign-up will not become admin and, with registration closed, nobody
+      can sign up at all. Recovery is `Tymeslot.Release.reopen_registration/0`
+      followed by `promote_admin/1`.
   """
   @spec warn_if_orphaned_install() :: :ok
   def warn_if_orphaned_install do
-    if AdminUserQueries.any_user?() and not AdminUserQueries.any_admin?() do
-      Logger.warning(
-        "No admin users exist. Promote one with `mix tymeslot.promote_admin <email>` " <>
-          "or `bin/tymeslot rpc 'Tymeslot.Release.promote_admin(\"<email>\")'`."
-      )
+    cond do
+      AdminUserQueries.any_admin?() ->
+        :ok
+
+      AdminUserQueries.any_user?() ->
+        Logger.warning(
+          "No admin users exist. Promote one with `mix tymeslot.promote_admin <email>` " <>
+            "or `bin/tymeslot rpc 'Tymeslot.Release.promote_admin(\"<email>\")'`."
+        )
+
+      AppSettingsQueries.admin_bootstrapped?() ->
+        Logger.warning(
+          "No accounts exist, and the first account to sign up will not become admin. " <>
+            "Open registration with `bin/tymeslot rpc 'Tymeslot.Release.reopen_registration()'`, " <>
+            "sign up, then promote yourself with " <>
+            "`bin/tymeslot rpc 'Tymeslot.Release.promote_admin(\"<email>\")'`."
+        )
+
+      true ->
+        :ok
     end
 
     :ok
