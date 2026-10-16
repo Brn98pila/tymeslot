@@ -60,15 +60,24 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   setup :verify_on_exit!
   setup :setup_dashboard_user_with_theme
 
+  # The endpoint serves `/uploads` from the directory it finds on its first
+  # request, cached in `:persistent_term`, and every request passes through
+  # that plug. The cache is dropped on both sides of the swap, or whichever
+  # test made the first request of the run would decide where every later
+  # test's uploads are served from.
+  @upload_static_key {TymeslotWeb.Endpoint, :upload_static_opts}
+
   defp isolated_upload_root(_context) do
     upload_root =
       Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
 
     original_root = Application.get_env(:tymeslot, :upload_directory)
     Application.put_env(:tymeslot, :upload_directory, upload_root)
+    :persistent_term.erase(@upload_static_key)
 
     on_exit(fn ->
       Application.put_env(:tymeslot, :upload_directory, original_root)
+      :persistent_term.erase(@upload_static_key)
       File.rm_rf(upload_root)
     end)
 
@@ -117,6 +126,8 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   end
 
   describe "background image upload" do
+    setup :isolated_upload_root
+
     test "a successful upload pushes upload-complete so the AutoUpload hook clears the picker",
          %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/dashboard/theme")
@@ -146,17 +157,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
 
     test "an image upload replaces an uploaded video and removes its file",
          %{conn: conn, profile: profile} do
-      upload_root =
-        Path.join(System.tmp_dir!(), "tymeslot_uploads_#{System.unique_integer([:positive])}")
-
-      original_root = Application.get_env(:tymeslot, :upload_directory)
-      Application.put_env(:tymeslot, :upload_directory, upload_root)
-
-      on_exit(fn ->
-        Application.put_env(:tymeslot, :upload_directory, original_root)
-        File.rm_rf(upload_root)
-      end)
-
       video_rel = "themes/#{profile.id}/1/videos/old.mp4"
       video_abs = Storage.build_theme_file_path(video_rel)
       File.mkdir_p!(Path.dirname(video_abs))
