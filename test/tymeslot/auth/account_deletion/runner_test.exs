@@ -249,6 +249,8 @@ defmodule Tymeslot.Auth.AccountDeletion.RunnerTest do
     end
 
     test "is neither held nor deleted when the hold cannot be written", %{admin: admin} do
+      # Patched with :meck: the hold's write has no validation or constraint
+      # to fail, and the row is locked, so no real input makes it refuse.
       # Unloaded when the test process exits.
       :meck.new(UserQueries, [:passthrough])
 

@@ -32,10 +32,19 @@ defmodule Tymeslot.CalendarGrid.SeriesStart do
   series, a UTC `DateTime` otherwise, or `nil` when it is not known.
   """
   @spec of(map()) :: Date.t() | DateTime.t() | nil
-  def of(event) do
+  def of(event), do: start_of(event, &Occurrence.cached_row/1)
+
+  @doc """
+  `of/1` for `row`, the event's cached row already read, which is not read
+  again.
+  """
+  @spec of_cached(map()) :: Date.t() | DateTime.t() | nil
+  def of_cached(row), do: start_of(row, & &1)
+
+  defp start_of(event, cached_row) do
     case Occurrence.series_family(event) do
       :single -> own_start(event)
-      :caldav -> event |> Occurrence.cached_row() |> caldav_start()
+      :caldav -> event |> cached_row.() |> caldav_start()
       :provider_ids -> provider_start(event)
       :unsupported -> nil
     end
@@ -53,11 +62,20 @@ defmodule Tymeslot.CalendarGrid.SeriesStart do
   the series' zone (`Occurrence.occurrence_key/1`).
   """
   @spec slot(map()) :: Date.t() | DateTime.t() | nil
-  def slot(event) do
+  def slot(event), do: slot_of(event, &Occurrence.cached_row/1)
+
+  @doc """
+  `slot/1` for `row`, the event's cached row already read, which is not
+  read again.
+  """
+  @spec slot_of_cached(map()) :: Date.t() | DateTime.t() | nil
+  def slot_of_cached(row), do: slot_of(row, & &1)
+
+  defp slot_of(event, cached_row) do
     case Occurrence.series_family(event) do
       :single -> own_start(event)
-      :caldav -> event |> Occurrence.cached_row() |> caldav_slot()
-      :provider_ids -> provider_slot(Occurrence.cached_row(event))
+      :caldav -> event |> cached_row.() |> caldav_slot()
+      :provider_ids -> event |> cached_row.() |> provider_slot()
       :unsupported -> nil
     end
   end

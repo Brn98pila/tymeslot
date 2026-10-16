@@ -40,10 +40,12 @@ defmodule Tymeslot.MeetingPayments do
   alias Tymeslot.MeetingPayments.ConnectAccounts
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
   alias Tymeslot.MeetingPayments.Currency
+  alias Tymeslot.MeetingPayments.HeldMeetings
   alias Tymeslot.MeetingPayments.Refunds
   alias Tymeslot.MeetingPayments.StripeAdapter
   alias Tymeslot.MeetingPayments.Workers.ResyncConnectAccount
   alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
   alias Tymeslot.Payments.Config, as: PaymentsConfig
   alias Tymeslot.Repo
@@ -100,6 +102,35 @@ defmodule Tymeslot.MeetingPayments do
   @spec cancel_pending_checkouts(user :: %{id: integer()}) ::
           {:ok, non_neg_integer()} | {:error, term()}
   defdelegate cancel_pending_checkouts(user), to: ConnectAccounts
+
+  # ---------------------------------------------------------------------------
+  # Bookings held for payment
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  The PubSub topic carrying a meeting's payment status changes. Subscribers
+  receive the bare atoms `:paid` and `:expired`.
+  """
+  @spec payment_topic(String.t()) :: String.t()
+  defdelegate payment_topic(meeting_id), to: HeldMeetings, as: :topic
+
+  @doc """
+  Releases a booking held for payment, inside the caller's transaction and
+  after its payment has been locked or claimed. See
+  `Tymeslot.MeetingPayments.HeldMeetings.expire/1`.
+  """
+  @spec expire_held_meeting(String.t() | nil) ::
+          {:ok, :expired, MeetingSchema.t()}
+          | {:ok, :unchanged}
+          | {:error, Ecto.Changeset.t()}
+  defdelegate expire_held_meeting(meeting_id), to: HeldMeetings, as: :expire
+
+  @doc """
+  After the transaction that released a held booking has committed, offers
+  its slot again and tells the waiting attendee it expired.
+  """
+  @spec announce_expired(MeetingSchema.t()) :: :ok
+  defdelegate announce_expired(meeting), to: HeldMeetings
 
   @doc """
   Fetches a Connect account by its row ID, or `nil` if not found.
@@ -182,6 +213,25 @@ defmodule Tymeslot.MeetingPayments do
     case ConnectAccountQueries.live_for_user(user_id) do
       %{charges_enabled: true, default_currency: currency} -> Currency.chargeable?(currency)
       _other -> false
+    end
+  end
+
+  @doc """
+  Returns `true` if the user may set or change a meeting type's price: their
+  Connect account has charges enabled in an allowlisted currency. A legacy
+  currency is still charged at checkout (`charges_enabled_for_user?/1`), but
+  no new price is set in it.
+  """
+  @spec price_settable?(integer() | nil) :: boolean()
+  def price_settable?(nil), do: false
+
+  def price_settable?(user_id) do
+    case ConnectAccountQueries.live_for_user(user_id) do
+      %{charges_enabled: true, default_currency: currency} ->
+        Currency.support(currency) == :supported
+
+      _other ->
+        false
     end
   end
 
@@ -394,7 +444,7 @@ defmodule Tymeslot.MeetingPayments do
 
   Returns the Stripe-hosted checkout URL and the persisted `booking_payment` row.
   """
-  @spec create_checkout_session(Tymeslot.Meetings.MeetingSchema.t()) ::
+  @spec create_checkout_session(MeetingSchema.t()) ::
           {:ok, CheckoutSessions.create_result()} | {:error, term()}
   defdelegate create_checkout_session(meeting),
     to: CheckoutSessions,
@@ -405,7 +455,7 @@ defmodule Tymeslot.MeetingPayments do
   booking: still `:processing`, `:failed`, `:awaiting_approval`, `:declined`,
   `:expired`, `:confirmed` or `:cancelled`. See `CheckoutOutcome` for the rules.
   """
-  @spec checkout_outcome(booking_payment() | nil, Tymeslot.Meetings.MeetingSchema.t() | nil) ::
+  @spec checkout_outcome(booking_payment() | nil, MeetingSchema.t() | nil) ::
           CheckoutOutcome.t()
   defdelegate checkout_outcome(payment, meeting), to: CheckoutOutcome, as: :classify
 

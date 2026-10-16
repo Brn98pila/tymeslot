@@ -63,6 +63,26 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
              "Repeats weekly on Mon, Wed"
   end
 
+  for {locale, expected} <- [
+        {"fr", ~w(Lun. Mar. Mer. Jeu. Ven. Sam. Dim.)},
+        {"pl", ~w(Pon. Wt. Śr. Czw. Pt. Sob. Niedz.)}
+      ] do
+    test "#{locale}: starts each weekday toggle with a capital, as a label of its own" do
+      html =
+        Gettext.with_locale(TymeslotWeb.Gettext, unquote(locale), fn ->
+          render_editor(%{recurrence_rule: "FREQ=WEEKLY;BYDAY=MO,WE"})
+        end)
+
+      labels =
+        html
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("label:has(input[name='by_day[]'])")
+        |> Enum.map(&String.trim(LazyHTML.text(&1)))
+
+      assert labels == unquote(expected)
+    end
+  end
+
   describe "a monthly or yearly rule" do
     test "offers the start's day and the positions the start is" do
       html = render_editor(%{recurrence_rule: "FREQ=MONTHLY;BYDAY=2TU", start: @second_tuesday})
@@ -128,6 +148,26 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditorTest do
   end
 
   describe "summary/2" do
+    # Mid-sentence, a weekday keeps the case its language writes it in.
+    test "names the weekly days as the locale abbreviates them mid-sentence" do
+      rule = "FREQ=WEEKLY;BYDAY=MO,WE;COUNT=10"
+
+      Gettext.with_locale(TymeslotWeb.Gettext, "fr", fn ->
+        assert RecurrenceEditor.summary(rule, @monday) ==
+                 "Se répète chaque semaine les lun., mer. 10 fois"
+      end)
+
+      Gettext.with_locale(TymeslotWeb.Gettext, "pl", fn ->
+        assert RecurrenceEditor.summary(rule, @monday) ==
+                 "Powtarza się co tydzień (pon., śr.) łącznie 10 razy"
+      end)
+
+      Gettext.with_locale(TymeslotWeb.Gettext, "de", fn ->
+        assert RecurrenceEditor.summary(rule, @monday) ==
+                 "Wiederholt sich wöchentlich jeweils Mo, Mi insgesamt 10-mal"
+      end)
+    end
+
     test "summarises a simple weekly rule" do
       assert RecurrenceEditor.summary("FREQ=WEEKLY;BYDAY=MO,WE", @monday) ==
                "Repeats weekly on Mon, Wed"

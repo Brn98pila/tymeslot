@@ -4,6 +4,7 @@ defmodule Tymeslot.Slack.MessageBuilderTest do
   @moduletag :slack
   @moduletag :unit
 
+  alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Slack.MessageBuilder
 
   @meeting %{
@@ -21,6 +22,29 @@ defmodule Tymeslot.Slack.MessageBuilderTest do
   # The organiser's timezone, deliberately different from the attendee's: these
   # messages land in the organiser's channel, so every time below is theirs.
   @timezone "UTC"
+
+  describe "build_blocks/3 for every subscribable event" do
+    test "each one has a dedicated header rather than the generic fallback" do
+      meeting = Map.merge(@meeting, %{approval_deadline_at: nil, decline_reason: nil})
+
+      assert EventTypes.all() != []
+
+      generic =
+        Enum.filter(EventTypes.all(), fn event ->
+          [%{"text" => %{"text" => header}} | _rest] =
+            MessageBuilder.build_blocks(event, meeting, @timezone)
+
+          header == "Meeting update"
+        end)
+
+      assert generic == []
+    end
+
+    test "an unknown event name still builds the generic blocks" do
+      assert [%{"text" => %{"text" => "Meeting update"}} | _rest] =
+               MessageBuilder.build_blocks("meeting.renamed", @meeting, @timezone)
+    end
+  end
 
   describe "build_blocks/3 — meeting.created" do
     test "includes a header block, summary, details, and an action button" do

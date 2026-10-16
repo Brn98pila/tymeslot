@@ -1,6 +1,6 @@
 defmodule Tymeslot.Profiles.SettingsUsernameTest do
   @moduledoc """
-  The onboarding form's username goes through `Profiles.change_username/3`,
+  The onboarding form's username goes through `Profiles.change_username/2`,
   like the profile settings page's: rate limited when it changes, and able
   to publish the booking page.
   """

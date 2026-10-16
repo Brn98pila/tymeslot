@@ -92,4 +92,27 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookCompositionTest do
       assert Webhooks.list_webhooks(user.id) == []
     end
   end
+
+  describe "handle_test_connection" do
+    test "a webhook deleted since the page loaded is reported as not found",
+         %{conn: conn, user: user} do
+      {:ok, webhook} =
+        Webhooks.create_webhook(user.id, %{
+          name: "Gone Webhook",
+          url: "https://example.com/webhook",
+          events: ["meeting.created"]
+        })
+
+      {:ok, view, _html} = live(conn, "/dashboard/automation")
+      assert has_element?(view, "button[title='Test Connection']")
+
+      {:ok, _deleted} = Webhooks.delete_webhook(user.id, webhook.id)
+
+      view |> element("button[title='Test Connection']") |> render_click()
+
+      html = render(view)
+      assert html =~ "Webhook not found"
+      refute html =~ "Unable to perform this action"
+    end
+  end
 end

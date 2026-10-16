@@ -236,6 +236,31 @@ defmodule Tymeslot.Emails.Delivery do
   end
 
   @doc """
+  The email circuit breaker's configuration, for a worker that delivers email
+  through a breaker of its own and should trip on the same terms.
+  """
+  @spec email_breaker_config() :: map()
+  defdelegate email_breaker_config, to: CircuitBreakerSupervisor
+
+  @doc """
+  How long the email circuit breaker stays open before it probes the
+  provider again, so a worker that must outwait an open circuit can snooze
+  for that long instead of repeating the number.
+  """
+  @spec email_breaker_recovery_seconds() :: pos_integer()
+  defdelegate email_breaker_recovery_seconds, to: CircuitBreakerSupervisor
+
+  @doc """
+  True while the email circuit breaker would refuse a delivery made now (see
+  `Tymeslot.Infrastructure.CircuitBreaker.refusing?/1`). Reads the state
+  without changing it, so a caller can skip work that only makes sense if
+  the email can go out.
+  """
+  @spec email_breaker_refusing?() :: boolean()
+  def email_breaker_refusing?,
+    do: CircuitBreaker.refusing?(CircuitBreakerSupervisor.email_breaker_name())
+
+  @doc """
   Returns true when a delivery error reason is a permanent recipient rejection.
 
   A permanent rejection means the address itself is undeliverable — an invalid

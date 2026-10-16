@@ -145,6 +145,10 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
 
     * `:host_charges_enabled` (default `false`) — whether the host's Stripe
       Connect account can accept charges.
+    * `:price_settable` (default `false`) — whether the host may set or
+      change a price (`Tymeslot.MeetingPayments.price_settable?/1`). Without
+      it, turning payment on or changing a price is refused; turning payment
+      off is not.
     * `:currency` (default `"usd"`) — the host's pricing currency, used only
       to format the minimum-charge error message in major units.
     * `:currency_minimum_cents` (default `50`) — minimum charge amount in
@@ -460,29 +464,39 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
   end
 
   defp validate_payment_fields(changeset, opts) do
+    changeset = validate_price_settable(changeset, opts)
+
     if get_field(changeset, :payment_required) do
       changeset
       |> validate_required([:price_cents])
-      |> validate_charges_enabled(opts)
       |> validate_currency_minimum(opts)
     else
       changeset
     end
   end
 
-  # Asked when the host asks for payment, not every time they touch a meeting
-  # type that already has one. A paid type keeps its price while Stripe is
-  # disconnected, so that it resumes on reconnect (see
+  # Asked when the host asks for payment or sets a price, not every time they
+  # touch a meeting type that already has one. A paid type keeps its price
+  # while it cannot be edited (Stripe disconnected, or an account in a legacy
+  # currency that checkout still charges), so that it resumes as it was (see
   # `Tymeslot.MeetingTypes.FormMapper.build_attrs/3`); reading the stored
-  # `true` with `get_field` would then fail every unrelated save with "Stripe
-  # must be connected", on a field the form cannot render in that state.
-  defp validate_charges_enabled(changeset, opts) do
+  # `true` with `get_field` would then fail every unrelated save, on a field
+  # the form cannot render in that state. Turning payment off, which clears
+  # the price, stays open.
+  defp validate_price_settable(changeset, opts) do
     cond do
-      Keyword.get(opts, :host_charges_enabled, false) ->
+      Keyword.get(opts, :price_settable, false) ->
         changeset
 
-      get_change(changeset, :payment_required) != true ->
+      not price_edit?(changeset) ->
         changeset
+
+      Keyword.get(opts, :host_charges_enabled, false) ->
+        add_error(
+          changeset,
+          :payment_required,
+          dgettext_noop("errors", "Prices cannot be set in your Stripe account's currency")
+        )
 
       true ->
         add_error(
@@ -491,6 +505,11 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchema do
           dgettext_noop("errors", "Stripe must be connected")
         )
     end
+  end
+
+  defp price_edit?(changeset) do
+    get_change(changeset, :payment_required) == true or
+      (changed?(changeset, :price_cents) and not is_nil(get_field(changeset, :price_cents)))
   end
 
   defp validate_currency_minimum(changeset, opts) do

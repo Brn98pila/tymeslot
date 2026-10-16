@@ -145,6 +145,22 @@ defmodule TymeslotWeb.AccountDeletion.FrozenAccountTest do
     end
   end
 
+  # The restore page is served by a plain controller, so no hook mounts on
+  # it: the background video and its motion toggle would be dead weight.
+  test "the restore pages carry no background video, unlike a live auth page",
+       %{conn: conn, user: user} do
+    {:ok, _view, login_html} = live(conn, ~p"/auth/login")
+    assert login_html =~ ~s(phx-hook="AuthVideo")
+    assert login_html =~ ~s(id="background-motion-toggle")
+
+    html = conn |> log_in_user(freeze(user)) |> get(~p"/auth/restore") |> html_response(200)
+
+    assert html =~ "Restore my account"
+    refute html =~ ~s(phx-hook="AuthVideo")
+    refute html =~ ~s(id="background-motion-toggle")
+    refute html =~ "<video"
+  end
+
   test "a restore posted for an account that is already gone goes to the login page",
        %{conn: conn, user: user} do
     pending = freeze(user)

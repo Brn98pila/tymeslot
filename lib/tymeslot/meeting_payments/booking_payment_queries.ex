@@ -7,6 +7,7 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
 
   alias Ecto.UUID
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
+  alias Tymeslot.Meetings.MeetingState
   alias Tymeslot.Repo
 
   @outstanding_refunds_limit 50
@@ -102,7 +103,7 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
 
   @doc """
   Lists all `pending` booking payments for a host that still carry a
-  `stripe_checkout_session_id`, with the associated meeting preloaded.
+  `stripe_checkout_session_id`.
 
   Used by `Tymeslot.MeetingPayments.ConnectAccounts.disconnect/1` to
   collect open checkout sessions that must be expired before disconnecting.
@@ -114,8 +115,7 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
         where:
           b.host_user_id == ^host_user_id and
             b.status == "pending" and
-            not is_nil(b.stripe_checkout_session_id),
-        preload: [:meeting]
+            not is_nil(b.stripe_checkout_session_id)
 
     Repo.all(query)
   end
@@ -240,13 +240,16 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
   # a stored "refund owed" flag, so it cannot drift out of step with either
   # side.
   defp outstanding_refunds_query(host_user_id) do
-    from b in BookingPaymentSchema,
-      join: m in assoc(b, :meeting),
-      where:
-        b.host_user_id == ^host_user_id and
-          b.status in ^BookingPaymentSchema.refundable_statuses() and
-          b.refunded_amount_cents < b.amount_cents and
-          m.status in ["cancelled", "expired"]
+    query =
+      from b in BookingPaymentSchema,
+        join: m in assoc(b, :meeting),
+        as: :meeting,
+        where:
+          b.host_user_id == ^host_user_id and
+            b.status in ^BookingPaymentSchema.refundable_statuses() and
+            b.refunded_amount_cents < b.amount_cents
+
+    MeetingState.where_released(query, :meeting)
   end
 
   @doc """

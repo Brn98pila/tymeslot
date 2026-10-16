@@ -374,19 +374,19 @@ msgstr "Tato funkce automatizace je k dispozici v tarifu Pro."
 msgid "Total"
 msgstr "Celkem"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when a booking time is changed"
 msgstr "Spustí se při změně času rezervace"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when a new booking is successfully created"
 msgstr "Spustí se po úspěšném vytvoření nové rezervace"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when an existing booking is cancelled"
@@ -540,17 +540,17 @@ msgstr "Historie doručení – %{name}"
 msgid "Too many requests. Please slow down."
 msgstr "Příliš mnoho požadavků. Zpomalte prosím."
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Cancelled"
 msgstr "Schůzka byla zrušena"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Created"
 msgstr "Schůzka vytvořena"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Rescheduled"
 msgstr "Schůzka přesunuta"
@@ -610,37 +610,37 @@ msgstr "URL adresa se překládá na soukromou nebo omezenou adresu"
 msgid "Webhook returned status %{status}"
 msgstr "Webhook vrátil stav %{status}"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Booking Declined"
 msgstr "Rezervace zamítnuta"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Booking Request Expired"
 msgstr "Platnost žádosti o rezervaci vypršela"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Booking Requested"
 msgstr "Rezervace vyžádána"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when nobody answers a booking request before its deadline"
 msgstr "Spustí se, když na žádost o rezervaci nikdo neodpoví do konce lhůty"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when someone requests a booking on a meeting type that needs your approval"
 msgstr "Spustí se, když někdo požádá o rezervaci u typu schůzky, který vyžaduje vaše schválení"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when you decline a booking request"
 msgstr "Spustí se, když zamítnete žádost o rezervaci"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers on this event"
 msgstr "Spustí se při této události"

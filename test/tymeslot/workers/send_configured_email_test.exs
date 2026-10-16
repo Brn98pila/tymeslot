@@ -19,6 +19,7 @@ defmodule Tymeslot.Workers.SendConfiguredEmailTest do
 
   alias Swoosh.Email
   alias Tymeslot.Emails.Delivery
+  alias Tymeslot.Emails.EmailService
   alias Tymeslot.Infrastructure.CircuitBreaker
   alias Tymeslot.Infrastructure.CircuitBreakerSupervisor
   alias Tymeslot.Test.FailingMailerAdapter
@@ -110,6 +111,19 @@ defmodule Tymeslot.Workers.SendConfiguredEmailTest do
 
     assert %{success: 1} = Oban.drain_queue(queue: :emails)
     assert_received {:email, %{subject: "Notice 7", to: [{"", "ops@example.com"}]}}
+  end
+
+  test "EmailService.enqueue_configured/4 is the public way in, and sends the same email" do
+    :ok =
+      EmailService.enqueue_configured(
+        :test_configured_notice_template,
+        :notice,
+        {:address, "ops@example.com"},
+        [%{"amount" => 9}]
+      )
+
+    assert %{success: 1} = Oban.drain_queue(queue: :emails)
+    assert_received {:email, %{subject: "Notice 9", to: [{"", "ops@example.com"}]}}
   end
 
   test "an allowed template the deployment has not configured enqueues nothing" do

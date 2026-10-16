@@ -82,11 +82,12 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.EventRecurrence do
   #
   # A change of repeat rule writes the rule built for the scope chosen
   # (`RecurrenceEdit`): from the series' first start for all of it, from the
-  # occurrence's for it and the following ones.
+  # occurrence's for it and the following ones, whose `COUNT` the write
+  # counts what is left of the series from.
   defp replay_with_scope(%{kind: :recurrence_rule} = prompt, scope, socket) do
     rule =
       case Enum.find(Map.get(prompt, :scope_rules, []), &(&1.scope == scope)) do
-        %{rule: rule} -> rule
+        %{written_rule: rule} -> rule
         nil -> prompt.recurrence_rule
       end
 

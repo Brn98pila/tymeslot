@@ -10,37 +10,41 @@ defmodule Tymeslot.Integrations.Video.AccountCleanup do
 
   Best-effort: a failure, including a raise or exit while cleaning one
   integration (a database error, a lock timeout, the HTTP client), is logged
-  and the next integration is tried. Must
-  run before the account row is deleted, which cascades the credentials away.
+  and the next integration is tried. A Google Meet row holding no token has
+  no grant and is passed over quietly. Must run before the account row is
+  deleted, which cascades the credentials away.
   """
 
-  require Logger
-
-  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Infrastructure.BestEffort
   alias Tymeslot.Integrations.Shared.OAuth.GoogleTokenRevocation
   alias Tymeslot.Integrations.Video.AccessToken
   alias Tymeslot.Integrations.Video.VideoIntegrationQueries
+  alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Integrations.Video.Zoom.ZoomOAuthHelper
 
   @spec run(pos_integer()) :: :ok
   def run(user_id) do
     user_id
     |> VideoIntegrationQueries.list_all_for_user_including_disconnected()
-    |> Enum.each(&clean_up_independently/1)
+    |> Enum.each(fn integration ->
+      BestEffort.run(
+        :revoke_grant,
+        fn -> clean_up(integration) end,
+        "Account deletion: video grant revocation failed; carrying on",
+        provider: integration.provider,
+        integration_id: integration.id,
+        user_id: integration.user_id
+      )
+    end)
   end
 
-  defp clean_up_independently(integration) do
-    clean_up(integration)
-  rescue
-    exception -> log_outcome({:error, exception}, integration)
-  catch
-    kind, reason -> log_outcome({:error, {kind, reason}}, integration)
-  end
-
+  # A credential that no longer decrypts reads as unset, which would pass for
+  # a row holding no grant; it is a grant left unrevoked, so it is reported.
   defp clean_up(%{provider: "google_meet"} = integration) do
-    (integration.refresh_token || integration.access_token)
-    |> GoogleTokenRevocation.revoke()
-    |> log_outcome(integration)
+    case VideoIntegrationSchema.decryption_status(integration) do
+      :ok -> GoogleTokenRevocation.revoke_grant(integration)
+      :requires_reencryption -> {:error, :requires_reencryption}
+    end
   end
 
   # Zoom revokes by access token, so an expired one is refreshed first,
@@ -49,21 +53,7 @@ defmodule Tymeslot.Integrations.Video.AccountCleanup do
     with {:ok, token} <- AccessToken.fetch(integration.id, integration.user_id) do
       ZoomOAuthHelper.revoke_token(token)
     end
-    |> log_outcome(integration)
   end
 
   defp clean_up(_integration), do: :ok
-
-  defp log_outcome(:ok, _integration), do: :ok
-
-  defp log_outcome(failure, integration) do
-    Logger.warning("Account deletion: video grant revocation failed; carrying on",
-      provider: integration.provider,
-      integration_id: integration.id,
-      user_id: integration.user_id,
-      reason: LogFormat.reason(failure)
-    )
-
-    :ok
-  end
 end

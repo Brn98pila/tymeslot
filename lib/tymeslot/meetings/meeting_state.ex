@@ -28,6 +28,9 @@ defmodule Tymeslot.Meetings.MeetingState do
 
   @awaiting_approval "awaiting_approval"
   @awaiting_payment "awaiting_payment"
+  @cancelled "cancelled"
+  @confirmed "confirmed"
+  @expired "expired"
 
   # Statuses a booking is released in without taking place: cancelled, or a
   # request that expired unanswered. Releasing one deletes its video room.
@@ -183,11 +186,36 @@ defmodule Tymeslot.Meetings.MeetingState do
   @spec released_status?(String.t() | nil) :: boolean()
   def released_status?(status), do: status in @released_statuses
 
+  @doc """
+  Query-side counterpart of `released_status?/1`, for a query in which the
+  meeting is not the first binding: keeps only rows whose meeting, bound as
+  `binding` (`join: m in assoc(b, :meeting), as: :meeting`), was released.
+  """
+  @spec where_released(Ecto.Queryable.t(), atom()) :: Ecto.Query.t()
+  def where_released(query, binding) when is_atom(binding) do
+    where(query, [{^binding, m}], m.status in ^@released_statuses)
+  end
+
   @doc "Query-side counterpart of `released_status?/1`: keeps only meetings not released."
   @spec where_not_released(Ecto.Queryable.t()) :: Ecto.Query.t()
   def where_not_released(query) do
     where(query, [m], m.status not in ^@released_statuses)
   end
+
+  @doc "Whether the meeting was cancelled."
+  @spec cancelled?(Meeting.t() | map()) :: boolean()
+  def cancelled?(%{status: status}), do: status == @cancelled
+
+  @doc "Whether the meeting is a confirmed booking."
+  @spec confirmed?(Meeting.t() | map()) :: boolean()
+  def confirmed?(%{status: status}), do: status == @confirmed
+
+  @doc """
+  Whether the meeting expired: a request that lapsed unanswered, or a paid
+  booking whose payment completed after its slot was taken.
+  """
+  @spec expired?(Meeting.t() | map()) :: boolean()
+  def expired?(%{status: status}), do: status == @expired
 
   @doc """
   Whether the meeting is over, one way or another (cancelled, completed or

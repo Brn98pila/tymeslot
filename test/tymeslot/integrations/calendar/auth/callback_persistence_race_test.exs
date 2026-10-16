@@ -1,88 +1,156 @@
 defmodule Tymeslot.Integrations.Calendar.CallbackPersistenceRaceTest do
   @moduledoc """
-  A callback that loses the insert race to a concurrent callback for the same
-  provider account: both looked the account up and found nothing, the other
-  inserted first, and this insert hits the account's unique index. It must
-  reconnect the row that won, as any reconnect does.
+  Two callbacks for the same provider account racing to connect it, on real
+  connections staged by `Tymeslot.Test.RaceConductor` (see its moduledoc for
+  why the module is synchronous and why `on_exit` deletes what it committed).
+
+  Each callback parks once it has looked the account up and found nothing,
+  so both go on to insert. One insert wins; the other hits the account's
+  unique index and must reconnect the row that won, as any reconnect does.
   """
 
-  # async: false: meck replaces CalendarIntegrationQueries for every process.
   use Tymeslot.DataCase, async: false
 
   @moduletag :integrations
+  @moduletag :calendar
 
-  use Oban.Testing, repo: Tymeslot.Repo
-
+  import Ecto.Query, only: [from: 2]
+  import Mox
   import Tymeslot.Factory
+  import Tymeslot.Test.RaceConductor, only: [race: 1, unboxed: 1]
 
-  alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
+  alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CallbackPersistence
+  alias Tymeslot.Integrations.HealthCheck.IntegrationHealthStateSchema
+  alias Tymeslot.Profiles.ProfileSchema
+  alias Tymeslot.Repo
+  alias Tymeslot.Test.RaceConductor
   alias Tymeslot.Workers.IntegrationHealthWorker
 
-  setup do
-    :meck.new(CalendarIntegrationQueries, [:passthrough])
+  setup :set_mox_global
 
-    # meck unloads the module itself when the test process exits.
+  setup do
+    user =
+      unboxed(fn ->
+        user = insert(:user)
+        insert(:profile, user: user)
+        user
+      end)
+
     on_exit(fn ->
-      try do
-        :meck.unload(CalendarIntegrationQueries)
-      rescue
-        _not_mocked -> :ok
-      end
+      unboxed(fn ->
+        integration_ids =
+          Repo.all(
+            from(c in CalendarIntegrationSchema, where: c.user_id == ^user.id, select: c.id)
+          )
+
+        Repo.delete_all(
+          from(j in Oban.Job,
+            where:
+              j.worker == ^inspect(IntegrationHealthWorker) and
+                fragment("(?->>'integration_id')::bigint", j.args) in ^integration_ids
+          )
+        )
+
+        Repo.delete_all(
+          from(h in IntegrationHealthStateSchema,
+            where: h.integration_type == "calendar" and h.integration_id in ^integration_ids
+          )
+        )
+
+        Repo.delete_all(from(p in ProfileSchema, where: p.user_id == ^user.id))
+        Repo.delete_all(from(c in CalendarIntegrationSchema, where: c.user_id == ^user.id))
+        Repo.delete_all(from(u in UserSchema, where: u.id == ^user.id))
+      end)
     end)
+
+    RaceConductor.attach_parking()
+
+    # The winner discovers its calendars after inserting; the loser may too,
+    # if it reads the winner's row before that discovery lands.
+    stub(GoogleCalendarAPIMock, :list_calendars, fn _integration ->
+      {:ok, [%{"id" => "cal1", "summary" => "Primary"}]}
+    end)
+
+    %{user: user}
   end
 
-  test "reconnects the row a concurrent callback inserted first" do
-    user = insert(:user)
-    insert(:profile, user: user)
+  test "the callback that loses the insert reconnects the row that won", %{user: user} do
+    report_refused_inserts()
 
-    winner =
-      insert(:calendar_integration,
-        user: user,
-        provider: "google",
-        provider_account_id: "sub-race",
-        calendar_list: [%{"id" => "cal1", "name" => "Primary", "selected" => true}]
+    contender = fn token ->
+      fn hold ->
+        Process.put(:race_token, token)
+        RaceConductor.arm(hold, &reactivation_lookup?/1, must_park: true)
+        CallbackPersistence.upsert("google", user.id, nil, tokens(token))
+      end
+    end
+
+    results = race([contender.("first-access"), contender.("second-access")])
+
+    assert [{:ok, %{id: id}}, {:ok, %{id: id}}] = results
+
+    {stored, jobs} =
+      unboxed(fn ->
+        {Repo.all(from(c in CalendarIntegrationSchema, where: c.user_id == ^user.id)),
+         Repo.all(
+           from(j in Oban.Job,
+             where:
+               j.worker == ^inspect(IntegrationHealthWorker) and
+                 fragment("(?->>'integration_id')::bigint", j.args) == ^id
+           )
+         )}
+      end)
+
+    assert [%{id: ^id} = row] = stored
+
+    # Exactly one insert was refused, and its callback's tokens are the ones
+    # stored: its reconnect wrote them over the winner's and, as a fresh
+    # grant, asked for an immediate health probe.
+    assert_received {:insert_refused, loser_token}
+    refute_received {:insert_refused, _token}
+    assert CalendarIntegrationSchema.decrypt_oauth_tokens(row).access_token == loser_token
+
+    assert [%{args: %{"type" => "calendar", "integration_id" => ^id}}] = jobs
+  end
+
+  # Tells the test which contender's insert the unique index refused.
+  defp report_refused_inserts do
+    test_pid = self()
+    handler_id = "refused-insert-#{inspect(make_ref())}"
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:tymeslot, :repo, :query],
+        fn _event, _measurements, meta, _config ->
+          if RaceConductor.insert_into("calendar_integrations").(meta) and
+               match?({:error, _reason}, meta[:result]) do
+            send(test_pid, {:insert_refused, Process.get(:race_token)})
+          end
+        end,
+        nil
       )
 
-    # Both lookups made before the insert ran before the winner existed; the
-    # one after the refused insert sees it.
-    :meck.expect(CalendarIntegrationQueries, :get_any_by_account_for_user, fn _user, _p, _a ->
-      {:error, :not_found}
-    end)
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+  end
 
-    :meck.expect(CalendarIntegrationQueries, :get_by_account_for_user, fn user_id,
-                                                                          provider,
-                                                                          account ->
-      if Process.put(:looked_up_before_insert, true) do
-        :meck.passthrough([user_id, provider, account])
-      else
-        {:error, :not_found}
-      end
-    end)
+  # The lookup for any row of the account, active or not, which is the last
+  # read before the insert; it is the only one ordered by `is_active`.
+  defp reactivation_lookup?(meta) do
+    meta[:source] == "calendar_integrations" and String.starts_with?(meta[:query], "SELECT") and
+      meta[:query] =~ "ORDER BY"
+  end
 
-    tokens = %{
-      access_token: "race-access",
+  defp tokens(access_token) do
+    %{
+      access_token: access_token,
       refresh_token: "race-refresh",
       expires_at: DateTime.add(DateTime.utc_now(:second), 3600, :second),
       scope: "calendar",
       provider_account_id: "sub-race",
       provider_account_email: "race@example.com"
     }
-
-    assert {:ok, %{id: id}} = CallbackPersistence.upsert("google", user.id, nil, tokens)
-    assert id == winner.id
-
-    # The refused insert is what sent it back to look the account up again.
-    assert :meck.num_calls(CalendarIntegrationQueries, :get_by_account_for_user, :_) == 2
-
-    stored = Repo.get!(CalendarIntegrationSchema, winner.id)
-    assert CalendarIntegrationSchema.decrypt_oauth_tokens(stored).access_token == "race-access"
-    assert [_one] = Repo.all(CalendarIntegrationSchema)
-
-    assert_enqueued(
-      worker: IntegrationHealthWorker,
-      args: %{"type" => "calendar", "integration_id" => winner.id}
-    )
   end
 end

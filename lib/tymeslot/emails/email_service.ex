@@ -24,6 +24,8 @@ defmodule Tymeslot.Emails.EmailService do
     IntegrationEmails
   }
 
+  alias Tymeslot.Workers.SendConfiguredEmail
+
   @type appointment_details :: %{
           required(:attendee_name) => String.t(),
           required(:attendee_email) => String.t(),
@@ -56,6 +58,25 @@ defmodule Tymeslot.Emails.EmailService do
           optional(:id) => term(),
           optional(atom()) => term()
         }
+
+  @doc """
+  Enqueues an email built by a deployment-configured template module, for
+  delivery by a background job that retries, and snoozes through an open
+  email circuit, like every other transactional email.
+
+  `template_key` names the configured module (`config :tymeslot,
+  <template_key>, Module`) and `template_fun` the function that builds the
+  email; it is called with the recipient (the user, for `{:user, id}`, or
+  the address) followed by `template_args`, which must be plain JSON. Does
+  nothing for a template the deployment has not configured; a pair that is
+  not allowed, or arguments that are not plain JSON, return an error. See
+  `Tymeslot.Workers.SendConfiguredEmail`.
+  """
+  @spec enqueue_configured(atom(), atom(), SendConfiguredEmail.recipient(), list()) ::
+          :ok | {:error, term()}
+  defdelegate enqueue_configured(template_key, template_fun, recipient, template_args),
+    to: SendConfiguredEmail,
+    as: :enqueue
 
   # Appointment emails
 

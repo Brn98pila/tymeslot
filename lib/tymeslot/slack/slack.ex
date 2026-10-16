@@ -17,7 +17,7 @@ defmodule Tymeslot.Slack do
   alias Tymeslot.Features
   alias Tymeslot.Meetings.SeatView
   alias Tymeslot.Notifications.Channel
-  alias Tymeslot.Notifications.EventTypes
+  alias Tymeslot.Notifications.EventOptions
   alias Tymeslot.Repo
 
   alias Tymeslot.Slack.{
@@ -454,10 +454,10 @@ defmodule Tymeslot.Slack do
 
   @doc """
   The events a Slack integration can subscribe to, with their translated
-  labels; see `EventTypes.options/0`.
+  labels; see `EventOptions.options/0`.
   """
-  @spec available_events() :: [EventTypes.option()]
-  defdelegate available_events, to: EventTypes, as: :options
+  @spec available_events() :: [EventOptions.option()]
+  defdelegate available_events, to: EventOptions, as: :options
 
   @doc """
   Default event subscriptions used when a brand-new integration is created

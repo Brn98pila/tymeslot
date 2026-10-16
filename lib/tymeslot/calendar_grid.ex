@@ -22,7 +22,9 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.CalendarGrid.IcsImport
   alias Tymeslot.CalendarGrid.RepeatRefusal
   alias Tymeslot.CalendarGrid.SeriesCarry
+  alias Tymeslot.CalendarGrid.SeriesEdit
   alias Tymeslot.CalendarGrid.SeriesStart
+  alias Tymeslot.CalendarGrid.WriteQueue.SeriesActivity
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.Appearance
   alias Tymeslot.Integrations.Calendar.CalendarAppearanceSchema
@@ -280,6 +282,18 @@ defmodule Tymeslot.CalendarGrid do
   defdelegate ics_import_running?(user_id), to: IcsImport, as: :running?
 
   @doc """
+  Whether the write queue is still writing to the series `event` belongs to.
+  See `SeriesActivity.saving?/2`.
+  """
+  defdelegate series_saving?(queue, event), to: SeriesActivity, as: :saving?
+
+  @doc """
+  Whether the write queue is writing to another event of the series `event`
+  belongs to. See `SeriesActivity.busy?/2`.
+  """
+  defdelegate series_busy?(queue, event), to: SeriesActivity, as: :busy?
+
+  @doc """
   Writes an import plan to one of the user's calendars (see `IcsImport.run/3`),
   then drops the user's cached availability and syncs the calendar, so the
   imported events block their time and appear on the grid. While another
@@ -409,19 +423,14 @@ defmodule Tymeslot.CalendarGrid do
   defdelegate occurrence_slot(event), to: SeriesStart, as: :slot
 
   @doc """
-  How many occurrences `rule` makes from `first` up to, but not including,
-  `boundary`, as a split of a series on a calendar of `provider` counts
-  them off its `COUNT` (see `SeriesStart.count_before/4`).
+  The rule an edit of `event` and every following occurrence writes to the
+  series it starts, given the new `rule` with its `COUNT` as given for the
+  whole series: the `COUNT` less the occurrences before the split, counted
+  on the wall clock of `zone` (see `SeriesEdit.following_rule/3`).
   """
-  @spec occurrences_before(
-          atom() | String.t() | nil,
-          String.t(),
-          Date.t() | DateTime.t(),
-          Date.t() | DateTime.t()
-        ) :: non_neg_integer()
-  defdelegate occurrences_before(provider, rule, first, boundary),
-    to: SeriesStart,
-    as: :count_before
+  @spec following_rule(map(), String.t(), String.t() | nil) ::
+          {:ok, String.t()} | {:error, :ends_before | :start_unknown}
+  defdelegate following_rule(event, rule, zone), to: SeriesEdit
 
   @doc """
   Why a calendar of `provider` would refuse `rule` for a series starting on

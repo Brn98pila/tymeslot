@@ -23,12 +23,14 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
   import Tymeslot.Factory
   import TymeslotWeb.RepeatSeriesFixtures
 
+  alias Ecto.Changeset
   alias Plug.Test
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
   alias Tymeslot.Integrations.Calendar.Runtime.Operations
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
+  alias Tymeslot.Repo
 
   setup :set_mox_global
   setup :verify_on_exit!
@@ -122,6 +124,158 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesStagingLiveViewTest do
 
       [{_tail_url, tail}, {@series_url, _head}] = await_puts(2)
       assert "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=WE;COUNT=8" in LineFolder.unfold_lines(tail)
+    end
+
+    # A sync between the prompt and the choice moves the series' start to 7
+    # October: one occurrence comes before the split now, so nine are left,
+    # not the eight the prompt counted.
+    test "a count is what is left of the series as it is when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      moved =
+        "FREQ=WEEKLY;BYDAY=WE;COUNT=10"
+        |> caldav_series()
+        |> String.replace("20260930T", "20261007T")
+
+      event |> Changeset.change(raw_ical: moved) |> Repo.update!()
+
+      expect_puts(2)
+      confirm_scope(lv, "following")
+
+      [{_tail_url, tail}, {@series_url, _head}] = await_puts(2)
+      assert "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=WE;COUNT=9" in LineFolder.unfold_lines(tail)
+    end
+
+    # A sync between the prompt and the choice moves the series' start back
+    # to 5 August: its ten occurrences all come before the split now.
+    test "nothing is written when nothing is left of the series when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      moved =
+        "FREQ=WEEKLY;BYDAY=WE;COUNT=10"
+        |> caldav_series()
+        |> String.replace("20260930T", "20260805T")
+
+      event |> Changeset.change(raw_ical: moved) |> Repo.update!()
+
+      confirm_scope(lv, "following")
+
+      eventually(
+        fn ->
+          assert render(lv) =~
+                   "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+        end,
+        timeout: @task_timeout
+      )
+
+      refute render(lv) =~ "the new end comes before this event"
+      refute render(lv) =~ "Failed to update event - changes reverted"
+      refute_receive {:put, _url, _body}, 200
+    end
+
+    # A sync between the prompt and the choice turns the cached occurrence
+    # into a one-off. Writing the rule to it would start a new series of all
+    # ten from this event.
+    test "nothing is written when a sync has made the event a one-off when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      event |> Changeset.change(recurrence_rule: nil) |> Repo.update!()
+
+      confirm_scope(lv, "following")
+
+      eventually(
+        fn ->
+          assert render(lv) =~
+                   "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+        end,
+        timeout: @task_timeout
+      )
+
+      refute render(lv) =~ "Failed to update event - changes reverted"
+      refute_receive {:put, _url, _body}, 200
+    end
+
+    # A sync between the prompt and the choice leaves the series' document
+    # without its rule, so its first start can no longer be read and what
+    # is left of the count cannot be counted.
+    test "nothing is written when the series' start cannot be read when saved", %{
+      conn: conn,
+      user: user
+    } do
+      event =
+        user
+        |> caldav_integration()
+        |> caldav_occurrence(%{
+          recurrence_rule: "FREQ=WEEKLY;BYDAY=WE;COUNT=10",
+          raw_ical: caldav_series("FREQ=WEEKLY;BYDAY=WE;COUNT=10")
+        })
+
+      lv = open(conn, event)
+      pick(lv, %{"interval" => "2"})
+      save(lv)
+      assert prompt_summary(lv, :following) =~ "for 8 occurrences"
+
+      without_master =
+        "FREQ=WEEKLY;BYDAY=WE;COUNT=10"
+        |> caldav_series()
+        |> String.replace("RRULE:FREQ=WEEKLY;BYDAY=WE;COUNT=10\r\n", "")
+
+      event |> Changeset.change(raw_ical: without_master) |> Repo.update!()
+
+      confirm_scope(lv, "following")
+
+      eventually(
+        fn ->
+          assert render(lv) =~
+                   "This series changed while you were editing it, so the events left in it can no longer be counted. Nothing was saved. Refresh the calendar and try again."
+        end,
+        timeout: @task_timeout
+      )
+
+      refute render(lv) =~ "Failed to update event - changes reverted"
+      refute_receive {:put, _url, _body}, 200
     end
 
     test "an end before the occurrence says why this and following is not offered", %{

@@ -207,6 +207,27 @@ defmodule TymeslotWeb.Dashboard.CalendarEventHandlers do
     )
   end
 
+  # What is left of a count is counted again when the change is written, from
+  # the series as it is then, which a sync may have changed since the scope
+  # was chosen. The prompt offered that scope, so these say the series moved
+  # on under the organiser rather than repeating why a scope is not offered.
+  defp update_failed_message(:ends_before) do
+    dgettext(
+      "dashboard_calendar_events",
+      "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+    )
+  end
+
+  # Either the series' first start can no longer be read, or a sync cleared
+  # its rule while it is still marked a series: both leave nothing to count
+  # from.
+  defp update_failed_message(:start_unknown) do
+    dgettext(
+      "dashboard_calendar_events",
+      "This series changed while you were editing it, so the events left in it can no longer be counted. Nothing was saved. Refresh the calendar and try again."
+    )
+  end
+
   defp update_failed_message(:rule_not_supported_by_outlook),
     do: EditWorkflow.rule_not_supported_by_outlook_message()
 

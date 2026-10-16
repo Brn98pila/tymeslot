@@ -60,4 +60,23 @@ defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanupTest do
     assert log =~ "cleanup step failed"
     assert log =~ "calendars exploded"
   end
+
+  test "a step that exits or throws is logged and the next step still runs" do
+    test_pid = self()
+
+    steps = [
+      calendars: fn -> exit(:lock_timeout) end,
+      video: fn -> throw(:gave_up) end,
+      slack: fn -> send(test_pid, :slack_ran) end
+    ]
+
+    log =
+      capture_log(fn ->
+        for {step, fun} <- steps, do: assert(ExternalCleanup.run_step(step, 1, fun) == :ok)
+      end)
+
+    assert_received :slack_ran
+    assert log =~ "lock_timeout"
+    assert log =~ "gave_up"
+  end
 end

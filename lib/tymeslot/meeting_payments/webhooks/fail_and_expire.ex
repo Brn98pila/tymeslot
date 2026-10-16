@@ -15,13 +15,13 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
 
   require Logger
 
-  alias Tymeslot.Availability
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
+  alias Tymeslot.MeetingPayments.HeldMeetings
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
-  alias Tymeslot.Meetings.MeetingQueries
+  alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.Payments.Behaviours.WebhookHandler
 
   @doc """
@@ -72,13 +72,13 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
       LockedPayment.run(payment, event_id, fn
         %BookingPaymentSchema{status: "pending"} = locked ->
           with {:ok, _bp} <- mark_failed(locked, event_id, reason),
-               {:ok, _outcome} <- expire_meeting(locked.meeting_id) do
-            {:ok, :expired}
+               {:ok, outcome} <- expire_meeting(locked.meeting_id) do
+            {:ok, {:failed, failed_outcome(outcome, locked.meeting_id)}}
           end
 
         %BookingPaymentSchema{status: "failed"} = locked ->
           case expire_meeting(locked.meeting_id) do
-            {:ok, :expired} -> {:ok, :expired}
+            {:ok, %MeetingSchema{} = meeting} -> {:ok, {:failed, meeting}}
             {:ok, :unchanged} -> {:ok, {:not_pending, "failed"}}
             {:error, _reason} = error -> error
           end
@@ -100,12 +100,21 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
 
         :ok
 
-      {:ok, :expired} ->
+      {:ok, {:failed, %MeetingSchema{} = meeting}} ->
         # An `awaiting_payment` booking holds its slot on the booking page as
         # well as at the submit, so expiring it has to release the cached
         # offer, exactly as confirming the payment does.
-        release_cached_availability(payment.meeting_id)
-        broadcast_expired(payment.meeting_id)
+        HeldMeetings.announce_expired(meeting)
+
+      # The payment failed but its meeting had moved on already (an
+      # organiser cancelling it, say, which says nothing on the payment
+      # topic), so no slot is released; an attendee still waiting on the
+      # payment is told all the same.
+      {:ok, {:failed, {:moved_on, meeting_id}}} ->
+        HeldMeetings.broadcast(meeting_id, :expired)
+        :ok
+
+      {:ok, {:failed, :unchanged}} ->
         :ok
 
       {:error, rollback_reason} ->
@@ -113,20 +122,9 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
     end
   end
 
-  defp release_cached_availability(nil), do: :ok
-
-  defp release_cached_availability(meeting_id) do
-    case MeetingQueries.get_meeting(meeting_id) do
-      {:ok, meeting} -> Availability.changed(meeting.organizer_user_id)
-      {:error, :not_found} -> :ok
-    end
-  end
-
-  defp broadcast_expired(nil), do: :ok
-
-  defp broadcast_expired(meeting_id) do
-    Phoenix.PubSub.broadcast(Tymeslot.PubSub, "meeting_payment:#{meeting_id}", :expired)
-  end
+  defp failed_outcome(%MeetingSchema{} = meeting, _meeting_id), do: meeting
+  defp failed_outcome(:unchanged, nil), do: :unchanged
+  defp failed_outcome(:unchanged, meeting_id), do: {:moved_on, meeting_id}
 
   defp mark_failed(payment, event_id, reason) do
     case BookingPaymentQueries.update(payment, %{status: "failed", last_event_id: event_id}) do
@@ -139,23 +137,11 @@ defmodule Tymeslot.MeetingPayments.Webhooks.FailAndExpire do
     end
   end
 
-  defp expire_meeting(nil), do: {:ok, :unchanged}
-
   defp expire_meeting(meeting_id) do
-    case MeetingQueries.get_meeting_for_update(meeting_id) do
-      {:ok, %{status: "awaiting_payment"} = meeting} ->
-        # A status write only, so a row whose other fields fail today's full
-        # validation is still expired.
-        case MeetingQueries.update_meeting_status(meeting, %{status: "expired"}) do
-          {:ok, _meeting} -> {:ok, :expired}
-          {:error, _changeset} = err -> err
-        end
-
-      {:ok, _other} ->
-        {:ok, :unchanged}
-
-      {:error, :not_found} ->
-        {:ok, :unchanged}
+    case HeldMeetings.expire(meeting_id) do
+      {:ok, :expired, meeting} -> {:ok, meeting}
+      {:ok, :unchanged} -> {:ok, :unchanged}
+      {:error, _changeset} = error -> error
     end
   end
 end

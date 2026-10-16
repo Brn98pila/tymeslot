@@ -77,6 +77,8 @@ defmodule Tymeslot.Integrations.Calendar.WebhooksTest do
     # An id the limiter cannot count is refused as an exhausted limit would be.
     test "refuses an integration whose id the limiter rejects, without syncing",
          %{integration: integration} do
+      # Patched with :meck: an integration found by its channel is a stored
+      # row and always has an id the limiter can count.
       # Unloaded when the test process exits.
       :meck.new(RateLimiter, [:passthrough])
 

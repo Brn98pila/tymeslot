@@ -14,6 +14,9 @@ defmodule Tymeslot.Workers.SnoozePolicy do
 
   `executions/1` is that count, and it is what every snooze bound here is
   measured against.
+
+  Public infrastructure: a worker in another application built on Tymeslot
+  may call it to bound its own snooze loop the same way.
   """
 
   @typedoc "What a caller should do with an execution: keep waiting, or stop."

@@ -89,4 +89,31 @@ defmodule TymeslotWeb.Dashboard.Automation.HelpersTest do
       assert_received {:flash, {:error, "Unable to perform this action. Please try again."}}
     end
   end
+
+  describe "do_rate_limited_test/6" do
+    setup do
+      user_id = System.unique_integer([:positive])
+
+      socket = %Phoenix.LiveView.Socket{
+        assigns: %{__changed__: %{}, current_user: %{id: user_id}, testing: nil}
+      }
+
+      {:ok, socket: socket}
+    end
+
+    test "a test that finds the entity gone says it was not found", %{socket: socket} do
+      {:noreply, socket} =
+        Helpers.do_rate_limited_test(
+          socket,
+          "7",
+          :testing,
+          fn _socket -> {:ok, :entity} end,
+          fn :entity -> {:error, :not_found} end,
+          {"Worked", "Webhook not found"}
+        )
+
+      assert_received {:flash, {:error, "Webhook not found"}}
+      assert socket.assigns.testing == nil
+    end
+  end
 end

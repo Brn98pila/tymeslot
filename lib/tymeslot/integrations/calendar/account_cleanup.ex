@@ -19,9 +19,7 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   account row is deleted, which cascades the credentials away.
   """
 
-  require Logger
-
-  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Infrastructure.BestEffort
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Google.PushChannel
@@ -36,13 +34,11 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   end
 
   defp clean_up_independently(integration) do
-    integration
-    |> CalendarIntegrationSchema.decrypt_credentials()
-    |> clean_up()
-  rescue
-    exception -> log_outcome({:error, exception}, integration, :clean_up)
-  catch
-    kind, reason -> log_outcome({:error, {kind, reason}}, integration, :clean_up)
+    step(integration, :clean_up, fn ->
+      integration
+      |> CalendarIntegrationSchema.decrypt_credentials()
+      |> clean_up()
+    end)
   end
 
   # Stopping the channel and deleting the subscription always answer `:ok`
@@ -50,7 +46,7 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   # one does not skip the next.
   defp clean_up(%CalendarIntegrationSchema{provider: "google"} = integration) do
     step(integration, :stop_push_channel, fn -> PushChannel.stop_push_channel(integration) end)
-    step(integration, :revoke_grant, fn -> revoke_grant(integration) end)
+    step(integration, :revoke_grant, fn -> GoogleTokenRevocation.revoke_grant(integration) end)
   end
 
   defp clean_up(%CalendarIntegrationSchema{provider: "outlook"} = integration),
@@ -62,31 +58,9 @@ defmodule Tymeslot.Integrations.Calendar.AccountCleanup do
   defp clean_up(_integration), do: :ok
 
   defp step(integration, name, fun) do
-    log_outcome(fun.(), integration, name)
-  rescue
-    exception -> log_outcome({:error, exception}, integration, name)
-  catch
-    kind, reason -> log_outcome({:error, {kind, reason}}, integration, name)
-  end
-
-  defp revoke_grant(integration) do
-    case integration.refresh_token || integration.access_token do
-      # A row with no token holds no grant to revoke.
-      token when token in [nil, ""] -> :ok
-      token -> GoogleTokenRevocation.revoke(token)
-    end
-  end
-
-  defp log_outcome(:ok, _integration, _step), do: :ok
-
-  defp log_outcome(failure, integration, step) do
-    Logger.warning("Account deletion: calendar cleanup step failed; carrying on",
-      step: step,
+    BestEffort.run(name, fun, "Account deletion: calendar cleanup step failed; carrying on",
       integration_id: integration.id,
-      user_id: integration.user_id,
-      reason: LogFormat.reason(failure)
+      user_id: integration.user_id
     )
-
-    :ok
   end
 end

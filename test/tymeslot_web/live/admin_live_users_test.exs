@@ -23,8 +23,9 @@ defmodule TymeslotWeb.AdminLiveUsersTest do
     test "users tab shows total-user and admin counts at the top", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/admin/users")
 
-      assert html =~ "Total users"
-      assert html =~ "Admins"
+      # Each count must sit in the card carrying its own label; the admin
+      # session, the other admin and the regular user make 3 and 2.
+      assert stat_cards(html) == [{"Total users", "3"}, {"Admins", "2"}]
     end
 
     test "users tab lists each user's display name and booking slug", %{conn: conn} do
@@ -227,5 +228,17 @@ defmodule TymeslotWeb.AdminLiveUsersTest do
 
   defp confirm_demote(lv) do
     element(lv, ~s|#confirm-role-change-modal button[phx-click="demote_user"]|)
+  end
+
+  defp stat_cards(html) do
+    html
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query(".grid.mb-8 > *")
+    |> Enum.map(fn card ->
+      [label, value] =
+        card |> LazyHTML.query("p") |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+
+      {label, value}
+    end)
   end
 end

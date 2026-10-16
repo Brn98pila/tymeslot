@@ -46,6 +46,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.BookingPaymentSchema
   alias Tymeslot.MeetingPayments.ChargeBackfill
+  alias Tymeslot.MeetingPayments.HeldMeetings
   alias Tymeslot.MeetingPayments.Telemetry
   alias Tymeslot.MeetingPayments.Webhooks.LockedPayment
   alias Tymeslot.MeetingPayments.Webhooks.PaymentLookup
@@ -175,7 +176,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
   defp after_payment(paid, meeting, pending, object) do
     backfill_charge_id(paid, object)
     emit_payment_succeeded(paid, meeting)
-    broadcast(meeting.id, :paid)
+    HeldMeetings.broadcast(meeting.id, :paid)
     Availability.changed(meeting.organizer_user_id)
     Activation.after_commit(pending)
   end
@@ -188,7 +189,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
       event_id: event_id
     )
 
-    broadcast(meeting.id, :expired)
+    HeldMeetings.broadcast(meeting.id, :expired)
     :ok
   end
 
@@ -211,9 +212,7 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
     )
 
     backfill_charge_id(paid, object)
-    Availability.changed(meeting.organizer_user_id)
-    broadcast(meeting.id, :expired)
-    :ok
+    HeldMeetings.announce_expired(meeting)
   end
 
   # Best effort: a failure is logged and the payment transition stands. For
@@ -487,10 +486,6 @@ defmodule Tymeslot.MeetingPayments.Webhooks.CheckoutSessionCompleted do
       %{count: 1},
       %{currency: paid.currency, has_video: not is_nil(meeting.video_integration_id)}
     )
-  end
-
-  defp broadcast(meeting_id, message) do
-    Phoenix.PubSub.broadcast(Tymeslot.PubSub, "meeting_payment:#{meeting_id}", message)
   end
 
   # The public booking page derives occupancy from the organiser's connected

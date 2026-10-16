@@ -10,9 +10,19 @@ defmodule Tymeslot.Telegram.MessageBuilder do
 
   alias Phoenix.HTML
   alias Tymeslot.Bookings.MeetingLinks
+  alias Tymeslot.Notifications.EventTypes
+
+  # Matched by name rather than wire literal; any other name (a job queued
+  # before an event was renamed) falls through to the generic clause.
+  @created EventTypes.to_event_type(:meeting_created)
+  @cancelled EventTypes.to_event_type(:meeting_cancelled)
+  @rescheduled EventTypes.to_event_type(:meeting_rescheduled)
+  @requested EventTypes.to_event_type(:meeting_requested)
+  @declined EventTypes.to_event_type(:meeting_declined)
+  @request_expired EventTypes.to_event_type(:meeting_request_expired)
 
   @spec build_message(String.t(), %{atom() => term()}, String.t()) :: String.t()
-  def build_message("meeting.created", meeting, timezone) do
+  def build_message(@created, meeting, timezone) do
     String.trim("""
     #{emoji(:calendar)} <b>New Meeting</b>
 
@@ -24,7 +34,7 @@ defmodule Tymeslot.Telegram.MessageBuilder do
     """)
   end
 
-  def build_message("meeting.cancelled", meeting, timezone) do
+  def build_message(@cancelled, meeting, timezone) do
     String.trim("""
     #{emoji(:cancel)} <b>Meeting Cancelled</b>
 
@@ -35,7 +45,7 @@ defmodule Tymeslot.Telegram.MessageBuilder do
     """)
   end
 
-  def build_message("meeting.rescheduled", meeting, timezone) do
+  def build_message(@rescheduled, meeting, timezone) do
     String.trim("""
     #{emoji(:reschedule)} <b>Meeting Rescheduled</b>
 
@@ -47,7 +57,7 @@ defmodule Tymeslot.Telegram.MessageBuilder do
     """)
   end
 
-  def build_message("meeting.requested", meeting, timezone) do
+  def build_message(@requested, meeting, timezone) do
     String.trim("""
     #{emoji(:calendar)} <b>New Booking Request</b>
 
@@ -59,7 +69,7 @@ defmodule Tymeslot.Telegram.MessageBuilder do
     """)
   end
 
-  def build_message("meeting.declined", meeting, timezone) do
+  def build_message(@declined, meeting, timezone) do
     String.trim("""
     #{emoji(:cancel)} <b>Booking Request Declined</b>
 
@@ -70,7 +80,7 @@ defmodule Tymeslot.Telegram.MessageBuilder do
     """)
   end
 
-  def build_message("meeting.request_expired", meeting, timezone) do
+  def build_message(@request_expired, meeting, timezone) do
     String.trim("""
     #{emoji(:cancel)} <b>Booking Request Expired</b>
 

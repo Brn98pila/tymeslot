@@ -216,6 +216,44 @@ defmodule Tymeslot.Profiles.ProfileQueries do
     do: profile |> ProfileSchema.username_changeset(%{username: username}) |> Repo.update()
 
   @doc """
+  Gives a profile `username` only if its stored username is still blank,
+  deciding from the row, locked, rather than from `profile`, which may be
+  stale (a username chosen in another tab since it was read).
+
+  `{:unchanged, stored}` when the stored row already has a username, with
+  the row as stored; `{:error, :not_found}` when the profile has been
+  deleted since it was read.
+  """
+  @spec update_username_if_blank(ProfileSchema.t(), String.t()) ::
+          {:ok, ProfileSchema.t()}
+          | {:unchanged, ProfileSchema.t()}
+          | {:error, Ecto.Changeset.t() | :not_found}
+  def update_username_if_blank(%ProfileSchema{id: id}, username) do
+    result =
+      Repo.transaction(fn ->
+        case Repo.one(from(p in ProfileSchema, where: p.id == ^id, lock: "FOR UPDATE")) do
+          nil -> Repo.rollback(:not_found)
+          stored -> fill_blank_username(stored, username)
+        end
+      end)
+
+    case result do
+      {:ok, outcome} -> outcome
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp fill_blank_username(%ProfileSchema{username: blank} = stored, username)
+       when blank in [nil, ""] do
+    case update_username(stored, username) do
+      {:ok, updated} -> {:ok, updated}
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp fill_blank_username(stored, _username), do: {:unchanged, stored}
+
+  @doc """
   Gets a profile by user ID within a transaction.
 
   Accepts a repo argument so the lookup participates in the same transaction

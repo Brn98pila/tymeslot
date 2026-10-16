@@ -1349,3 +1349,13 @@ msgstr[1] ""
 msgid "Outlook can't skip the months that don't have this series' day, and would move those events to the month's last day. Please start the series on the 28th or earlier, or save it to another calendar."
 msgstr ""
 "Outlook non può saltare i mesi che non hanno il giorno di questa serie e sposterebbe quegli eventi all’ultimo giorno del mese. Fai iniziare la serie il 28 o prima, oppure salvala in un altro calendario."
+
+#: lib/tymeslot_web/live/dashboard/calendar_event_handlers.ex
+#, elixir-autogen, elixir-format
+msgid "This series changed while you were editing it, and nothing is left of it from this event on. Nothing was saved."
+msgstr "Questa serie è cambiata mentre la stavi modificando e, a partire da questo evento, non ne rimane più nulla. Non è stato salvato nulla."
+
+#: lib/tymeslot_web/live/dashboard/calendar_event_handlers.ex
+#, elixir-autogen, elixir-format
+msgid "This series changed while you were editing it, so the events left in it can no longer be counted. Nothing was saved. Refresh the calendar and try again."
+msgstr "Questa serie è cambiata mentre la stavi modificando, quindi non è più possibile contare gli eventi rimanenti. Non è stato salvato nulla. Aggiorna il calendario e riprova."

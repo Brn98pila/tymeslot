@@ -293,7 +293,8 @@ defmodule TymeslotWeb.Dashboard.Automation.Helpers do
   Runs a rate-limited test action: checks the rate limit, sets a loading key,
   fetches the entity, calls test_fn, and clears the loading key on completion.
   `get_fn` receives the socket and returns `{:ok, entity} | {:error, reason}`.
-  `test_fn` receives the entity and returns `:ok | {:error, reason}`.
+  `test_fn` receives the entity and returns `:ok | {:error, reason}`; either
+  function's `{:error, :not_found}` shows `not_found_msg`.
   """
   @spec do_rate_limited_test(
           Phoenix.LiveView.Socket.t(),
@@ -320,6 +321,12 @@ defmodule TymeslotWeb.Dashboard.Automation.Helpers do
             case test_fn.(entity) do
               :ok ->
                 Flash.info(success_msg)
+                {:noreply, assign(socket, testing_key, nil)}
+
+              # The test reads the entity again, scoped to the acting user, so
+              # it can still find it gone (deleted in another tab, say).
+              {:error, :not_found} ->
+                Flash.error(not_found_msg)
                 {:noreply, assign(socket, testing_key, nil)}
 
               {:error, reason} when is_atom(reason) ->

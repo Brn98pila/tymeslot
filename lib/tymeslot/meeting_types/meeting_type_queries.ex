@@ -84,8 +84,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeQueries do
   Creates a new meeting type.
 
   `opts` are forwarded to `MeetingTypeSchema.changeset/3` so callers can
-  thread payment-validation context (`:host_charges_enabled`,
-  `:currency_minimum_cents`) into the changeset.
+  thread payment-validation context (`:price_settable`,
+  `:host_charges_enabled`, `:currency_minimum_cents`) into the changeset.
   """
   @spec create_meeting_type(map(), keyword()) ::
           {:ok, MeetingTypeSchema.t()} | {:error, Ecto.Changeset.t()}

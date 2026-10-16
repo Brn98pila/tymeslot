@@ -7,22 +7,13 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.StateHandlers do
   use Gettext, backend: TymeslotWeb.Gettext
 
   import Phoenix.Component, only: [assign: 3]
+  import Tymeslot.Features.AccessErrors, only: [is_access_error: 1]
 
   alias Phoenix.LiveView
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Slack
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
   alias TymeslotWeb.Live.Shared.Flash
-
-  # Refusals from `Tymeslot.Features.check_access/2`, shown by
-  # `AutomationHelpers.handle_feature_access_error/2`.
-  @access_errors [
-    :insufficient_plan,
-    :feature_disabled,
-    :pro_required,
-    :stripe_required,
-    :feature_access_checker_failed
-  ]
 
   @spec handle_toggle_active(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -78,7 +69,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Slack.StateHandlers do
             Flash.info(dgettext("dashboard_automation_chat", "Test message sent! Check Slack."))
             {:noreply, assign(socket, :slack_testing, nil)}
 
-          {:error, reason} when reason in @access_errors ->
+          {:error, reason} when is_access_error(reason) ->
             {:noreply,
              socket
              |> AutomationHelpers.handle_feature_access_error(reason)

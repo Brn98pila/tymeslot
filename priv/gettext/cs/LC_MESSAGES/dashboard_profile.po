@@ -177,7 +177,7 @@ msgstr "vasejmeno"
 msgid "Unknown timezone"
 msgstr "Neznámé časové pásmo"
 
-#: lib/tymeslot/profiles.ex
+#: lib/tymeslot/profiles/usernames.ex
 #, elixir-autogen, elixir-format
 msgid "Too many username change attempts. Please try again later."
 msgstr "Příliš mnoho pokusů o změnu uživatelského jména. Zkuste to prosím později."

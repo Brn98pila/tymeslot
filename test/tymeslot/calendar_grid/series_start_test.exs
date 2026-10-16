@@ -12,6 +12,7 @@ defmodule Tymeslot.CalendarGrid.SeriesStartTest do
   import Tymeslot.Factory
 
   alias Tymeslot.CalendarGrid
+  alias Tymeslot.CalendarGrid.SeriesStart
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
 
   test "a CalDAV occurrence starts where its master's DTSTART does" do
@@ -104,7 +105,7 @@ defmodule Tymeslot.CalendarGrid.SeriesStartTest do
   # 31 March in Outlook, which puts it on a shorter month's last day; RFC
   # 5545 skips February.
   test "Outlook counts an absolute monthly series on the 31st as Graph does" do
-    count = &CalendarGrid.occurrences_before(&1, "FREQ=MONTHLY", ~D[2026-01-31], ~D[2026-04-30])
+    count = &SeriesStart.count_before(&1, "FREQ=MONTHLY", ~D[2026-01-31], ~D[2026-04-30])
 
     assert count.("outlook") == 3
     assert count.("google") == 2

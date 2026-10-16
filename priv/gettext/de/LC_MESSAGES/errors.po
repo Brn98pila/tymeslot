@@ -230,7 +230,7 @@ msgid_plural "%{count} minutes"
 msgstr[0] "1 Minute"
 msgstr[1] "%{count} Minuten"
 
-#: lib/tymeslot/profiles.ex
+#: lib/tymeslot/profiles/usernames.ex
 #: lib/tymeslot/security/field_validators/username_validator.ex
 #, elixir-autogen, elixir-format
 msgid "This username is reserved"
@@ -1247,3 +1247,8 @@ msgstr "Diese Datei ist zu groß. Bitte laden Sie eine Datei mit höchstens %{si
 #, elixir-autogen, elixir-format
 msgid "This file type is not accepted. Please upload a JPG, PNG, GIF or WebP image."
 msgstr "Dieser Dateityp wird nicht akzeptiert. Bitte laden Sie ein JPG-, PNG-, GIF- oder WebP-Bild hoch."
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "Prices cannot be set in your Stripe account's currency"
+msgstr "In der Währung Ihres Stripe-Kontos können keine Preise festgelegt werden"
