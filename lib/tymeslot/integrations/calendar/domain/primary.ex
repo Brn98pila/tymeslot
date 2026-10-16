@@ -8,12 +8,12 @@ defmodule Tymeslot.Integrations.Calendar.Primary do
   OAuth has its booking calendar chosen here too, from what discovery finds.
   """
 
-  alias Tymeslot.Integrations.Calendar, as: CalendarContext
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.Discovery
   alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Profiles.ProfileQueries
@@ -67,7 +67,7 @@ defmodule Tymeslot.Integrations.Calendar.Primary do
   @spec discover_and_configure_calendars(CalendarIntegrationSchema.t()) ::
           {:ok, CalendarIntegrationSchema.t()}
   def discover_and_configure_calendars(integration) do
-    case CalendarContext.discover_calendars_for_integration(integration) do
+    case Discovery.discover_calendars_for_integration(integration) do
       {:ok, calendars} ->
         auto_select_primary_calendar(integration, calendars)
 

@@ -18,12 +18,12 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   account reconnect keeps the prior choices unless the user changes them.
   """
 
-  alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Connection
   alias Tymeslot.Integrations.Calendar.Management
+  alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
   alias Tymeslot.Utils.UriUtils
@@ -49,7 +49,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
 
   Options (keyword):
     * `:discover` — `(provider, url, username, password -> {:ok, %{calendars: …, discovery_credentials: …}} | {:error, term()})`.
-      Defaults to `Calendar.discover_and_filter_calendars/5`, closed over this
+      Defaults to `Workflows.discover_and_filter_calendars/6`, closed over this
       integration's owner so the discovery is charged to them. The seam stays
       arity-4 so callers injecting a double need not know about the actor.
   """
@@ -58,7 +58,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
     default_discover = fn provider, url, username, password ->
       # Past the host breaker: a reconnect is how a server that recovered
       # gets used again, and the breaker its outage opened would refuse it.
-      Calendar.discover_and_filter_calendars(
+      Workflows.discover_and_filter_calendars(
         provider,
         url,
         username,

@@ -3,10 +3,10 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
   OAuth helper functions for calendar providers (Google, Outlook).
   """
 
-  alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Google.OAuthHelper, as: GoogleOAuthHelper
   alias Tymeslot.Integrations.Calendar.Google.Provider, as: GoogleProvider
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Outlook.OAuthHelper, as: OutlookOAuthHelper
   alias Tymeslot.Integrations.Shared.OAuth.PendingFlow
   alias Tymeslot.Integrations.Shared.OAuth.State
@@ -97,7 +97,7 @@ defmodule Tymeslot.Integrations.Calendar.OAuth do
           {:ok, String.t()} | {:error, any()}
   def initiate_google_scope_upgrade(user_id, integration_id)
       when is_integer(user_id) and is_integer(integration_id) do
-    with {:ok, integration} <- Calendar.get_integration(integration_id, user_id),
+    with {:ok, integration} <- Management.get_calendar_integration(integration_id, user_id),
          true <- integration.provider == "google",
          {:ok, url} <- initiate(:google, user_id) do
       {:ok, url}
