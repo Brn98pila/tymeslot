@@ -24,7 +24,7 @@ defmodule Tymeslot.Auth.AdminBootstrap do
 
   require Logger
 
-  alias Tymeslot.AppSettings.AppSettingsQueries
+  alias Tymeslot.AppSettings.{AppSettingsQueries, Env}
   alias Tymeslot.Auth.{AdminUserQueries, UserSchema}
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Repo
@@ -92,8 +92,9 @@ defmodule Tymeslot.Auth.AdminBootstrap do
       populated. Recovery is `Tymeslot.Release.promote_admin/1`.
     * the first-user bootstrap has run but no accounts are left, so the next
       sign-up will not become admin and, with registration closed, nobody
-      can sign up at all. Recovery is `Tymeslot.Release.reopen_registration/0`
-      followed by `promote_admin/1`.
+      can sign up at all. Recovery is `Tymeslot.Release.reopen_registration/0`,
+      or setting `REGISTRATION_ENABLED=true` when that variable fixes the
+      setting, followed by `promote_admin/1`.
   """
   @spec warn_if_orphaned_install() :: :ok
   def warn_if_orphaned_install do
@@ -110,8 +111,8 @@ defmodule Tymeslot.Auth.AdminBootstrap do
       AppSettingsQueries.admin_bootstrapped?() ->
         Logger.warning(
           "No accounts exist, and the first account to sign up will not become admin. " <>
-            "Open registration with `bin/tymeslot rpc 'Tymeslot.Release.reopen_registration()'`, " <>
-            "sign up, then promote yourself with " <>
+            open_registration_step() <>
+            ", sign up, then promote yourself with " <>
             "`bin/tymeslot rpc 'Tymeslot.Release.promote_admin(\"<email>\")'`."
         )
 
@@ -124,5 +125,17 @@ defmodule Tymeslot.Auth.AdminBootstrap do
     error ->
       Logger.error("Admin bootstrap check failed", reason: LogFormat.reason(error))
       :ok
+  end
+
+  # A variable that fixes registration also refuses the release helper's
+  # write, so the way to open it is the variable itself.
+  defp open_registration_step do
+    case Env.pinned_var(:registration_enabled) do
+      nil ->
+        "Open registration with `bin/tymeslot rpc 'Tymeslot.Release.reopen_registration()'`"
+
+      var ->
+        "#{var} fixes registration, so open it by setting #{var}=true and restarting"
+    end
   end
 end
