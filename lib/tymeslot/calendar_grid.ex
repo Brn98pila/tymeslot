@@ -23,6 +23,7 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.CalendarGrid.RepeatRefusal
   alias Tymeslot.CalendarGrid.SeriesCarry
   alias Tymeslot.CalendarGrid.SeriesStart
+  alias Tymeslot.CalendarGrid.WriteQueue.SeriesActivity
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.Appearance
   alias Tymeslot.Integrations.Calendar.CalendarAppearanceSchema
@@ -278,6 +279,18 @@ defmodule Tymeslot.CalendarGrid do
 
   @doc "Whether an `.ics` import of the user's is under way. See `IcsImport.running?/1`."
   defdelegate ics_import_running?(user_id), to: IcsImport, as: :running?
+
+  @doc """
+  Whether the write queue is still writing to the series `event` belongs to.
+  See `SeriesActivity.saving?/2`.
+  """
+  defdelegate series_saving?(queue, event), to: SeriesActivity, as: :saving?
+
+  @doc """
+  Whether the write queue is writing to another event of the series `event`
+  belongs to. See `SeriesActivity.busy?/2`.
+  """
+  defdelegate series_busy?(queue, event), to: SeriesActivity, as: :busy?
 
   @doc """
   Writes an import plan to one of the user's calendars (see `IcsImport.run/3`),
