@@ -113,7 +113,7 @@ defmodule Tymeslot.Notifications.Email.EndChangeEmails do
 
   defp overtaken(meeting, start_time) do
     cond do
-      meeting.status != "confirmed" -> @not_confirmed
+      not MeetingState.confirmed?(meeting) -> @not_confirmed
       MeetingState.slot_void?(meeting) -> @slot_void
       not DateTime.after?(meeting.start_time, Clock.utc_now()) -> @meeting_started
       DateTime.compare(meeting.start_time, start_time) != :eq -> @start_moved

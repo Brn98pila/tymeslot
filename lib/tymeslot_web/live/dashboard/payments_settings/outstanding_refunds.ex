@@ -47,6 +47,7 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
 
   alias Tymeslot.MeetingPayments
   alias Tymeslot.Meetings.Approval
+  alias Tymeslot.Meetings.MeetingState
   alias TymeslotWeb.Helpers.LocaleFormat
 
   import TymeslotWeb.Components.PaymentHelpers, only: [format_amount: 2]
@@ -169,12 +170,12 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
 
   # Which explanation a row needs: an expired or declined booking refunds on
   # its own, a cancelled one never does.
-  defp kind(%{meeting: %{status: "expired"}}), do: :expired
-
   defp kind(%{meeting: meeting}) do
-    if Approval.declined?(meeting) and Approval.refunds_on_release?(meeting),
-      do: :declined,
-      else: :cancelled
+    cond do
+      MeetingState.expired?(meeting) -> :expired
+      Approval.declined?(meeting) and Approval.refunds_on_release?(meeting) -> :declined
+      true -> :cancelled
+    end
   end
 
   # An expired meeting carries no cancellation date, so its row is dated by
@@ -182,19 +183,26 @@ defmodule TymeslotWeb.Dashboard.PaymentsSettings.OutstandingRefunds do
   # expired payment `paid_at`, so the bare fallbacks should not arise; they
   # are tolerated rather than raising, because a vaguer cell beats a 500 on
   # the payments screen.
-  defp format_date_cell(%{meeting: %{status: "expired"}, paid_at: %DateTime{} = paid_at}),
+  defp format_date_cell(%{meeting: %{status: _status} = meeting} = payment) do
+    if MeetingState.expired?(meeting),
+      do: expired_date_cell(payment),
+      else: released_date_cell(meeting)
+  end
+
+  defp format_date_cell(_payment), do: ""
+
+  defp expired_date_cell(%{paid_at: %DateTime{} = paid_at}),
     do: dgettext("dashboard_payments", "Expired, paid %{date}", date: format_date(paid_at))
 
-  defp format_date_cell(%{meeting: %{status: "expired"}}),
-    do: dgettext("dashboard_payments", "Expired")
+  defp expired_date_cell(_payment), do: dgettext("dashboard_payments", "Expired")
 
-  defp format_date_cell(%{meeting: %{cancelled_at: %DateTime{} = cancelled_at} = meeting}) do
+  defp released_date_cell(%{cancelled_at: %DateTime{} = cancelled_at} = meeting) do
     if Approval.declined?(meeting),
       do: dgettext("dashboard_payments", "Declined %{date}", date: format_date(cancelled_at)),
       else: dgettext("dashboard_payments", "Cancelled %{date}", date: format_date(cancelled_at))
   end
 
-  defp format_date_cell(_payment), do: ""
+  defp released_date_cell(_meeting), do: ""
 
   defp format_date(%DateTime{} = datetime) do
     LocaleFormat.format_short_date_with_year(datetime, Gettext.get_locale(TymeslotWeb.Gettext))
