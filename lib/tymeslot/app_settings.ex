@@ -284,6 +284,31 @@ defmodule Tymeslot.AppSettings do
   end
 
   @doc """
+  Logs an error when the environment variables fixing the authentication
+  settings leave no admin a way to sign in, naming the variables and how to
+  recover. Run at boot, after `load!/0`; see
+  `LockoutPolicy.pins_blocking_sign_in/0` for when it fires.
+  """
+  @spec warn_if_pins_block_sign_in() :: :ok
+  def warn_if_pins_block_sign_in do
+    case LockoutPolicy.pins_blocking_sign_in() do
+      [] ->
+        :ok
+
+      pins ->
+        vars = Enum.map_join(pins, ", ", fn {_key, var} -> var end)
+
+        Logger.error(
+          "No admin can sign in: no sign-in method is usable, and the environment " <>
+            "variables #{vars} fix sign-in settings, so the admin page cannot turn " <>
+            "one back on. Unset these variables, or correct them (for example, " <>
+            "enable a provider whose client ID and secret are set), then restart.",
+          env_vars: Enum.map(pins, fn {_key, var} -> var end)
+        )
+    end
+  end
+
+  @doc """
   Clears the DB override for `key`, falling back to the config layer or
   built-in default. Convenience wrapper over `update/1`.
   """

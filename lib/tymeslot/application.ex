@@ -258,7 +258,9 @@ defmodule Tymeslot.Application do
     # Meeting payments can be switched on in the admin settings, which is what
     # makes the Connect webhook secret required.
     _missing = SecretCheck.check()
-    :ok
+
+    # A variable fixing a sign-in setting can lock every admin out.
+    AppSettings.warn_if_pins_block_sign_in()
   end
 
   defp validate_config! do
