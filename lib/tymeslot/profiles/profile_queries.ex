@@ -221,22 +221,25 @@ defmodule Tymeslot.Profiles.ProfileQueries do
   stale (a username chosen in another tab since it was read).
 
   `{:unchanged, stored}` when the stored row already has a username, with
-  the row as stored.
+  the row as stored; `{:error, :not_found}` when the profile has been
+  deleted since it was read.
   """
   @spec update_username_if_blank(ProfileSchema.t(), String.t()) ::
           {:ok, ProfileSchema.t()}
           | {:unchanged, ProfileSchema.t()}
-          | {:error, Ecto.Changeset.t()}
+          | {:error, Ecto.Changeset.t() | :not_found}
   def update_username_if_blank(%ProfileSchema{id: id}, username) do
     result =
       Repo.transaction(fn ->
-        stored = Repo.one!(from(p in ProfileSchema, where: p.id == ^id, lock: "FOR UPDATE"))
-        fill_blank_username(stored, username)
+        case Repo.one(from(p in ProfileSchema, where: p.id == ^id, lock: "FOR UPDATE")) do
+          nil -> Repo.rollback(:not_found)
+          stored -> fill_blank_username(stored, username)
+        end
       end)
 
     case result do
       {:ok, outcome} -> outcome
-      {:error, changeset} -> {:error, changeset}
+      {:error, reason} -> {:error, reason}
     end
   end
 

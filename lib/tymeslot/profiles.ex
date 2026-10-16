@@ -417,6 +417,8 @@ defmodule Tymeslot.Profiles do
   A system write: it is validated and can publish the booking page like any
   other username write, but is not counted against the user's change rate
   limit, so a user who spent their allowance still gets a resolvable page.
+  `{:error, :not_found}` when the profile has been deleted since it was
+  read.
   """
   @spec ensure_default_username(profile()) :: result(profile())
   defdelegate ensure_default_username(profile), to: Usernames, as: :ensure_default

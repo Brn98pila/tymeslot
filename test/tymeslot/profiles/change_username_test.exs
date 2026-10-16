@@ -91,6 +91,15 @@ defmodule Tymeslot.Profiles.ChangeUsernameTest do
       assert {:ok, ^profile} = Profiles.ensure_default_username(profile)
       assert {:ok, %{username: "chosen-host"}} = ProfileQueries.get_by_user_id(profile.user_id)
     end
+
+    # Onboarding reads the profile, then gives it the default; the profile
+    # can be deleted in between.
+    test "answers not found for a profile deleted since it was read" do
+      profile = insert(:profile, username: nil)
+      Repo.delete!(profile)
+
+      assert {:error, :not_found} = Profiles.ensure_default_username(profile)
+    end
   end
 
   defp exhaust_username_changes(profile) do
