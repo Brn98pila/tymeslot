@@ -125,6 +125,33 @@ defmodule Tymeslot.Integrations.Video.AccountCleanupTest do
     refute_received {:unexpected_call, _url}
   end
 
+  test "a Google Meet integration with no token is left without a revoke call or a warning" do
+    user = insert(:user)
+
+    integration =
+      insert(:video_integration,
+        user: user,
+        provider: "google_meet",
+        access_token_encrypted: nil,
+        refresh_token_encrypted: nil
+      )
+
+    test_pid = self()
+
+    stub(Tymeslot.HTTPClientMock, :post, fn url, _body, _headers, _opts ->
+      send(test_pid, {:unexpected_call, url})
+      {:ok, %Req.Response{status: 200, body: ""}}
+    end)
+
+    LogCapture.attach(level: :warning)
+
+    assert AccountCleanup.run(user.id) == :ok
+
+    refute_received {:unexpected_call, _url}
+    integration_id = integration.id
+    refute_received {:captured_log, %{meta: %{integration_id: ^integration_id}}}
+  end
+
   describe "best effort" do
     setup do
       with_config(:tymeslot, :zoom_oauth,

@@ -18,10 +18,8 @@ defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanup do
   neither the other steps nor the deletion.
   """
 
-  require Logger
-
   alias Tymeslot.Auth.UserSchema
-  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Infrastructure.BestEffort
   alias Tymeslot.Integrations.Calendar.AccountCleanup, as: CalendarCleanup
   alias Tymeslot.Integrations.Video.AccountCleanup, as: VideoCleanup
   alias Tymeslot.MeetingPayments
@@ -44,19 +42,8 @@ defmodule Tymeslot.Auth.AccountDeletion.ExternalCleanup do
   @doc false
   @spec run_step(atom(), integer(), (-> term())) :: :ok
   def run_step(step, user_id, fun) do
-    case fun.() do
-      {:error, reason} -> log_failure(step, user_id, reason)
-      _done -> :ok
-    end
-  rescue
-    exception -> log_failure(step, user_id, exception)
-  end
-
-  defp log_failure(step, user_id, reason) do
-    Logger.error("Account deletion: cleanup step failed; the deletion goes ahead",
-      step: step,
-      user_id: user_id,
-      reason: LogFormat.reason(reason)
+    BestEffort.run(step, fun, "Account deletion: cleanup step failed; the deletion goes ahead",
+      user_id: user_id
     )
   end
 end

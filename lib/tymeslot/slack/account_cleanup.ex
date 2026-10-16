@@ -11,9 +11,7 @@ defmodule Tymeslot.Slack.AccountCleanup do
   workspace revokes it; the deleted account's copy goes with its rows.
   """
 
-  require Logger
-
-  alias Tymeslot.Infrastructure.Logging.LogFormat
+  alias Tymeslot.Infrastructure.BestEffort
   alias Tymeslot.Slack.{API, SlackIntegrationSchema, SlackQueries}
 
   @spec run(integer()) :: :ok
@@ -31,32 +29,16 @@ defmodule Tymeslot.Slack.AccountCleanup do
   defp workspace_shared?(_no_workspace), do: false
 
   defp revoke_token(%SlackIntegrationSchema{} = integration) do
-    with token when is_binary(token) <- SlackIntegrationSchema.bot_token(integration),
-         {:error, reason} <- API.revoke_token(token) do
-      log_revocation_failure(integration, reason)
-    end
-
-    :ok
-  rescue
-    exception ->
-      log_revocation_failure(integration, exception,
-        exception: inspect(exception.__struct__),
-        stacktrace: LogFormat.stacktrace(__STACKTRACE__)
-      )
-  catch
-    kind, reason -> log_revocation_failure(integration, {kind, reason})
-  end
-
-  defp log_revocation_failure(integration, reason, extra \\ []) do
-    Logger.warning(
+    BestEffort.run(
+      :revoke_token,
+      fn ->
+        with token when is_binary(token) <- SlackIntegrationSchema.bot_token(integration) do
+          API.revoke_token(token)
+        end
+      end,
       "Account deletion: Slack token revocation failed; carrying on",
-      [
-        integration_id: integration.id,
-        user_id: integration.user_id,
-        reason: LogFormat.reason(reason)
-      ] ++ extra
+      integration_id: integration.id,
+      user_id: integration.user_id
     )
-
-    :ok
   end
 end
