@@ -26,11 +26,14 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ProcessingTest do
   import Phoenix.LiveViewTest
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Phoenix.PubSub
   alias Tymeslot.MeetingPayments.BookingPaymentQueries
   alias Tymeslot.MeetingPayments.Webhooks.FailAndExpire
   alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Profiles
+  alias Tymeslot.Repo
+  alias Tymeslot.Themes.Catalog
 
   setup do
     user = insert(:user)
@@ -461,6 +464,31 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturnLive.ProcessingTest do
 
     assert {:error, {:redirect, _info}} =
              live(conn, ~p"/themes/quill/payment-processing/#{meeting.id}?session_id=cs_TEST")
+  end
+
+  # The booking page and the checkout return URL both serve an unknown theme
+  # id as the default theme, so the attendee comes back under its slug.
+  test "accepts the default theme's slug for a host whose stored theme is unknown", %{
+    conn: conn,
+    profile: profile,
+    user: user
+  } do
+    profile |> Changeset.change(booking_theme: "42") |> Repo.update!()
+
+    meeting = insert(:meeting, organizer_user_id: user.id, status: "awaiting_payment")
+
+    insert(:booking_payment,
+      meeting: meeting,
+      host_user_id: user.id,
+      stripe_checkout_session_id: "cs_TEST"
+    )
+
+    slug = Atom.to_string(Catalog.default_key())
+
+    {:ok, _view, html} =
+      live(conn, "/themes/#{slug}/payment-processing/#{meeting.id}?session_id=cs_TEST")
+
+    assert html =~ "Confirming your payment"
   end
 
   test "dead render does not load page data", %{conn: conn, user: user} do
