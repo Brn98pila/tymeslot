@@ -131,6 +131,14 @@ defmodule Tymeslot.Media.ImageMetadata do
     end
   end
 
+  @doc """
+  The largest canvas `strip/3` accepts for an image of `extension`, in
+  pixels: WebP's lower bound for `.webp`, the general one for any other.
+  """
+  @spec pixel_limit(String.t()) :: pos_integer()
+  def pixel_limit(".webp"), do: @max_webp_pixels
+  def pixel_limit(_extension), do: @max_pixels
+
   defp read_header(path) do
     case File.open(path, [:read, :binary, :raw], &:file.read(&1, @header_bytes)) do
       {:ok, {:ok, header}} -> {:ok, header}

@@ -14,6 +14,8 @@ defmodule Tymeslot.Release do
   """
 
   alias Ecto.Migrator
+  alias Tymeslot.AppSettings
+  alias Tymeslot.AppSettings.AppSettingsSchema
   alias Tymeslot.Auth
   alias Tymeslot.Auth.{AdminRoles, AdminUserQueries, UserQueries, UserSchema}
   alias Tymeslot.Infrastructure.{FinchPool, ProxyVerifier}
@@ -132,6 +134,30 @@ defmodule Tymeslot.Release do
     ensure_running!()
 
     Enum.map(AdminUserQueries.list_admins(), fn user -> %{id: user.id, email: user.email} end)
+  end
+
+  @doc """
+  Opens registration, for an install nobody can sign in to: its accounts are
+  gone and registration was closed from the admin UI. Sign up, promote the
+  new account with `promote_admin/1`, then close registration again from the
+  admin UI.
+
+      bin/tymeslot rpc 'Tymeslot.Release.reopen_registration()'
+
+  Refuses when the admin UI is disabled, where registration is not the
+  operator's to change, and returns `{:error, {:pinned, :registration_enabled,
+  "REGISTRATION_ENABLED"}}` when that environment variable is set, since it
+  fixes the setting: set it to `true` and restart instead.
+  """
+  @spec reopen_registration() ::
+          {:ok, AppSettingsSchema.t()}
+          | {:error, :admin_ui_disabled | AppSettings.update_error()}
+  def reopen_registration do
+    ensure_running!()
+
+    with :ok <- ensure_admin_ui_enabled() do
+      AppSettings.update(%{registration_enabled: true})
+    end
   end
 
   @doc """

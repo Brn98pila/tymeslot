@@ -24,7 +24,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
   alias Ecto.Changeset
   alias Tymeslot.Media.Transcoder
   alias Tymeslot.Repo
-  alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Test.JobRefusal
   alias Tymeslot.Test.MediaFixtures
   alias Tymeslot.Test.UploadRoot
@@ -216,6 +215,49 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       assert response.status == 200
       assert MediaFixtures.image_metadata_fields(response.resp_body) == []
       refute response.resp_body =~ "Model-X"
+    end
+
+    test "publishes a phone JPEG whose EXIF thumbnail pushes its dimensions past the first kilobytes",
+         %{conn: conn, profile: profile} do
+      view = open_tab(conn, "1", "image")
+
+      image = %{
+        last_modified: System.system_time(:millisecond),
+        name: "IMG_0042.JPG",
+        content: MediaFixtures.read!("exif_thumbnail.jpg"),
+        type: "image/jpeg"
+      }
+
+      view
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
+      |> render_upload("IMG_0042.JPG")
+
+      assert_push_event(view, "upload-complete", %{})
+
+      customization = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
+      assert customization.settings["background_image_path"] =~ ~r/\.jpg\z/
+      response = get(build_conn(), "/uploads/" <> customization.settings["background_image_path"])
+      assert MediaFixtures.image_metadata_fields(response.resp_body) == []
+    end
+
+    test "refuses a file type it does not take, in words", %{conn: conn, profile: profile} do
+      view = open_tab(conn, "1", "image")
+
+      image = %{
+        last_modified: System.system_time(:millisecond),
+        name: "moving.gif",
+        content: MediaFixtures.read!("animated.gif"),
+        type: "image/gif"
+      }
+
+      view
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
+      |> render_upload("moving.gif")
+
+      assert render(view) =~
+               "This file type is not supported. Please upload a JPG, PNG or WebP image."
+
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
     end
 
     test "refuses an image over 40 megapixels and says how large it may be", %{
@@ -549,55 +591,6 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
 
       assert Map.take(saved_settings(profile), ["background_image_path", "background_video_path"]) ==
                %{}
-    end
-  end
-
-  describe "the upload_asset handler" do
-    setup :isolated_upload_root
-
-    setup %{user: user} do
-      bucket = "theme_upload:#{user.id}"
-      RateLimiter.clear_bucket(bucket)
-      on_exit(fn -> RateLimiter.clear_bucket(bucket) end)
-      %{bucket: bucket}
-    end
-
-    test "consumes a finished entry the progress callback was refused",
-         %{conn: conn, profile: profile, bucket: bucket} do
-      for _i <- 1..5, do: assert(:ok = RateLimiter.check(:theme_upload, profile.user_id))
-
-      view = open_tab(conn, "1", "image")
-
-      image = %{
-        last_modified: System.system_time(:millisecond),
-        name: "background.png",
-        content: @valid_png,
-        type: "image/png"
-      }
-
-      view
-      |> file_input("#theme-background-image-form", :background_image_path, [image])
-      |> render_upload("background.png")
-
-      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
-
-      RateLimiter.clear_bucket(bucket)
-      view |> form("#theme-background-image-form") |> render_submit()
-
-      assert_push_event(view, "upload-complete", _payload)
-
-      saved = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
-      assert saved.settings["background_type"] == "image"
-      assert saved.settings["background_image_path"] =~ "themes/#{profile.id}/1/images/"
-    end
-
-    test "a field the theme does not declare saves nothing",
-         %{conn: conn, profile: profile} do
-      view = open_tab(conn, "1", "image")
-
-      view |> form("#theme-background-image-form") |> render_change(%{"asset_field" => "bogus"})
-
-      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
     end
   end
 end

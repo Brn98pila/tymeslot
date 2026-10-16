@@ -345,15 +345,23 @@ defmodule TymeslotWeb.Themes.Shared.PaymentReturn do
     end
   end
 
+  # A theme id the catalogue does not know is served as the default theme, on
+  # the booking page and in the checkout return URL alike, so it is checked
+  # as the default here too.
   defp validate_theme(profile, slug) do
-    case ThemeRegistry.id_to_key(profile.booking_theme || ThemeRegistry.default_theme_id()) do
-      {:ok, key} ->
-        if Atom.to_string(key) == slug, do: :ok, else: {:error, :wrong_theme}
+    if Atom.to_string(profile_theme_key(profile)) == slug,
+      do: :ok,
+      else: {:error, :wrong_theme}
+  end
 
-      {:error, :invalid_theme_id} ->
-        {:error, :wrong_theme}
+  defp profile_theme_key(%{booking_theme: theme_id}) when is_binary(theme_id) do
+    case ThemeRegistry.id_to_key(theme_id) do
+      {:ok, key} -> key
+      {:error, :invalid_theme_id} -> ThemeRegistry.default_theme_key()
     end
   end
+
+  defp profile_theme_key(_profile), do: ThemeRegistry.default_theme_key()
 
   defp get_payment(meeting_id) do
     case MeetingPayments.payment_for_meeting(meeting_id) do

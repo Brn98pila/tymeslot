@@ -85,11 +85,6 @@ msgstr "Slug de réservation"
 msgid "Cancel"
 msgstr "Annuler"
 
-#: lib/tymeslot_web/live/admin_live/components/settings.ex
-#, elixir-autogen, elixir-format
-msgid "Changes here take effect immediately and override the matching environment variables and application configuration (e.g. REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) for this install."
-msgstr "Les modifications effectuées ici prennent effet immédiatement et remplacent les variables d’environnement et la configuration applicative correspondantes (par exemple REGISTRATION_ENABLED, PASSWORD_AUTH_ENABLED) pour cette installation."
-
 #: lib/tymeslot_web/live/admin_live/user_actions.ex
 #, elixir-autogen, elixir-format
 msgid "Could not demote user."
@@ -370,11 +365,6 @@ msgstr "Autoriser les nouveaux utilisateurs à s’inscrire via la page d’insc
 #, elixir-autogen, elixir-format
 msgid "Cannot disable this login provider while it is the only working sign-in path for admins. Enable password authentication or another credentialed SSO provider first."
 msgstr "Impossible de désactiver ce fournisseur de connexion tant qu’il constitue le seul moyen de connexion fonctionnel pour les administrateurs. Activez d’abord l’authentification par mot de passe ou un autre fournisseur SSO avec identifiants."
-
-#: lib/tymeslot_web/live/admin_live/formatters.ex
-#, elixir-autogen, elixir-format
-msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to fall back to the ADMIN_ALERT_EMAIL environment variable."
-msgstr "Adresse e-mail qui reçoit les alertes administrateur lorsque l’option ci-dessus est activée. Laissez vide pour utiliser par défaut la variable d’environnement ADMIN_ALERT_EMAIL."
 
 #: lib/tymeslot_web/live/admin_live/formatters.ex
 #, elixir-autogen, elixir-format
@@ -791,3 +781,18 @@ msgstr "reCAPTCHA désactivé pour l’inscription."
 #, elixir-autogen, elixir-format
 msgid "reCAPTCHA on signup turned on."
 msgstr "reCAPTCHA activé pour l’inscription."
+
+#: lib/tymeslot_web/live/admin_live/components/settings.ex
+#, elixir-autogen, elixir-format
+msgid "Changes here take effect immediately. A setting fixed by an environment variable, such as REGISTRATION_ENABLED, is greyed out and changes only when you edit that variable and restart Tymeslot."
+msgstr "Les modifications effectuées ici prennent effet immédiatement. Un paramètre fixé par une variable d’environnement, comme REGISTRATION_ENABLED, apparaît grisé et ne change que si vous modifiez cette variable et redémarrez Tymeslot."
+
+#: lib/tymeslot_web/live/admin_live/formatters.ex
+#, elixir-autogen, elixir-format
+msgid "Set by the %{variable} environment variable. To change it here, remove the variable and restart Tymeslot."
+msgstr "Défini par la variable d’environnement %{variable}. Pour modifier ce paramètre ici, supprimez la variable et redémarrez Tymeslot."
+
+#: lib/tymeslot_web/live/admin_live/formatters.ex
+#, elixir-autogen, elixir-format
+msgid "Email address that receives admin alerts when the toggle above is enabled. Leave blank to send no alert emails."
+msgstr "Adresse e-mail qui reçoit les alertes administrateur lorsque l’option ci-dessus est activée. Laissez vide pour n’envoyer aucune alerte par e-mail."

@@ -4,6 +4,7 @@ defmodule Tymeslot.Media.MediaValidatorTest do
   @moduletag :utils
 
   alias Tymeslot.Media.MediaValidator
+  alias Tymeslot.Test.MediaFixtures
 
   describe "valid_image?/1" do
     test "returns true for valid PNG" do
@@ -163,6 +164,13 @@ defmodule Tymeslot.Media.MediaValidatorTest do
       refute MediaValidator.valid_image_file?(path)
       refute MediaValidator.valid_video_file?(path)
       refute MediaValidator.valid_png_file?(path)
+    end
+
+    # A phone photo's EXIF block, with its embedded thumbnail, comes before
+    # the JPEG's own SOF marker, so its dimensions are not in the first
+    # kilobytes of the file.
+    test "returns true for a JPEG whose EXIF block is larger than its header" do
+      assert MediaValidator.valid_image_file?(MediaFixtures.path("exif_thumbnail.jpg"))
     end
 
     test "returns true for a valid PNG file" do

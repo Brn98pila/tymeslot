@@ -4,7 +4,7 @@ defmodule Tymeslot.MixProject do
   def project do
     [
       app: :tymeslot,
-      version: "1.25.0",
+      version: "1.26.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -211,9 +211,13 @@ defmodule Tymeslot.MixProject do
       # Every `:e2e` test module lives in this repo, and `test_helper.exs` starts
       # the endpoint and Wallaby only when E2E is set, so the tag is unrunnable
       # without this alias. Needs a local Chrome and chromedriver, which is why
-      # it is not part of the default gate or of CI.
+      # it is not part of the default gate or of CI. The browser loads the
+      # bundles in priv/static, which nothing else rebuilds outside a running
+      # dev server's watchers, so without `assets.build` a JavaScript or CSS
+      # change goes untested and the run passes against the stale build.
       "test.e2e": [
         &set_e2e_env/1,
+        "assets.build",
         "ecto.create --quiet",
         "ecto.migrate --quiet",
         "test --color --preload-modules --only e2e"
