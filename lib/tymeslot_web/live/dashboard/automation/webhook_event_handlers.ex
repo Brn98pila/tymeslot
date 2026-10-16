@@ -212,8 +212,10 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
       socket,
       id,
       :testing_connection,
-      &AutomationHelpers.get_webhook_for_user(&1, id),
-      &Webhooks.test_webhook(&1.user_id, &1.id),
+      # `test_webhook/2` reads the webhook itself, scoped to the acting user,
+      # so the only thing to fetch first is who that is.
+      &{:ok, &1.assigns.current_user.id},
+      &Webhooks.test_webhook(&1, AutomationHelpers.parse_id(id)),
       {dgettext("dashboard_automation", "Webhook test successful! Check your endpoint."),
        dgettext("dashboard_automation", "Webhook not found")}
     )
