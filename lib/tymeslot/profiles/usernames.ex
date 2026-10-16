@@ -54,10 +54,13 @@ defmodule Tymeslot.Profiles.Usernames do
     with :ok <- UsernameValidator.validate(username),
          :ok <- refuse_reserved(username),
          :ok <- rate_limit(profile, writer),
-         {:ok, updated_profile} <- ProfileQueries.update_username(profile, username) do
+         {:ok, updated_profile} <- store(profile, username, writer) do
       Publication.maybe_publish(updated_profile.user_id)
       {:ok, updated_profile}
     else
+      {:unchanged, stored} ->
+        {:ok, stored}
+
       {:error, :rate_limited, _message} ->
         {:error,
          dgettext(
@@ -77,6 +80,15 @@ defmodule Tymeslot.Profiles.Usernames do
       do: {:error, dgettext("errors", "This username is reserved")},
       else: :ok
   end
+
+  # The system default fills a blank username and nothing else, decided from
+  # the stored row: the profile it was given may predate a username chosen
+  # since (in another tab, say), which the default must not overwrite.
+  defp store(profile, username, :system),
+    do: ProfileQueries.update_username_if_blank(profile, username)
+
+  defp store(profile, username, :rate_limited),
+    do: ProfileQueries.update_username(profile, username)
 
   # A system write (the default given when onboarding moves on without a
   # username) is not the user's change, so it costs them no attempt.

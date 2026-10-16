@@ -75,6 +75,16 @@ defmodule Tymeslot.Profiles.ChangeUsernameTest do
       assert {:ok, %{username: ^expected}} = Profiles.ensure_default_username(profile)
     end
 
+    test "keeps a username chosen since the profile was read" do
+      stale = insert(:profile, username: nil)
+      {:ok, _chosen} = ProfileQueries.update_username(stale, "chosen-meanwhile")
+
+      assert {:ok, %{username: "chosen-meanwhile"}} = Profiles.ensure_default_username(stale)
+
+      assert {:ok, %{username: "chosen-meanwhile"}} =
+               ProfileQueries.get_by_user_id(stale.user_id)
+    end
+
     test "leaves an existing username alone" do
       profile = insert(:profile, username: "chosen-host")
 
