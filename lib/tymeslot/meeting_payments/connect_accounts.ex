@@ -17,8 +17,8 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
   alias Tymeslot.MeetingPayments.ConnectAccountQueries
   alias Tymeslot.MeetingPayments.ConnectAccountSchema
   alias Tymeslot.MeetingPayments.Currency
+  alias Tymeslot.MeetingPayments.HeldMeetings
   alias Tymeslot.MeetingPayments.StripeAdapter
-  alias Tymeslot.Meetings.MeetingQueries
   alias Tymeslot.Repo
   alias Tymeslot.Workers.SendConnectAccountRestricted
   alias TymeslotWeb.Endpoint
@@ -181,12 +181,14 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
 
     now = DateTime.utc_now(:second)
 
-    Repo.transaction(fn ->
-      cancelled_count = cancel_pending_bookings(pending, now)
+    fn ->
+      {cancelled_count, expired} = cancel_pending_bookings(pending, now)
       ConnectAccountQueries.soft_delete_for_user(user.id, now)
 
-      %{cancelled_count: cancelled_count, outstanding_refunds_count: outstanding.count}
-    end)
+      {%{cancelled_count: cancelled_count, outstanding_refunds_count: outstanding.count}, expired}
+    end
+    |> Repo.transaction()
+    |> announce_after_commit()
   end
 
   @doc """
@@ -207,32 +209,45 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
     expire_stripe_sessions(pending, ConnectAccountQueries.live_for_user(user.id))
     now = DateTime.utc_now(:second)
 
-    Repo.transaction(fn -> cancel_pending_bookings(pending, now) end)
+    fn -> cancel_pending_bookings(pending, now) end
+    |> Repo.transaction()
+    |> announce_after_commit()
   end
 
+  # Returns the number of bookings cancelled and the meetings whose hold was
+  # released, which are announced only once the transaction has committed.
   defp cancel_pending_bookings(pending, now) do
-    Enum.reduce(pending, 0, fn payment, acc ->
+    Enum.reduce(pending, {0, []}, fn payment, {count, expired} ->
       case cancel_pending_booking(payment, now) do
-        :ok -> acc + 1
-        :skipped -> acc
+        {:ok, nil} -> {count + 1, expired}
+        {:ok, meeting} -> {count + 1, [meeting | expired]}
+        :skipped -> {count, expired}
       end
     end)
   end
+
+  defp announce_after_commit({:ok, {result, expired}}) do
+    Enum.each(expired, &HeldMeetings.announce_expired/1)
+    {:ok, result}
+  end
+
+  defp announce_after_commit({:error, _reason} = error), do: error
 
   # Cancel a pending booking_payment and, if it has a linked awaiting_payment
   # meeting, transition that meeting to expired so the slot is released.
   #
   # Uses a conditional UPDATE that only writes when status = 'pending', so a
   # concurrent checkout.session.completed webhook that has already flipped the
-  # row to 'paid' is not overwritten.
+  # row to 'paid' is not overwritten. The meeting is locked only after that
+  # claim, the same order the webhooks take their locks in.
   #
-  # Returns :ok when the row was cancelled, :skipped when the row was already
-  # in a terminal state (concurrent webhook beat us to it).
+  # Returns `{:ok, expired_meeting | nil}` when the row was cancelled, and
+  # :skipped when it was already in a terminal state (a concurrent webhook
+  # beat us to it).
   defp cancel_pending_booking(payment, now) do
     case BookingPaymentQueries.cancel_if_pending(payment.id, now) do
       {:ok, :cancelled} ->
-        maybe_expire_meeting(payment.meeting)
-        :ok
+        {:ok, expire_held_meeting(payment.meeting_id)}
 
       {:ok, :skipped} ->
         :skipped
@@ -243,24 +258,27 @@ defmodule Tymeslot.MeetingPayments.ConnectAccounts do
     end
   end
 
-  defp maybe_expire_meeting(nil), do: :ok
+  # A meeting write that fails is logged and the cancellation stands: the
+  # payment's own `checkout.session.expired` event later expires a meeting
+  # still awaiting payment behind a cancelled payment
+  # (`Webhooks.FailAndExpire`).
+  defp expire_held_meeting(meeting_id) do
+    case HeldMeetings.expire(meeting_id) do
+      {:ok, :expired, meeting} ->
+        meeting
 
-  defp maybe_expire_meeting(%{status: "awaiting_payment"} = meeting) do
-    # A status write only, so a row whose other fields fail today's full
-    # validation is still expired.
-    case MeetingQueries.update_meeting_status(meeting, %{status: "expired"}) do
-      {:ok, _updated} ->
-        :ok
+      {:ok, :unchanged} ->
+        nil
 
       {:error, reason} ->
         Logger.warning("Failed to expire the meeting of a cancelled checkout",
-          meeting_id: meeting.id,
+          meeting_id: meeting_id,
           reason: LogFormat.reason(reason)
         )
+
+        nil
     end
   end
-
-  defp maybe_expire_meeting(_meeting), do: :ok
 
   defp expire_stripe_sessions(pending, account) do
     stripe_account_id = account && account.stripe_account_id

@@ -103,7 +103,7 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
 
   @doc """
   Lists all `pending` booking payments for a host that still carry a
-  `stripe_checkout_session_id`, with the associated meeting preloaded.
+  `stripe_checkout_session_id`.
 
   Used by `Tymeslot.MeetingPayments.ConnectAccounts.disconnect/1` to
   collect open checkout sessions that must be expired before disconnecting.
@@ -115,8 +115,7 @@ defmodule Tymeslot.MeetingPayments.BookingPaymentQueries do
         where:
           b.host_user_id == ^host_user_id and
             b.status == "pending" and
-            not is_nil(b.stripe_checkout_session_id),
-        preload: [:meeting]
+            not is_nil(b.stripe_checkout_session_id)
 
     Repo.all(query)
   end
