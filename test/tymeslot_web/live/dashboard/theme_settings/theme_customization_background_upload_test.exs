@@ -226,6 +226,29 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       refute response.resp_body =~ "Model-X"
     end
 
+    test "publishes a phone JPEG whose EXIF thumbnail pushes its dimensions past the first kilobytes",
+         %{conn: conn, profile: profile} do
+      view = open_tab(conn, "1", "image")
+
+      image = %{
+        last_modified: System.system_time(:millisecond),
+        name: "IMG_0042.JPG",
+        content: MediaFixtures.read!("exif_thumbnail.jpg"),
+        type: "image/jpeg"
+      }
+
+      view
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
+      |> render_upload("IMG_0042.JPG")
+
+      assert_push_event(view, "upload-complete", %{})
+
+      customization = ThemeCustomizations.get_by_profile_and_theme(profile.id, "1")
+      assert customization.settings["background_image_path"] =~ ~r/IMG_0042\.jpg\z/
+      response = get(build_conn(), "/uploads/" <> customization.settings["background_image_path"])
+      assert MediaFixtures.image_metadata_fields(response.resp_body) == []
+    end
+
     test "refuses an image over 40 megapixels and says how large it may be", %{
       conn: conn,
       profile: profile
