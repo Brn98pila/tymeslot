@@ -8,8 +8,8 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
   @moduletag :integrations
 
   alias Tymeslot.Integrations.Calendar.Discovery
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Shared.DiscoveryCache
-  alias Tymeslot.Integrations.CalendarManagement
   import Mox
   import Tymeslot.Factory
 
@@ -126,14 +126,14 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
     end
   end
 
-  describe "CalendarManagement.create_calendar_integration/1 — end-to-end discovery" do
+  describe "Management.create_calendar_integration/1 — end-to-end discovery" do
     test "creates a CalDAV-family integration and persists discovered calendar_paths" do
       # The user-visible scenario: a user creates a CalDAV-family integration
       # with no pre-selected calendars, the server has calendars, and the
       # integration must end up persisted with `calendar_paths` populated.
       # Any break between `Discovery.maybe_discover_calendars/1` and the
       # persisted record (e.g. `cast/3` silently dropping the field,
-      # `CalendarManagement.insert_integration/1` ignoring injected
+      # `Calendar.Management.insert_integration/1` ignoring injected
       # paths) would not be caught by per-helper unit tests.
       stub(Tymeslot.HTTPClientMock, :request, fn _method, _url, _body, _headers, _opts ->
         {:ok, %Req.Response{status: 207, body: @propfind_calendar_response}}
@@ -154,7 +154,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
         is_active: true
       }
 
-      assert {:ok, integration} = CalendarManagement.create_calendar_integration(attrs)
+      assert {:ok, integration} = Management.create_calendar_integration(attrs)
 
       assert Enum.sort(integration.calendar_paths) == [
                "/calendars/user/personal/",
@@ -198,9 +198,9 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
       }
 
       assert {:error, %{discovery: _message}} =
-               CalendarManagement.create_calendar_integration(attrs)
+               Management.create_calendar_integration(attrs)
 
-      assert CalendarManagement.list_calendar_integrations(user.id) == []
+      assert Management.list_calendar_integrations(user.id) == []
     end
 
     test "a retry after creating a calendar on the server is not refused from the cache" do
@@ -237,9 +237,9 @@ defmodule Tymeslot.Integrations.Calendar.DiscoveryHappyPathTest do
       }
 
       assert {:error, %{discovery: _message}} =
-               CalendarManagement.create_calendar_integration(attrs)
+               Management.create_calendar_integration(attrs)
 
-      assert {:ok, integration} = CalendarManagement.create_calendar_integration(attrs)
+      assert {:ok, integration} = Management.create_calendar_integration(attrs)
 
       assert Enum.sort(integration.calendar_paths) == [
                "/calendars/user/personal/",

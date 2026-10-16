@@ -16,8 +16,8 @@ defmodule Tymeslot.Security.RetiredLegacyKeyTest do
 
   alias Tymeslot.Emails.EmailScheduler.LinkArg
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.TokenRefreshJob
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.HealthCheck
   alias Tymeslot.Integrations.Video.VideoIntegrationSchema
   alias Tymeslot.Security.CredentialReencryption
@@ -73,7 +73,7 @@ defmodule Tymeslot.Security.RetiredLegacyKeyTest do
     perform_job(TokenRefreshJob, %{"integration_id" => calendar.id})
     HealthCheck.perform_single_check(:calendar, calendar.id)
     HealthCheck.perform_single_check(:video, video.id)
-    CalendarManagement.list_active_calendar_integrations(user.id)
+    Management.list_active_calendar_integrations(user.id)
     KeyReport.warn_if_retired_key_holds_values()
 
     # The paths ran: the integrations are flagged for reconnection.

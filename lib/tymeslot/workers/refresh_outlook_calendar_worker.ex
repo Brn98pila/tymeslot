@@ -29,8 +29,8 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
   use Gettext, backend: TymeslotWeb.Gettext
 
   alias Tymeslot.Infrastructure.ExpectedJobOutcome
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Outlook.SyncCycle
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
@@ -105,7 +105,7 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorker do
 
   # Retrying a refused credential cannot help; only the owner reconnecting can.
   defp handle_credentials_rejected(integration) do
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext(
         "dashboard_calendar_providers",

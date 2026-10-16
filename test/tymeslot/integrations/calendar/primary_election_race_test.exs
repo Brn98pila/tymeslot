@@ -26,7 +26,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElectionRaceTest do
   alias Tymeslot.Auth.UserSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Deletion
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Profiles.ProfileSchema
   alias Tymeslot.Repo
@@ -60,7 +60,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElectionRaceTest do
       race([
         fn hold ->
           RaceConductor.arm(hold, &plain_read_of_integrations?/1)
-          CalendarManagement.insert_integration(attrs(ctx.user))
+          Management.insert_integration(attrs(ctx.user))
         end,
         fn hold ->
           RaceConductor.arm(hold, &profile_write?/1)

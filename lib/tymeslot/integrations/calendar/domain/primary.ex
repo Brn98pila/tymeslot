@@ -12,8 +12,8 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Selection
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Profiles.ProfileQueries
 
   require Logger
@@ -50,7 +50,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
         {:error, :no_primary_set}
 
       {:ok, %{primary_calendar_integration_id: id}} ->
-        CalendarManagement.get_calendar_integration(id, user_id)
+        Management.get_calendar_integration(id, user_id)
 
       {:error, _reason} ->
         {:error, :not_found}
@@ -113,7 +113,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
 
   defp validate_and_prepare_integration(user_id, integration_id) do
     with {:ok, integration} <-
-           CalendarManagement.get_calendar_integration(integration_id, user_id),
+           Management.get_calendar_integration(integration_id, user_id),
          :ok <- verify_active(integration),
          :ok <- verify_bookable(integration) do
       {:ok, integration}

@@ -8,8 +8,8 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Selection
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Utils.SanitizeMerge
 
   # =====================================
@@ -320,7 +320,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
 
       {:ok, _updated} = Selection.persist_calendar_list(integration, calendar_list)
 
-      {:ok, reread} = CalendarManagement.get_calendar_integration(integration.id, user.id)
+      {:ok, reread} = Management.get_calendar_integration(integration.id, user.id)
       [cal] = reread.calendar_list
 
       assert cal.primary == true

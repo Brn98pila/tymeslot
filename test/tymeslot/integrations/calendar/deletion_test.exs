@@ -4,7 +4,7 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
 
   import Tymeslot.Factory
   alias Tymeslot.Integrations.Calendar.Deletion
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
   alias Tymeslot.Profiles.ProfileQueries
@@ -56,7 +56,7 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
 
       # Verify deletion
       assert {:error, :not_found} =
-               CalendarManagement.get_calendar_integration(integration2.id, user.id)
+               Management.get_calendar_integration(integration2.id, user.id)
 
       # Primary should still be the first integration
       assert {:ok, primary} = CalendarPrimary.get_primary_calendar_integration(user.id)
@@ -75,7 +75,7 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
                Deletion.delete_with_primary_reassignment(user.id, integration1.id)
 
       assert {:error, :not_found} =
-               CalendarManagement.get_calendar_integration(integration1.id, user.id)
+               Management.get_calendar_integration(integration1.id, user.id)
 
       assert {:ok, primary} = CalendarPrimary.get_primary_calendar_integration(user.id)
       assert primary.id == integration2.id
@@ -92,7 +92,7 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
                {:ok, {:deleted_cleared_primary}}
 
       assert {:error, :not_found} =
-               CalendarManagement.get_calendar_integration(integration.id, user.id)
+               Management.get_calendar_integration(integration.id, user.id)
 
       assert {:ok, profile} = ProfileQueries.get_by_user_id(user.id)
       assert profile.primary_calendar_integration_id == nil
@@ -114,7 +114,7 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
 
       # Integration should still exist
       assert {:ok, _updated_integration} =
-               CalendarManagement.get_calendar_integration(integration.id, other_user.id)
+               Management.get_calendar_integration(integration.id, other_user.id)
     end
 
     test "handles deletion of multiple integrations sequentially", %{user: user} do
@@ -143,7 +143,7 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
                {:ok, {:deleted_cleared_primary}}
 
       # All integrations should be deleted
-      assert CalendarManagement.list_calendar_integrations(user.id) == []
+      assert Management.list_calendar_integrations(user.id) == []
     end
 
     test "clears target_calendar_id on meeting types when integration is deleted", %{user: user} do
@@ -175,7 +175,7 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
 
       # Verify deletion
       assert {:error, :not_found} =
-               CalendarManagement.get_calendar_integration(integration.id, user.id)
+               Management.get_calendar_integration(integration.id, user.id)
     end
 
     test "promotes the newest remaining integration when deleting primary", %{user: user} do
@@ -337,13 +337,13 @@ defmodule Tymeslot.Integrations.Calendar.DeletionTest do
       assert [{:ok, _first}, {:ok, _second}] = results
 
       # And both rows really are gone — the point of the exercise.
-      assert CalendarManagement.list_calendar_integrations(user.id) == []
+      assert Management.list_calendar_integrations(user.id) == []
 
       assert {:error, :not_found} =
-               CalendarManagement.get_calendar_integration(integration1.id, user.id)
+               Management.get_calendar_integration(integration1.id, user.id)
 
       assert {:error, :not_found} =
-               CalendarManagement.get_calendar_integration(integration2.id, user.id)
+               Management.get_calendar_integration(integration2.id, user.id)
     end
   end
 end

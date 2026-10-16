@@ -1,4 +1,4 @@
-defmodule Tymeslot.Integrations.CalendarManagement do
+defmodule Tymeslot.Integrations.Calendar.Management do
   @moduledoc """
   Context for calendar integration CRUD operations.
 

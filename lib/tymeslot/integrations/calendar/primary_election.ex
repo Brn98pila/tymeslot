@@ -26,7 +26,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Profiles.ProfileQueries
   alias Tymeslot.Repo
@@ -92,7 +92,7 @@ defmodule Tymeslot.Integrations.Calendar.PrimaryElection do
   def elect_next(user_id, exclude_ids) do
     candidates =
       user_id
-      |> CalendarManagement.list_active_calendar_integrations()
+      |> Management.list_active_calendar_integrations()
       |> Enum.reject(&(&1.id in exclude_ids or &1.needs_reauth))
       |> BookingEligibility.filter_bookable()
       |> Enum.sort(&newer?/2)

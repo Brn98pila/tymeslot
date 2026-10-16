@@ -7,8 +7,8 @@ defmodule Tymeslot.CalendarGrid.Freshness do
 
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.SyncSchedule
-  alias Tymeslot.Integrations.CalendarManagement
 
   @doc """
   Enqueues sync workers for all active integrations belonging to the user.
@@ -29,7 +29,7 @@ defmodule Tymeslot.CalendarGrid.Freshness do
   def refresh_events(user_id) do
     # The context call decrypts credentials; acceptable overhead for a
     # user-initiated refresh since we need id + provider for each integration.
-    integrations = CalendarManagement.list_active_calendar_integrations(user_id)
+    integrations = Management.list_active_calendar_integrations(user_id)
 
     {enqueued, skipped, errors} =
       Enum.reduce(integrations, {0, 0, []}, fn integration, {count, skip, errs} ->

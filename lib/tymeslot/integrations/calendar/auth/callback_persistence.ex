@@ -11,7 +11,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Shared.OAuth.AccountMatch
 
@@ -96,7 +96,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
 
   # Re-authorisation of a specific integration
   defp match(_provider, user_id, integration_id, account_id, token_attrs) do
-    case CalendarManagement.fetch_integration_for_user(integration_id, user_id) do
+    case Management.fetch_integration_for_user(integration_id, user_id) do
       {:ok, existing} ->
         AccountMatch.verify_account_match(existing, account_id, fn ->
           reconnect(existing, token_attrs)
@@ -118,7 +118,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
         base_url: base_url
       })
 
-    create_fn = fn -> CalendarManagement.insert_integration(attrs) end
+    create_fn = fn -> Management.insert_integration(attrs) end
 
     result =
       if is_binary(account_id) do
@@ -159,7 +159,7 @@ defmodule Tymeslot.Integrations.Calendar.CallbackPersistence do
   # primary; the activation rule adopts it again, under the primary lock and
   # before discovery goes to the network.
   defp reconnect(existing, token_attrs, discovery \\ :if_unlisted) do
-    with {:ok, updated} <- CalendarManagement.reconnect_integration(existing, token_attrs) do
+    with {:ok, updated} <- Management.reconnect_integration(existing, token_attrs) do
       discover(updated, discovery)
     end
   end

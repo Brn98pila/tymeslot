@@ -46,10 +46,10 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.MeetingTypes.BookingCalendar
   alias Tymeslot.Utils.UriUtils
 
@@ -251,7 +251,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
       written = written(stored, held, attrs)
       held = hold(written, held, default_booking_ids(written))
 
-      CalendarManagement.update_calendar_integration(
+      Management.update_calendar_integration(
         stored,
         Map.merge(attrs, list_attrs(stored, held))
       )
@@ -375,7 +375,7 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
             %{}
         end
 
-      CalendarManagement.update_calendar_integration(
+      Management.update_calendar_integration(
         fresh,
         Map.put(attrs, :default_booking_calendar_id, calendar_id)
       )

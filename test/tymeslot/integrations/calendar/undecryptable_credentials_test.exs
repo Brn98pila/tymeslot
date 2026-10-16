@@ -19,8 +19,8 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.FallbackSyncSweepWorker
@@ -64,7 +64,7 @@ defmodule Tymeslot.Integrations.Calendar.UndecryptableCredentialsTest do
       healthy = insert(:calendar_integration, user: user, name: "A healthy")
       stale = insert_undecryptable(user: user, name: "B stale")
 
-      assert [listed] = CalendarManagement.list_active_calendar_integrations(user.id)
+      assert [listed] = Management.list_active_calendar_integrations(user.id)
       assert listed.id == healthy.id
       assert listed.password == "password123"
 

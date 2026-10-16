@@ -38,8 +38,8 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Tokens
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.RetryHelpers
   alias Tymeslot.Workers.SnoozePolicy
@@ -119,7 +119,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         {:discard, @integration_gone}
 
       {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
+        Management.handle_reauth_required(integration)
 
       {:ok, integration} ->
         refresh_integration_token(
@@ -238,7 +238,7 @@ defmodule Tymeslot.Integrations.Calendar.TokenRefreshJob do
         # point at different things (the owner's account, our client
         # registration) and the flag alone cannot tell them apart.
         with {:discard, message} <-
-               CalendarManagement.handle_reauth_required(integration,
+               Management.handle_reauth_required(integration,
                  cause: ReauthHandling.rejection_cause(reason)
                ) do
           {:discard, "#{message}: #{reason}"}

@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
   import Phoenix.Component, only: [assign: 3, assign_new: 3]
 
   alias Phoenix.LiveView
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias TymeslotWeb.Live.Scheduling.OrganizerHelpers
   alias TymeslotWeb.Live.Scheduling.WeekSlots
   alias TymeslotWeb.Themes.Shared.BookingLocation
@@ -54,7 +54,7 @@ defmodule TymeslotWeb.Themes.Shared.SchedulingInit do
   def assign_week_start(socket) do
     week_start =
       socket.assigns[:visitor_week_start] ||
-        CalendarManagement.get_week_start(socket.assigns[:organizer_user_id])
+        Management.get_week_start(socket.assigns[:organizer_user_id])
 
     assign(socket, :week_start, week_start)
   end

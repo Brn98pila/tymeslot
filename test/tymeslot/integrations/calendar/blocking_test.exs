@@ -15,9 +15,9 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
 
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.OwnerActions
   alias Tymeslot.Integrations.Calendar.Runtime.EventFetcher
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.MeetingTypes
   alias Tymeslot.TestMocks
@@ -259,7 +259,7 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
   describe "storing an integration's booking calendar" do
     test "a new connection's booking calendar blocks", %{user: user} do
       assert {:ok, integration} =
-               CalendarManagement.create_calendar_integration(%{
+               Management.create_calendar_integration(%{
                  user_id: user.id,
                  provider: "google",
                  name: "Google",

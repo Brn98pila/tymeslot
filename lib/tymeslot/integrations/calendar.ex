@@ -43,6 +43,7 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Exchange.Creation, as: ExchangeCreation
   alias Tymeslot.Integrations.Calendar.Exchange.FreeBusy
   alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Nextcloud.Login, as: NextcloudLogin
   alias Tymeslot.Integrations.Calendar.OAuth
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
@@ -52,7 +53,7 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
-  alias Tymeslot.Integrations.{CalendarManagement, CalendarPrimary}
+  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Integrations.Shared.Providers.Directory
   alias Tymeslot.Meetings
   alias Tymeslot.Security.EncryptedString
@@ -97,7 +98,7 @@ defmodule Tymeslot.Integrations.Calendar do
   """
   @spec list_integrations(user_id()) :: [integration()]
   def list_integrations(user_id) when is_integer(user_id) do
-    integrations = CalendarManagement.list_calendar_integrations(user_id)
+    integrations = Management.list_calendar_integrations(user_id)
 
     primary_id =
       case CalendarPrimary.get_primary_calendar_integration(user_id) do
@@ -121,7 +122,7 @@ defmodule Tymeslot.Integrations.Calendar do
   @spec get_integration(integration_id(), user_id()) ::
           {:ok, integration()} | {:error, :not_found}
   def get_integration(id, user_id) when is_integer(id) and is_integer(user_id) do
-    CalendarManagement.get_calendar_integration(id, user_id)
+    Management.get_calendar_integration(id, user_id)
   end
 
   @doc """
@@ -153,7 +154,7 @@ defmodule Tymeslot.Integrations.Calendar do
     with {:ok, attrs} <- Creation.prepare_attrs(params, user_id),
          :ok <- CalendarIntegrationSchema.validate_new(attrs),
          {:ok, attrs} <- Creation.prevalidate_config(attrs) do
-      CalendarManagement.create_calendar_integration(attrs)
+      Management.create_calendar_integration(attrs)
     end
   end
 

@@ -33,8 +33,8 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Creation do
   alias Tymeslot.Integrations.Calendar.Connection
   alias Tymeslot.Integrations.Calendar.Creation
   alias Tymeslot.Integrations.Calendar.InputValidation, as: CalendarInputValidation
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Workers.SyncExchangeCalendarWorker
 
   require Logger
@@ -69,7 +69,7 @@ defmodule Tymeslot.Integrations.Calendar.Exchange.Creation do
          # the machine and must not cost a token.
          :ok <- CalendarIntegrationSchema.validate_new(attrs),
          {:ok, attrs} <- probe(attrs, user_id),
-         {:ok, integration} <- CalendarManagement.create_calendar_integration(attrs) do
+         {:ok, integration} <- Management.create_calendar_integration(attrs) do
       enqueue_initial_sync(integration)
       {:ok, integration}
     else

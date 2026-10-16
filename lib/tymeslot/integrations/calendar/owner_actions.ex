@@ -26,10 +26,10 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarSelectionQueries
   alias Tymeslot.Integrations.Calendar.Deletion
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.SyncSchedule
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Shared.InputValidators
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Workers.SyncIcsCalendarWorker
@@ -52,7 +52,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   @doc """
   Switches an integration on or off, handing the primary calendar on when
-  needed (see `CalendarManagement.toggle_with_primary_rebalance/1`).
+  needed (see `Calendar.Management.toggle_with_primary_rebalance/1`).
   """
   @spec toggle_integration(pos_integer(), pos_integer()) ::
           {:ok, integration()} | {:error, refusal() | :duplicate_account | term()}
@@ -61,7 +61,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
       user_id,
       integration_id,
       :write,
-      &CalendarManagement.toggle_with_primary_rebalance/1
+      &Management.toggle_with_primary_rebalance/1
     )
   end
 
@@ -78,7 +78,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   def rename_integration(user_id, integration_id, name, metadata) do
     with_owned(user_id, integration_id, :appearance, fn integration ->
       with {:ok, sanitised} <- InputValidators.validate_integration_name(name, metadata) do
-        CalendarManagement.update_calendar_integration(integration, %{name: sanitised})
+        Management.update_calendar_integration(integration, %{name: sanitised})
       end
     end)
   end
@@ -91,7 +91,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
           {:ok, integration()} | {:error, refusal() | Ecto.Changeset.t()}
   def set_integration_colour(user_id, integration_id, colour) do
     with_owned(user_id, integration_id, :appearance, fn integration ->
-      CalendarManagement.update_calendar_integration(integration, %{colour: colour})
+      Management.update_calendar_integration(integration, %{colour: colour})
     end)
   end
 
@@ -108,7 +108,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
 
   @doc """
   Sets whether a subscription counts every event in its feed as busy, also
-  those the feed marks free (see `CalendarManagement.put_all_events_busy/2`).
+  those the feed marks free (see `Calendar.Management.put_all_events_busy/2`).
   Any other connection is refused with `{:error, :not_a_subscription}`.
   """
   @spec set_all_events_busy(pos_integer(), pos_integer(), boolean()) ::
@@ -119,7 +119,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
       user_id,
       integration_id,
       :write,
-      &CalendarManagement.put_all_events_busy(&1, busy?)
+      &Management.put_all_events_busy(&1, busy?)
     )
   end
 
@@ -155,7 +155,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   def refresh_all_integrations(user_id) do
     with :ok <- charge(:refresh, user_id) do
       active =
-        user_id |> CalendarManagement.list_calendar_integrations() |> Enum.filter(& &1.is_active)
+        user_id |> Management.list_calendar_integrations() |> Enum.filter(& &1.is_active)
 
       results =
         Tymeslot.TaskSupervisor
@@ -241,7 +241,7 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   defp with_owned(user_id, integration_id, bucket, fun) do
     with :ok <- charge(bucket, user_id),
          {:ok, integration} <-
-           CalendarManagement.get_calendar_integration(integration_id, user_id) do
+           Management.get_calendar_integration(integration_id, user_id) do
       fun.(integration)
     end
   end

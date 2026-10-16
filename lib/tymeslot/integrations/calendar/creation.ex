@@ -12,11 +12,11 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
   alias Tymeslot.Integrations.Calendar.Connection
   alias Tymeslot.Integrations.Calendar.Ics.Feed
   alias Tymeslot.Integrations.Calendar.InputValidation, as: CalendarInputValidation
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Providers.ProviderRegistry
   alias Tymeslot.Integrations.Calendar.Shared.ErrorHandler
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Utils.SanitizeMerge
   alias Tymeslot.Workers.SyncIcsCalendarWorker
@@ -116,7 +116,7 @@ defmodule Tymeslot.Integrations.Calendar.Creation do
          # A subscription is never made the primary: it can never receive a
          # booking, and `PrimaryElection.adopt_if_vacant/1` refuses a read-only
          # provider.
-         {:ok, integration} <- CalendarManagement.create_calendar_integration(attrs) do
+         {:ok, integration} <- Management.create_calendar_integration(attrs) do
       enqueue_initial_sync(integration)
       {:ok, integration}
     else

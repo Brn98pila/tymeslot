@@ -12,8 +12,8 @@ defmodule Tymeslot.Integrations.Calendar.Orchestration.Workflows do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Integrations.Calendar.Discovery
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Selection
-  alias Tymeslot.Integrations.CalendarManagement
 
   @type user_id :: pos_integer()
   @type integration_id :: pos_integer()
@@ -35,7 +35,7 @@ defmodule Tymeslot.Integrations.Calendar.Orchestration.Workflows do
     )
 
     Tasks.start_child(Tymeslot.TaskSupervisor, fn ->
-      case CalendarManagement.get_calendar_integration(integration_id, user_id) do
+      case Management.get_calendar_integration(integration_id, user_id) do
         {:ok, integration} ->
           case Discovery.discover_calendars_for_integration(integration) do
             {:ok, calendars} ->
@@ -152,7 +152,7 @@ defmodule Tymeslot.Integrations.Calendar.Orchestration.Workflows do
 
   defp reload_integration(%{id: id, user_id: user_id} = _integration)
        when is_integer(id) and is_integer(user_id) do
-    case CalendarManagement.get_calendar_integration(id, user_id) do
+    case Management.get_calendar_integration(id, user_id) do
       {:ok, fresh} -> {:ok, fresh}
       {:error, :not_found} -> {:error, :not_found}
     end

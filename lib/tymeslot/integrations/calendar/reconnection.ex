@@ -23,9 +23,9 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Connection
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.PathUtils
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Utils.UriUtils
 
   @type integration :: CalendarIntegrationSchema.t()
@@ -82,7 +82,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   def reconnect_for_user(user_id, integration_id, params)
       when is_integer(user_id) and is_integer(integration_id) and is_map(params) do
     with {:ok, integration} <-
-           CalendarManagement.get_calendar_integration(integration_id, user_id) do
+           Management.get_calendar_integration(integration_id, user_id) do
       reconnect(integration, params)
     end
   end
@@ -102,7 +102,7 @@ defmodule Tymeslot.Integrations.Calendar.Reconnection do
   def finalise_for_user(user_id, integration_id, %{payload: payload, selected_paths: paths})
       when is_integer(user_id) and is_integer(integration_id) do
     with {:ok, integration} <-
-           CalendarManagement.get_calendar_integration(integration_id, user_id) do
+           Management.get_calendar_integration(integration_id, user_id) do
       finalise_account_change(integration, payload, paths)
     end
   end

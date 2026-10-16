@@ -7,7 +7,7 @@ defmodule Tymeslot.Workers.CalendarSyncJob do
 
     * loads the integration named by the job's `calendar_integration_id`,
       discarding the job when it is gone and handing a row that no longer
-      decrypts to `CalendarManagement.handle_reauth_required/2`;
+      decrypts to `Calendar.Management.handle_reauth_required/2`;
     * collects the events the cycle skipped as invalid into one report
       (`Tymeslot.Integrations.Calendar.InvalidEventReport`);
     * bounds the snoozes a cycle uses to wait out an open breaker or a rate
@@ -32,7 +32,7 @@ defmodule Tymeslot.Workers.CalendarSyncJob do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.InvalidEventReport
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Workers.SnoozePolicy
   alias Tymeslot.Workers.SyncHealth
   alias Tymeslot.Workers.SyncRequest
@@ -80,7 +80,7 @@ defmodule Tymeslot.Workers.CalendarSyncJob do
         {:discard, @integration_gone}
 
       {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
+        Management.handle_reauth_required(integration)
     end
   end
 

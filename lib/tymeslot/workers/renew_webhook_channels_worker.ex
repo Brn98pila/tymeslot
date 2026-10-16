@@ -51,7 +51,7 @@ defmodule Tymeslot.Workers.RenewWebhookChannelsWorker do
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationWebhookQueries
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Shared.ReauthHandling
 
   # How far ahead an expiring channel or subscription is renewed.
@@ -108,7 +108,7 @@ defmodule Tymeslot.Workers.RenewWebhookChannelsWorker do
         {:discard, @integration_gone}
 
       {:error, :requires_reencryption, integration} ->
-        CalendarManagement.handle_reauth_required(integration)
+        Management.handle_reauth_required(integration)
     end
   end
 
@@ -248,7 +248,7 @@ defmodule Tymeslot.Workers.RenewWebhookChannelsWorker do
       provider: provider
     )
 
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       booking_calendar_missing_message(provider),
       @calendar_gone
