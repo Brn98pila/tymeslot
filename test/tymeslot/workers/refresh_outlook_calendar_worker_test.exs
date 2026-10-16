@@ -557,6 +557,26 @@ defmodule Tymeslot.Workers.RefreshOutlookCalendarWorkerTest do
       assert {:ok, %{needs_reauth: true}} = CalendarIntegrationQueries.get(integration.id)
     end
 
+    test "a refused credential stores the untranslated reason whatever the locale" do
+      integration = outlook_integration(graph_delta_link: delta_link())
+
+      expect(Tymeslot.HTTPClientMock, :request, fn :get, _url, _body, _headers, _opts ->
+        {:ok, %{status: 401, body: ~s({"error":"unauthorized"})}}
+      end)
+
+      Gettext.put_locale(TymeslotWeb.Gettext, "de")
+
+      assert {:discard, _reason} =
+               perform_job(RefreshOutlookCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert {:ok, %{sync_error: sync_error}} = CalendarIntegrationQueries.get(integration.id)
+
+      assert sync_error ==
+               "Microsoft rejected the stored credentials. Please reconnect the integration."
+    end
+
     test "a refresh token Microsoft has revoked flags the integration instead of retrying" do
       integration =
         outlook_integration(

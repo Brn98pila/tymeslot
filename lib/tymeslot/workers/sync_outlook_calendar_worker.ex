@@ -180,7 +180,7 @@ defmodule Tymeslot.Workers.SyncOutlookCalendarWorker do
   defp handle_credentials_rejected(integration) do
     CalendarManagement.flag_for_reconnection(
       integration,
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "Microsoft rejected the stored credentials. Please reconnect the integration."
       ),

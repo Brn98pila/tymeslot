@@ -79,6 +79,24 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorkerReauthTest do
       assert reloaded.sync_error =~ "Google rejected the stored credentials"
     end
 
+    test "stores the untranslated reason whatever locale the job runs under" do
+      integration = insert(:calendar_integration, provider: "google", is_active: true)
+
+      expect(GoogleCalendarAPIMock, :list_events_incremental, fn _integration ->
+        {:error, :unauthorized, "Token revoked"}
+      end)
+
+      Gettext.put_locale(TymeslotWeb.Gettext, "de")
+
+      assert {:discard, _reason} =
+               perform_job(SyncGoogleCalendarWorker, %{
+                 "calendar_integration_id" => integration.id
+               })
+
+      assert Repo.get!(CalendarIntegrationSchema, integration.id).sync_error ==
+               "Google rejected the stored credentials. Please reconnect the integration."
+    end
+
     test "flags for reconnection when the bootstrap is the call that is refused" do
       integration =
         insert(:calendar_integration,

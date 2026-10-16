@@ -146,7 +146,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
   defp handle_credentials_rejected(integration) do
     CalendarManagement.flag_for_reconnection(
       integration,
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "Google rejected the stored credentials. Please reconnect the integration."
       ),
@@ -166,7 +166,7 @@ defmodule Tymeslot.Workers.SyncGoogleCalendarWorker do
 
     CalendarManagement.flag_for_reconnection(
       integration,
-      dgettext(
+      dgettext_noop(
         "dashboard_calendar_providers",
         "This Google account doesn't have Google Calendar enabled. Turn on Google Calendar for the account (a Google Workspace administrator may need to do this), or connect a different Google account."
       ),
