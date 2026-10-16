@@ -6,6 +6,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
   use Gettext, backend: TymeslotWeb.Gettext
 
   import Phoenix.Component, only: [assign: 3]
+  import Tymeslot.Features, only: [is_access_error: 1]
 
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Telegram
@@ -14,16 +15,6 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
   alias TymeslotWeb.Helpers.FormErrors
   alias TymeslotWeb.Live.Shared.Flash
-
-  # Refusals from `Tymeslot.Features.check_access/2`, shown by
-  # `AutomationHelpers.handle_feature_access_error/2`.
-  @access_errors [
-    :insufficient_plan,
-    :feature_disabled,
-    :pro_required,
-    :stripe_required,
-    :feature_access_checker_failed
-  ]
 
   @spec handle_create(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -133,7 +124,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
       :ok ->
         save_telegram(user_id, sanitized, socket)
 
-      {:error, reason} when reason in @access_errors ->
+      {:error, reason} when is_access_error(reason) ->
         {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
       {:error, reason} ->

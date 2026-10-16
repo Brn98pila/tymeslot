@@ -10,12 +10,25 @@ defmodule Tymeslot.Features do
   alias Tymeslot.Infrastructure.ErrorTracking
   alias Tymeslot.Infrastructure.Logging.LogFormat
 
+  # The refusals `check_access/2` returns. Drives both `access_error/0` and
+  # `is_access_error/1`, so the two cannot drift apart.
+  @access_errors [
+    :insufficient_plan,
+    :feature_disabled,
+    :pro_required,
+    :stripe_required,
+    :feature_access_checker_failed
+  ]
+
   @type access_error ::
-          :insufficient_plan
-          | :feature_disabled
-          | :pro_required
-          | :stripe_required
-          | :feature_access_checker_failed
+          unquote(@access_errors |> Enum.reverse() |> Enum.reduce(&{:|, [], [&1, &2]}))
+
+  @doc """
+  Whether `reason` is one of the refusals `check_access/2` returns, for use
+  in a guard where a caller matches an `{:error, reason}` from a gated
+  action.
+  """
+  defguard is_access_error(reason) when reason in @access_errors
 
   @spec check_access(integer(), atom()) :: :ok | {:error, access_error()}
   def check_access(user_id, feature) when is_integer(user_id) and is_atom(feature) do

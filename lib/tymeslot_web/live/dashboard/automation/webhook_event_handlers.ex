@@ -7,6 +7,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
   use Gettext, backend: TymeslotWeb.Gettext
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
+  import Tymeslot.Features, only: [is_access_error: 1]
 
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Webhooks
@@ -195,13 +196,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
         {:noreply, socket}
 
       {:error, reason}
-      when reason in [
-             :insufficient_plan,
-             :feature_disabled,
-             :pro_required,
-             :stripe_required,
-             :feature_access_checker_failed
-           ] ->
+      when is_access_error(reason) ->
         {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
       {:error, _reason} ->
@@ -316,13 +311,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
             {:noreply, assign(socket, :form_errors, errors)}
 
           {:error, reason}
-          when reason in [
-                 :insufficient_plan,
-                 :feature_disabled,
-                 :pro_required,
-                 :stripe_required,
-                 :feature_access_checker_failed
-               ] ->
+          when is_access_error(reason) ->
             {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
           # `save_fn` is `Webhooks.create_webhook/2` or `update_webhook/3`,
@@ -376,13 +365,7 @@ defmodule TymeslotWeb.Dashboard.Automation.WebhookEventHandlers do
              |> AutomationHelpers.load_webhooks()}
 
           {:error, reason}
-          when reason in [
-                 :insufficient_plan,
-                 :feature_disabled,
-                 :pro_required,
-                 :stripe_required,
-                 :feature_access_checker_failed
-               ] ->
+          when is_access_error(reason) ->
             {:noreply, AutomationHelpers.handle_feature_access_error(socket, reason)}
 
           {:error, _reason} ->

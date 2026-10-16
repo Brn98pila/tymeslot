@@ -7,20 +7,11 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.StateHandlers do
   use Gettext, backend: TymeslotWeb.Gettext
 
   import Phoenix.Component, only: [assign: 3]
+  import Tymeslot.Features, only: [is_access_error: 1]
 
   alias Tymeslot.Telegram
   alias TymeslotWeb.Dashboard.Automation.Helpers, as: AutomationHelpers
   alias TymeslotWeb.Live.Shared.Flash
-
-  # Refusals from `Tymeslot.Features.check_access/2`, shown by
-  # `AutomationHelpers.handle_feature_access_error/2`.
-  @access_errors [
-    :insufficient_plan,
-    :feature_disabled,
-    :pro_required,
-    :stripe_required,
-    :feature_access_checker_failed
-  ]
 
   @spec handle_toggle(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
@@ -67,7 +58,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.StateHandlers do
   # A plan refusal stays an atom, for the shared access-error flash.
   defp test_integration(integration) do
     case Telegram.test_integration(integration) do
-      {:error, reason} when reason in @access_errors -> {:error, reason}
+      {:error, reason} when is_access_error(reason) -> {:error, reason}
       {:error, reason} -> {:error, Telegram.translate_error(reason)}
       :ok -> :ok
     end
