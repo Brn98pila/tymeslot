@@ -130,6 +130,34 @@ defmodule Tymeslot.Emails.DeliveryTest do
     end
   end
 
+  describe "the email breaker" do
+    setup do
+      breaker = CircuitBreakerSupervisor.email_breaker_name()
+      CircuitBreaker.reset(breaker)
+      on_exit(fn -> CircuitBreaker.reset(breaker) end)
+      setup_config(:tymeslot, Tymeslot.Mailer, adapter: FailingMailerAdapter)
+      setup_config(:tymeslot, :test_delivery_error, :econnrefused)
+      :ok
+    end
+
+    test "email_breaker_refusing?/0 turns true once deliveries open the breaker" do
+      refute Delivery.email_breaker_refusing?()
+
+      for _attempt <- 1..Delivery.email_breaker_config().failure_threshold do
+        assert {:error, :econnrefused} = Delivery.deliver(valid_email())
+      end
+
+      assert Delivery.email_breaker_refusing?()
+    end
+
+    test "email_breaker_recovery_seconds/0 is the breaker's recovery timeout in seconds" do
+      %{recovery_timeout: recovery_ms} =
+        CircuitBreaker.status(CircuitBreakerSupervisor.email_breaker_name()).config
+
+      assert Delivery.email_breaker_recovery_seconds() * 1_000 == recovery_ms
+    end
+  end
+
   describe "permanent_rejection?/1" do
     test "recognises the Postmark codes for a dead address" do
       assert Delivery.permanent_rejection?({422, %{"ErrorCode" => 406}})
