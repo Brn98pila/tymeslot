@@ -121,7 +121,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
             payment_required: true,
             price_cents: 5000
           },
-          host_charges_enabled: true
+          host_charges_enabled: true,
+          price_settable: true
         )
 
       assert "group bookings cannot require payment" in errors_on(changeset).max_participants
@@ -141,7 +142,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
             payment_required: true,
             price_cents: 5000
           },
-          host_charges_enabled: true
+          host_charges_enabled: true,
+          price_settable: true
         )
 
       assert changeset.valid?
@@ -352,7 +354,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
       changeset =
         MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs,
           currency: "eur",
-          host_charges_enabled: true
+          host_charges_enabled: true,
+          price_settable: true
         )
 
       refute changeset.valid?
@@ -373,7 +376,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
       changeset =
         MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs,
           currency: "eur",
-          host_charges_enabled: true
+          host_charges_enabled: true,
+          price_settable: true
         )
 
       refute changeset.valid?
@@ -394,7 +398,8 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
       changeset =
         MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs,
           currency: "eur",
-          host_charges_enabled: true
+          host_charges_enabled: true,
+          price_settable: true
         )
 
       refute Map.has_key?(errors_on(changeset), :price_cents)
@@ -455,7 +460,10 @@ defmodule Tymeslot.MeetingTypes.MeetingTypeSchemaTest do
       }
 
       changeset =
-        MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs, host_charges_enabled: true)
+        MeetingTypeSchema.changeset(%MeetingTypeSchema{}, attrs,
+          host_charges_enabled: true,
+          price_settable: true
+        )
 
       refute changeset.valid?
       assert "must be at least $0.50" in errors_on(changeset).price_cents

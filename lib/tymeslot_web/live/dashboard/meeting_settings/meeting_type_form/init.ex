@@ -122,9 +122,8 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
 
     # Prices are only set in a supported currency. A host whose account
     # carries a legacy one is still charged the stored price at checkout,
-    # but edits nothing here until they switch.
-    charges_enabled? =
-      feature_enabled? and support == :supported and charges_enabled?(current_user)
+    # but edits nothing here until they switch; the domain refuses the same.
+    charges_enabled? = feature_enabled? and MeetingPayments.price_settable?(user_id)
 
     socket
     |> Component.assign(:payments_feature_enabled, feature_enabled?)
@@ -145,9 +144,6 @@ defmodule TymeslotWeb.Dashboard.MeetingSettings.MeetingTypeForm.Init do
     do: Features.meeting_payments_allowed?(user_id)
 
   defp payments_feature_enabled?(_user), do: false
-
-  defp charges_enabled?(%{id: user_id}), do: MeetingPayments.charges_enabled_for_user?(user_id)
-  defp charges_enabled?(_user), do: false
 
   defp user_id(%{id: user_id}), do: user_id
   defp user_id(_user), do: nil

@@ -140,8 +140,8 @@ defmodule Tymeslot.MeetingTypes.FormMapper do
   Builds the payment-validation opts the schema changeset needs.
 
   The schema must not reach into the payments domain itself, so the host's
-  charge capability, default currency, and the per-currency minimum are
-  resolved here and threaded in as opts.
+  charge capability, whether they may set a price, their default currency,
+  and the per-currency minimum are resolved here and threaded in as opts.
   """
   @spec payment_opts(integer()) :: keyword()
   def payment_opts(user_id) do
@@ -149,6 +149,7 @@ defmodule Tymeslot.MeetingTypes.FormMapper do
 
     [
       host_charges_enabled: MeetingPayments.charges_enabled_for_user?(user_id),
+      price_settable: MeetingPayments.price_settable?(user_id),
       currency: currency,
       currency_minimum_cents: MeetingPayments.currency_minimum_cents(currency)
     ]

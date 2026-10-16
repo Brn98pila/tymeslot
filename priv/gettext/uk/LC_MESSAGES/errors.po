@@ -240,7 +240,7 @@ msgstr[0] "%{count} хвилину"
 msgstr[1] "%{count} хвилини"
 msgstr[2] "%{count} хвилин"
 
-#: lib/tymeslot/profiles.ex
+#: lib/tymeslot/profiles/usernames.ex
 #: lib/tymeslot/security/field_validators/username_validator.ex
 #, elixir-autogen, elixir-format
 msgid "This username is reserved"
@@ -1267,3 +1267,8 @@ msgstr "Цей файл завеликий. Завантажте файл роз
 #, elixir-autogen, elixir-format
 msgid "This file type is not accepted. Please upload a JPG, PNG, GIF or WebP image."
 msgstr "Цей тип файлу не підтримується. Завантажте зображення JPG, PNG, GIF або WebP."
+
+#: lib/tymeslot/meeting_types/meeting_type_schema.ex
+#, elixir-autogen, elixir-format
+msgid "Prices cannot be set in your Stripe account's currency"
+msgstr "У валюті вашого облікового запису Stripe не можна встановлювати ціни"

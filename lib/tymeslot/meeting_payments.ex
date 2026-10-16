@@ -217,6 +217,25 @@ defmodule Tymeslot.MeetingPayments do
   end
 
   @doc """
+  Returns `true` if the user may set or change a meeting type's price: their
+  Connect account has charges enabled in an allowlisted currency. A legacy
+  currency is still charged at checkout (`charges_enabled_for_user?/1`), but
+  no new price is set in it.
+  """
+  @spec price_settable?(integer() | nil) :: boolean()
+  def price_settable?(nil), do: false
+
+  def price_settable?(user_id) do
+    case ConnectAccountQueries.live_for_user(user_id) do
+      %{charges_enabled: true, default_currency: currency} ->
+        Currency.support(currency) == :supported
+
+      _other ->
+        false
+    end
+  end
+
+  @doc """
   Returns `true` if the user can take a payment right now: their Connect
   account has charges enabled and their plan grants `:meeting_payments`.
 
