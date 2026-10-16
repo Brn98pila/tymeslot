@@ -16,7 +16,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
   Gets all active calendar integrations for a user, credentials left encrypted.
 
   Callers that read credentials go through
-  `CalendarManagement.list_active_calendar_integrations/1`, which decrypts the
+  `Calendar.Management.list_active_calendar_integrations/1`, which decrypts the
   readable rows and flags the rest for reconnection. Decrypting here would let
   one row that no longer decrypts raise for the whole listing.
   """
@@ -135,7 +135,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
 
   Callers that previously only handled `{:ok, _}` and `{:error, :not_found}`
   must add a `{:error, :requires_reencryption, integration}` clause and route
-  to `CalendarManagement.handle_reauth_required/1` (for background workers) or
+  to `Calendar.Management.handle_reauth_required/1` (for background workers) or
   surface a reconnect prompt (for the web layer).
   """
   @spec get(integer()) ::
@@ -170,7 +170,7 @@ defmodule Tymeslot.Integrations.Calendar.CalendarIntegrationQueries do
       needing to re-query.
 
   Callers that only need a two-outcome shape should use
-  `CalendarManagement.fetch_integration_for_user/2`, which silently flags the
+  `Calendar.Management.fetch_integration_for_user/2`, which silently flags the
   integration on `:requires_reencryption` and collapses it to
   `{:error, :not_found}`.
   """

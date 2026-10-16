@@ -7,7 +7,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
   import Mox
   import Tymeslot.Factory
 
-  alias Tymeslot.Integrations.CalendarPrimary
+  alias Tymeslot.Integrations.Calendar.Primary
 
   setup :verify_on_exit!
 
@@ -29,7 +29,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
           calendar_list: []
         )
 
-      assert {:ok, updated} = CalendarPrimary.discover_and_configure_calendars(integration)
+      assert {:ok, updated} = Primary.discover_and_configure_calendars(integration)
 
       assert updated.calendar_paths == []
       assert [%{id: "primary"}] = updated.calendar_list
@@ -60,7 +60,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
           calendar_list: []
         )
 
-      assert {:ok, updated} = CalendarPrimary.discover_and_configure_calendars(integration)
+      assert {:ok, updated} = Primary.discover_and_configure_calendars(integration)
 
       assert [%{id: "boss@example.com"}] = Enum.filter(updated.calendar_list, & &1.free_busy_only)
 
@@ -93,7 +93,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
           ]
         )
 
-      assert {:ok, updated} = CalendarPrimary.discover_and_configure_calendars(integration)
+      assert {:ok, updated} = Primary.discover_and_configure_calendars(integration)
 
       assert Map.new(updated.calendar_list, &{&1.id, &1.blocks_availability}) == %{
                "me@example.com" => true,
@@ -121,7 +121,7 @@ defmodule Tymeslot.Integrations.Calendar.DiscoverAndConfigureTest do
           calendar_list: []
         )
 
-      assert {:ok, updated} = CalendarPrimary.discover_and_configure_calendars(integration)
+      assert {:ok, updated} = Primary.discover_and_configure_calendars(integration)
 
       assert updated.default_booking_calendar_id == "writable"
     end

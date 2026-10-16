@@ -38,7 +38,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.BookingCancelDeleteTest do
     with_config(:tymeslot, :req_test_plug, {Req.Test, :tymeslot_http})
     # The suite points `:calendar_module` at a Mox double; this journey is
     # about what reaches the server, so the production implementation runs.
-    with_config(:tymeslot, :calendar_module, Tymeslot.Integrations.Calendar.Operations)
+    with_config(:tymeslot, :calendar_module, Tymeslot.Integrations.Calendar.Runtime.Operations)
 
     user = insert(:user)
 

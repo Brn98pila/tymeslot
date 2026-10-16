@@ -18,7 +18,7 @@ defmodule Tymeslot.Integrations.Shared.ReauthHandling do
 
   - Oban workers that need `{:discard, _} | {:error, _}` build that shape
     themselves on top of `flag/3`, typically via the
-    `CalendarManagement.handle_reauth_required/2` or
+    `Calendar.Management.handle_reauth_required/2` or
     `Video.handle_reauth_required/2` wrappers.
   """
 

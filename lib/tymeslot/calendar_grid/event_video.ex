@@ -69,9 +69,9 @@ defmodule Tymeslot.CalendarGrid.EventVideo do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.Events, as: CalendarEvents
   alias Tymeslot.Integrations.Calendar.Google.ConferenceData
-  alias Tymeslot.Integrations.Calendar.Operations, as: CalendarOperations
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.Recurrence.Series
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations, as: CalendarOperations
   alias Tymeslot.Integrations.MeetingProvisioning
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.EventDetails

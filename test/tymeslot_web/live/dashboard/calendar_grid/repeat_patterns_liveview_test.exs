@@ -25,9 +25,9 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatPatternsLiveViewTest do
   alias Plug.Test
   alias Tymeslot.Clock
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
-  alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
   alias Tymeslot.Integrations.Calendar.Recurrence.Pattern
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
   alias Tymeslot.Integrations.Calendar.SeriesRuleQueries
   alias Tymeslot.Security.Encryption
   alias TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceSummary

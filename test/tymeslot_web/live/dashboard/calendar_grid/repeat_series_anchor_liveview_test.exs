@@ -33,8 +33,8 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.RepeatSeriesAnchorLiveViewTest do
   alias Plug.Test
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
   alias Tymeslot.Integrations.Calendar.ICalBuilder.LineFolder
-  alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
 
   setup :set_mox_global
   setup :verify_on_exit!

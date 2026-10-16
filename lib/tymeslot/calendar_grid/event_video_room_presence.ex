@@ -54,7 +54,7 @@ defmodule Tymeslot.CalendarGrid.EventVideoRoomPresence do
   alias Tymeslot.CalendarGrid.EventVideoRooms
   alias Tymeslot.CalendarGrid.EventVideoRoomSchema
   alias Tymeslot.Clock
-  alias Tymeslot.Integrations.Calendar.Operations, as: CalendarOperations
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations, as: CalendarOperations
   alias Tymeslot.Integrations.Calendar.Sync
   alias Tymeslot.Integrations.Video.ProviderConfig
 

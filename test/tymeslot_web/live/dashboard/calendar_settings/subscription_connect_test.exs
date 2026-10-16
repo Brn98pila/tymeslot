@@ -23,8 +23,8 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SubscriptionConnectTest do
 
   alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
-  alias Tymeslot.Integrations.CalendarPrimary
   alias Tymeslot.Repo
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Workers.SyncIcsCalendarWorker
@@ -185,7 +185,7 @@ defmodule TymeslotWeb.Dashboard.CalendarSettings.SubscriptionConnectTest do
 
       # Even as the user's first and only integration: a primary that cannot
       # receive a booking would break every booking write.
-      assert {:error, _reason} = CalendarPrimary.get_primary_calendar_integration(user.id)
+      assert {:error, _reason} = Primary.get_primary_calendar_integration(user.id)
     end
 
     @tag :capture_log

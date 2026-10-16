@@ -4,13 +4,12 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
 
   import Ecto.Query, only: [from: 2]
 
-  alias Tymeslot.Integrations.Calendar
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Selection
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Utils.SanitizeMerge
 
   # =====================================
@@ -321,7 +320,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
 
       {:ok, _updated} = Selection.persist_calendar_list(integration, calendar_list)
 
-      {:ok, reread} = CalendarManagement.get_calendar_integration(integration.id, user.id)
+      {:ok, reread} = Management.get_calendar_integration(integration.id, user.id)
       [cal] = reread.calendar_list
 
       assert cal.primary == true
@@ -329,10 +328,6 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       assert cal.raw == %{"description" => "Team calendar"}
     end
   end
-
-  # =====================================
-  # Calendar.toggle_calendar_selection/3
-  # =====================================
 
   # A reconnect writes the selection its owner just made, from the
   # integration it read before discovery went to the network.
@@ -387,9 +382,9 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
     end
   end
 
-  # The dashboard toggles from the integration it rendered, which can be older
-  # than the row: the flip has to land on the row as it stands.
-  describe "Calendar.toggle_calendar_selection/3 from a stale copy" do
+  # The dashboard changes a calendar from the integration it rendered, which
+  # can be older than the row: the change has to land on the row as it stands.
+  describe "Blocking.set_state/3 from a stale copy" do
     setup do
       integration =
         insert(:calendar_integration,
@@ -413,7 +408,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       {:ok, _elsewhere} =
         select_only(stale, ["/cal/a/", "/cal/b/", "/cal/c/"])
 
-      {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/a/")
+      {:ok, updated} = Blocking.set_state(stale, "/cal/a/", :off)
 
       assert selection(updated) == %{"/cal/a/" => false, "/cal/b/" => true, "/cal/c/" => true}
     end
@@ -423,7 +418,7 @@ defmodule Tymeslot.Integrations.Calendar.SelectionTest do
       {:ok, _elsewhere} =
         select_only(stale, ["/cal/a/"])
 
-      {:ok, updated} = Calendar.toggle_calendar_selection(stale.user_id, stale.id, "/cal/b/")
+      {:ok, updated} = Blocking.set_state(stale, "/cal/b/", :block)
 
       assert selection(updated) == %{"/cal/a/" => true, "/cal/b/" => true, "/cal/c/" => false}
     end

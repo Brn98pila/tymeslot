@@ -1,19 +1,21 @@
-defmodule Tymeslot.Integrations.CalendarPrimary do
+defmodule Tymeslot.Integrations.Calendar.Primary do
   @moduledoc """
-  Context for managing primary and booking calendar selection.
+  Sets a user's primary calendar integration when they choose one, and reads
+  it back; `Calendar.PrimaryElection` is what picks one without being asked.
 
-  Handles setting primary calendars, managing booking calendars,
-  and automatic primary calendar selection logic.
+  Making an integration the primary checks that it is active and bookable,
+  and gives it a booking calendar. An integration just connected through
+  OAuth has its booking calendar chosen here too, from what discovery finds.
   """
 
-  alias Tymeslot.Integrations.Calendar, as: CalendarContext
   alias Tymeslot.Integrations.Calendar.Blocking
   alias Tymeslot.Integrations.Calendar.BookingEligibility
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.Defaults
+  alias Tymeslot.Integrations.Calendar.Discovery
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Selection
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Profiles.ProfileQueries
 
   require Logger
@@ -50,7 +52,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
         {:error, :no_primary_set}
 
       {:ok, %{primary_calendar_integration_id: id}} ->
-        CalendarManagement.get_calendar_integration(id, user_id)
+        Management.get_calendar_integration(id, user_id)
 
       {:error, _reason} ->
         {:error, :not_found}
@@ -65,7 +67,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
   @spec discover_and_configure_calendars(CalendarIntegrationSchema.t()) ::
           {:ok, CalendarIntegrationSchema.t()}
   def discover_and_configure_calendars(integration) do
-    case CalendarContext.discover_calendars_for_integration(integration) do
+    case Discovery.discover_calendars_for_integration(integration) do
       {:ok, calendars} ->
         auto_select_primary_calendar(integration, calendars)
 
@@ -113,7 +115,7 @@ defmodule Tymeslot.Integrations.CalendarPrimary do
 
   defp validate_and_prepare_integration(user_id, integration_id) do
     with {:ok, integration} <-
-           CalendarManagement.get_calendar_integration(integration_id, user_id),
+           Management.get_calendar_integration(integration_id, user_id),
          :ok <- verify_active(integration),
          :ok <- verify_bookable(integration) do
       {:ok, integration}

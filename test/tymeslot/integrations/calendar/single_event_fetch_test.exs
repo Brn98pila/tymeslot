@@ -17,8 +17,8 @@ defmodule Tymeslot.Integrations.Calendar.SingleEventFetchTest do
   alias Tymeslot.HTTPClientMock
   alias Tymeslot.Integrations.Calendar.CalendarEntry
   alias Tymeslot.Integrations.Calendar.Google.CalendarAPI, as: GoogleAPI
-  alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.Outlook.CalendarAPI, as: OutlookAPI
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
   alias Tymeslot.Security.Encryption
   alias Tymeslot.Test.CalDAVAccountStub
 

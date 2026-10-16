@@ -8,8 +8,12 @@ defmodule Tymeslot.Integrations.Shared.IntegrationTypes do
   so a behaviour added for one kind cannot silently miss the other.
   """
 
-  alias Tymeslot.Integrations.Calendar.{CalendarIntegrationQueries, CalendarIntegrationSchema}
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.{
+    CalendarIntegrationQueries,
+    CalendarIntegrationSchema,
+    Management
+  }
+
   alias Tymeslot.Integrations.Video
   alias Tymeslot.Integrations.Video.{VideoIntegrationQueries, VideoIntegrationSchema}
 
@@ -47,7 +51,7 @@ defmodule Tymeslot.Integrations.Shared.IntegrationTypes do
   `pause_integration/1`.
   """
   @spec domain(kind()) :: module()
-  def domain(:calendar), do: CalendarManagement
+  def domain(:calendar), do: Management
   def domain(:video), do: Video
 
   @doc "A short label for log lines."

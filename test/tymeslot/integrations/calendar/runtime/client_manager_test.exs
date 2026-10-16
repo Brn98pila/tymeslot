@@ -17,8 +17,8 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Integrations.Calendar.CalDAV.Family
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
   alias Tymeslot.Security.Encryption
@@ -86,7 +86,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.ClientManagerTest do
     # client of its own collection gets that collection visited twice.
     test "answers the same client as the read client of the booking calendar", %{user: user} do
       inserted = insert_two_calendar_integration(user, "caldav")
-      {:ok, integration} = CalendarManagement.fetch_integration_for_user(inserted.id, user.id)
+      {:ok, integration} = Management.fetch_integration_for_user(inserted.id, user.id)
 
       booking = ClientManager.booking_client({integration.id, user.id})
       reads = ClientManager.clients_for_integration(integration)

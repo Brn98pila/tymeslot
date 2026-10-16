@@ -21,11 +21,11 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventOperations do
   alias Tymeslot.Infrastructure.Metrics
   alias Tymeslot.Integrations.Calendar.CalDAV.BookingDocument
   alias Tymeslot.Integrations.Calendar.CreatedEvent
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Providers.ProviderAdapter
   alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
   alias Tymeslot.Integrations.Calendar.Shared.EventSearch
   alias Tymeslot.Integrations.Calendar.Utils.EventValidator
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Meetings.MeetingSchema
   alias Tymeslot.MeetingTypes.MeetingTypeSchema
 
@@ -196,7 +196,7 @@ defmodule Tymeslot.Integrations.Calendar.Runtime.EventOperations do
           {:ok, list()} | {:error, :not_found} | {:error, term()}
   def fetch_event(event_ref, {integration_id, user_id})
       when is_integer(integration_id) and is_integer(user_id) do
-    case CalendarManagement.fetch_integration_for_user(integration_id, user_id) do
+    case Management.fetch_integration_for_user(integration_id, user_id) do
       {:ok, integration} ->
         event_ref = Map.put(event_ref, :calendar_integration_id, integration_id)
         clients = event_clients(integration)

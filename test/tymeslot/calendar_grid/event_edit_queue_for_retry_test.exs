@@ -16,8 +16,8 @@ defmodule Tymeslot.CalendarGrid.EventEditQueueForRetryTest do
   import Mox
 
   alias Tymeslot.CalendarGrid.EventEdit
-  alias Tymeslot.Integrations.Calendar.Operations
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
+  alias Tymeslot.Integrations.Calendar.Runtime.Operations
 
   setup :verify_on_exit!
 

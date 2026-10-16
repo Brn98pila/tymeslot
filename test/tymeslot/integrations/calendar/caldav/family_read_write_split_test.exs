@@ -11,8 +11,8 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyReadWriteSplitTest do
   import Tymeslot.Factory
 
   alias Tymeslot.Integrations.Calendar.CalDAV.Family
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Runtime.ClientManager
-  alias Tymeslot.Integrations.CalendarManagement
 
   setup do
     %{user: insert(:user)}
@@ -43,7 +43,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyReadWriteSplitTest do
             ]
           )
 
-        {:ok, integration} = CalendarManagement.fetch_integration_for_user(inserted.id, user.id)
+        {:ok, integration} = Management.fetch_integration_for_user(inserted.id, user.id)
 
         reads = ClientManager.clients_for_integration(integration)
 
@@ -104,7 +104,7 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.FamilyReadWriteSplitTest do
 
       assert Enum.flat_map(clients, & &1.client.calendar_paths) == ["/cal/bookings/"]
 
-      {:ok, integration} = CalendarManagement.fetch_integration_for_user(inserted.id, user.id)
+      {:ok, integration} = Management.fetch_integration_for_user(inserted.id, user.id)
 
       assert integration
              |> ClientManager.clients_for_integration()

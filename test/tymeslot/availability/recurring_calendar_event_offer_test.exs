@@ -16,8 +16,8 @@ defmodule Tymeslot.Availability.RecurringCalendarEventOfferTest do
   alias Tymeslot.Bookings.Create
   alias Tymeslot.CalendarMock
   alias Tymeslot.Infrastructure.AvailabilityCache
-  alias Tymeslot.Integrations.Calendar.EventsRead
   alias Tymeslot.Integrations.Calendar.ICalParser
+  alias Tymeslot.Integrations.Calendar.Runtime.EventsRead
   alias Tymeslot.TestMocks
 
   setup :verify_on_exit!

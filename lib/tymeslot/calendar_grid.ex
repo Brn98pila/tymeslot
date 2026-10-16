@@ -29,12 +29,12 @@ defmodule Tymeslot.CalendarGrid do
   alias Tymeslot.Integrations.Calendar.CalendarEvent
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
   alias Tymeslot.Integrations.Calendar.EventColour
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventQueries
   alias Tymeslot.Integrations.Calendar.ProviderCalendarEventSchema
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Reminder
   alias Tymeslot.Integrations.Calendar.SyncSchedule
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.Integrations.Video.ProviderConfig, as: VideoProviderConfig
   alias Tymeslot.Utils.DateTimeUtils.TimeFormat
 
@@ -521,7 +521,7 @@ defmodule Tymeslot.CalendarGrid do
   """
   @spec list_active_integrations(integer()) :: [CalendarIntegrationSchema.t()]
   def list_active_integrations(user_id) do
-    CalendarManagement.list_active_calendar_integrations(user_id)
+    Management.list_active_calendar_integrations(user_id)
   end
 
   @doc """
@@ -529,7 +529,7 @@ defmodule Tymeslot.CalendarGrid do
   """
   @spec get_or_create_preferences(integer()) :: term()
   def get_or_create_preferences(user_id) do
-    CalendarManagement.get_or_create_preferences(user_id)
+    Management.get_or_create_preferences(user_id)
   end
 
   @doc """
@@ -546,7 +546,7 @@ defmodule Tymeslot.CalendarGrid do
 
   def get_user_time_format(user_id, locale) do
     user_id
-    |> CalendarManagement.get_or_create_preferences()
+    |> Management.get_or_create_preferences()
     |> Map.get(:time_format)
     |> TimeFormat.resolve(locale)
   end
@@ -556,6 +556,6 @@ defmodule Tymeslot.CalendarGrid do
   """
   @spec save_preferences(integer(), map()) :: {:ok, term()} | {:error, Ecto.Changeset.t()}
   def save_preferences(user_id, attrs) do
-    CalendarManagement.save_preferences(user_id, attrs)
+    Management.save_preferences(user_id, attrs)
   end
 end

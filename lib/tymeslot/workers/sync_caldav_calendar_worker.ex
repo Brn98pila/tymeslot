@@ -43,7 +43,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
   alias Tymeslot.Integrations.Calendar.CalDAV.Errors, as: CalDAVErrors
   alias Tymeslot.Integrations.Calendar.CalDAV.Sync
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Shared.ReauthHandling
   alias Tymeslot.Workers.CalendarSyncJob
   alias Tymeslot.Workers.SyncRequest
@@ -131,7 +131,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
       calendar_integration_id: integration.id
     )
 
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",
@@ -149,7 +149,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
       calendar_integration_id: integration.id
     )
 
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",
@@ -171,7 +171,7 @@ defmodule Tymeslot.Workers.SyncCalDavCalendarWorker do
       calendar_integration_id: integration.id
     )
 
-    CalendarManagement.flag_for_reconnection(
+    Management.flag_for_reconnection(
       integration,
       dgettext_noop(
         "dashboard_calendar_providers",

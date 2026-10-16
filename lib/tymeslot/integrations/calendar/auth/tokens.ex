@@ -15,7 +15,7 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   alias Tymeslot.Infrastructure.Logging.LogFormat
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationSchema
-  alias Tymeslot.Integrations.CalendarManagement
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Shared.OAuth.Refresh
 
   require Logger
@@ -158,7 +158,7 @@ defmodule Tymeslot.Integrations.Calendar.Tokens do
   # `handle_reauth_required/1` answers in Oban's terms; this module's callers
   # expect `{:ok, _} | {:error, _}`.
   defp flag_unreadable(stale) do
-    case CalendarManagement.handle_reauth_required(stale) do
+    case Management.handle_reauth_required(stale) do
       {:discard, _reason} -> {:error, :requires_reencryption}
       {:error, _reason} -> {:error, :reauth_flag_failed}
     end

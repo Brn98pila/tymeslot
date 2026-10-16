@@ -6,9 +6,9 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
 
   alias Tymeslot.Integrations.Calendar.CalendarIntegrationQueries
   alias Tymeslot.Integrations.Calendar.Google.PushChannel
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Outlook.GraphSubscription
   alias Tymeslot.Integrations.Calendar.PrimaryElection
-  alias Tymeslot.Integrations.CalendarManagement
   alias Tymeslot.MeetingTypes.MeetingTypeQueries
   alias Tymeslot.Repo
 
@@ -30,7 +30,7 @@ defmodule Tymeslot.Integrations.Calendar.Deletion do
   def delete_with_primary_reassignment(user_id, integration_id)
       when is_integer(user_id) and is_integer(integration_id) do
     with {:ok, integration} <-
-           CalendarManagement.get_calendar_integration(integration_id, user_id),
+           Management.get_calendar_integration(integration_id, user_id),
          :ok <- stop_push_notifications(integration),
          {:ok, promoted_result} <- delete_and_reassign(integration) do
       case promoted_result do

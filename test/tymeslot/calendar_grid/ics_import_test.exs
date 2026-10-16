@@ -324,7 +324,7 @@ defmodule Tymeslot.CalendarGrid.IcsImportTest do
              ]
     end
 
-    # The provider write validates its event as `Calendar.Operations` does.
+    # The provider write validates its event as `Calendar.Runtime.Operations` does.
     test "imports, rather than failing the write", ctx do
       expect(Tymeslot.CalendarMock, :create_event, 2, fn data, _context ->
         case EventValidator.validate(data) do

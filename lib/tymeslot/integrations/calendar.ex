@@ -43,16 +43,17 @@ defmodule Tymeslot.Integrations.Calendar do
   alias Tymeslot.Integrations.Calendar.Exchange.Creation, as: ExchangeCreation
   alias Tymeslot.Integrations.Calendar.Exchange.FreeBusy
   alias Tymeslot.Integrations.Calendar.IntegrationCacheQueries
+  alias Tymeslot.Integrations.Calendar.Management
   alias Tymeslot.Integrations.Calendar.Nextcloud.Login, as: NextcloudLogin
   alias Tymeslot.Integrations.Calendar.OAuth
   alias Tymeslot.Integrations.Calendar.Orchestration.Workflows
   alias Tymeslot.Integrations.Calendar.OwnerActions
+  alias Tymeslot.Integrations.Calendar.Primary
   alias Tymeslot.Integrations.Calendar.ProviderConfig
   alias Tymeslot.Integrations.Calendar.Reconnection
   alias Tymeslot.Integrations.Calendar.Runtime.CalendarPathResolver
   alias Tymeslot.Integrations.Calendar.Selection
   alias Tymeslot.Integrations.Calendar.Shared.ProviderCommon
-  alias Tymeslot.Integrations.{CalendarManagement, CalendarPrimary}
   alias Tymeslot.Integrations.Shared.Providers.Directory
   alias Tymeslot.Meetings
   alias Tymeslot.Security.EncryptedString
@@ -97,10 +98,10 @@ defmodule Tymeslot.Integrations.Calendar do
   """
   @spec list_integrations(user_id()) :: [integration()]
   def list_integrations(user_id) when is_integer(user_id) do
-    integrations = CalendarManagement.list_calendar_integrations(user_id)
+    integrations = Management.list_calendar_integrations(user_id)
 
     primary_id =
-      case CalendarPrimary.get_primary_calendar_integration(user_id) do
+      case Primary.get_primary_calendar_integration(user_id) do
         {:ok, primary} -> primary.id
         {:error, :not_found} -> nil
         {:error, :no_primary_set} -> nil
@@ -121,7 +122,7 @@ defmodule Tymeslot.Integrations.Calendar do
   @spec get_integration(integration_id(), user_id()) ::
           {:ok, integration()} | {:error, :not_found}
   def get_integration(id, user_id) when is_integer(id) and is_integer(user_id) do
-    CalendarManagement.get_calendar_integration(id, user_id)
+    Management.get_calendar_integration(id, user_id)
   end
 
   @doc """
@@ -139,23 +140,10 @@ defmodule Tymeslot.Integrations.Calendar do
           {:ok, NextcloudLogin.login()} | {:error, :not_found}
   defdelegate nextcloud_login(integration_id, user_id), to: NextcloudLogin, as: :fetch
 
-  @doc """
-  Creates a new calendar integration, with provider-specific parsing and optional pre-validation.
-  """
+  @doc "See `Tymeslot.Integrations.Calendar.Creation.create/2`."
   @spec create_integration(%{String.t() => term()}, user_id()) ::
           {:ok, integration()} | {:error, Ecto.Changeset.t() | any()}
-  def create_integration(params, user_id) when is_map(params) and is_integer(user_id) do
-    # The changeset runs before the pre-validation probe, not after it. A
-    # submission it rejects is decided entirely in-process, while the probe is
-    # an outbound request to an address the organiser typed and is metered as
-    # one; charging their connection budget for a local rejection is what made a
-    # save report itself as too many connection tests.
-    with {:ok, attrs} <- Creation.prepare_attrs(params, user_id),
-         :ok <- CalendarIntegrationSchema.validate_new(attrs),
-         {:ok, attrs} <- Creation.prevalidate_config(attrs) do
-      CalendarManagement.create_calendar_integration(attrs)
-    end
-  end
+  defdelegate create_integration(params, user_id), to: Creation, as: :create
 
   @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.rename_integration/4`."
   @spec rename_integration(user_id(), integration_id(), term(), map()) ::
@@ -247,24 +235,6 @@ defmodule Tymeslot.Integrations.Calendar do
           %{integration_id() => [String.t()]}
   defdelegate booking_calendar_ids_by_integration(user_id, integrations), to: Blocking
 
-  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.toggle_calendar_selection/3`."
-  @spec toggle_calendar_selection(user_id(), integration_id(), String.t() | integer()) ::
-          {:ok, integration()} | {:error, any()}
-  defdelegate toggle_calendar_selection(user_id, integration_id, calendar_id), to: OwnerActions
-
-  @doc """
-  Returns the entries from an integration's `calendar_list` whose `selected`
-  flag is truthy, including read-only ones. See
-  `Tymeslot.Integrations.Calendar.Selection.selected_calendars/1`.
-
-  Use this for conflict-checking visibility — a calendar the user cannot
-  write to can still surface existing events. Callers that need a booking or
-  sync target (which must be writable) should use `writable_calendars/1`
-  instead.
-  """
-  @spec selected_calendars([CalendarEntry.t()] | nil) :: [CalendarEntry.t()]
-  defdelegate selected_calendars(calendar_list), to: Selection
-
   @doc """
   Returns the selected entries from an integration's `calendar_list` that
   are also writable — the calendars available as booking/sync targets. See
@@ -296,12 +266,13 @@ defmodule Tymeslot.Integrations.Calendar do
   Returns whether the integration has calendars selected but none of them
   are writable — the booking-target picker has nothing to offer even
   though the user has enabled calendars for this account. Distinguishes
-  that dead end from "nothing selected yet" (`selected_calendars/1` is
-  empty), which is a different, unremarkable state.
+  that dead end from "nothing selected yet" (`Selection.selected_calendars/1`
+  is empty), which is a different, unremarkable state.
   """
   @spec all_selected_read_only?([CalendarEntry.t()] | nil) :: boolean()
   def all_selected_read_only?(calendar_list) do
-    selected_calendars(calendar_list) != [] and writable_calendars(calendar_list) == []
+    Selection.selected_calendars(calendar_list) != [] and
+      writable_calendars(calendar_list) == []
   end
 
   @doc """

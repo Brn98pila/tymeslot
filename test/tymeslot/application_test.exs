@@ -11,7 +11,7 @@ defmodule Tymeslot.ApplicationTest do
     DashboardCache
   }
 
-  alias Tymeslot.Integrations.Calendar.RequestCoalescer
+  alias Tymeslot.Integrations.Calendar.Runtime.RequestCoalescer
   alias Tymeslot.Payments.Webhooks.IdempotencyCache
   alias Tymeslot.Security.RateLimit
 
