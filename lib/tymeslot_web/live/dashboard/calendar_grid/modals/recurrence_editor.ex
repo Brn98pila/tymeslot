@@ -155,7 +155,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
               type="number"
               name="interval"
               min="1"
-              max="999"
+              max={Pattern.max_number()}
               value={@interval}
               phx-debounce="blur"
               class="w-16 rounded-token-md border-tymeslot-300 text-token-xs text-tymeslot-700 focus:border-turquoise-500 focus:ring-turquoise-500 py-1"
@@ -242,7 +242,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.Modals.RecurrenceEditor do
                 type="number"
                 name="count"
                 min="1"
-                max="999"
+                max={Pattern.max_number()}
                 value={@count}
                 phx-debounce="blur"
                 class="w-16 rounded-token-md border-tymeslot-300 text-token-xs text-tymeslot-700 focus:border-turquoise-500 focus:ring-turquoise-500 py-1"

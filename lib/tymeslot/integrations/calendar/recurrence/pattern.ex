@@ -62,6 +62,9 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.Pattern do
   # date ends before they pick one.
   @default_count 10
 
+  # The largest interval or count a pattern takes.
+  @max_number 999
+
   # The longest a period of each frequency can be, in days, and the last
   # date a series can end on.
   @period_days %{daily: 1, weekly: 7, monthly: 31, yearly: 366}
@@ -149,6 +152,45 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.Pattern do
     |> Map.put(:week_start, week_start(Keyword.get(opts, :keep)))
     |> RRule.format()
   end
+
+  @doc "The largest interval or count a pattern takes, which the editor's inputs offer as their `max`."
+  @spec max_number() :: pos_integer()
+  def max_number, do: @max_number
+
+  @doc """
+  `pattern` repeating every `interval` periods: a number above one, cut to
+  `max_number/0`. Anything else (`nil`, one, less) leaves it repeating every
+  period.
+  """
+  @spec put_interval(map(), integer() | nil) :: map()
+  def put_interval(pattern, interval) when is_integer(interval) and interval > 1,
+    do: Map.put(pattern, :interval, min(interval, @max_number))
+
+  def put_interval(pattern, _every_period), do: pattern
+
+  @doc """
+  `pattern` ending after `count` times, cut to `max_number/0`. A count not
+  yet given, or not above nought, is `default_count/0`, so an end picked
+  before its number is typed holds.
+  """
+  @spec put_count(map(), integer() | nil) :: map()
+  def put_count(pattern, count) when is_integer(count) and count > 0,
+    do: Map.put(pattern, :count, min(count, @max_number))
+
+  def put_count(pattern, _not_given), do: Map.put(pattern, :count, @default_count)
+
+  @doc """
+  `pattern` ending on `until`. Without a date, it ends on `default_until/2`
+  from `start_date`, so an end picked before its date is given holds; with
+  neither, it is left without an end.
+  """
+  @spec put_until(map(), Date.t() | nil, Date.t() | nil) :: map()
+  def put_until(pattern, %Date{} = until, _start_date), do: Map.put(pattern, :until, until)
+
+  def put_until(pattern, nil, %Date{} = start_date),
+    do: Map.put(pattern, :until, default_until(pattern, start_date))
+
+  def put_until(pattern, nil, nil), do: pattern
 
   @doc """
   How many times a series ending "after" a number of times repeats until the

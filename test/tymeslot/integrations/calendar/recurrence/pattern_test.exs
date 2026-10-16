@@ -176,6 +176,48 @@ defmodule Tymeslot.Integrations.Calendar.Recurrence.PatternTest do
     end
   end
 
+  describe "put_interval/2" do
+    test "takes an interval above one, cut to the largest a pattern takes" do
+      assert Pattern.put_interval(%{freq: :weekly}, 3) == %{freq: :weekly, interval: 3}
+      assert Pattern.put_interval(%{freq: :weekly}, 5000) == %{freq: :weekly, interval: 999}
+      assert Pattern.max_number() == 999
+    end
+
+    test "leaves a pattern repeating every period for one, less, or none" do
+      for interval <- [1, 0, -2, nil] do
+        assert Pattern.put_interval(%{freq: :weekly}, interval) == %{freq: :weekly}
+      end
+    end
+  end
+
+  describe "put_count/2" do
+    test "takes a count above nought, cut to the largest a pattern takes" do
+      assert Pattern.put_count(%{freq: :daily}, 6) == %{freq: :daily, count: 6}
+      assert Pattern.put_count(%{freq: :daily}, 1000) == %{freq: :daily, count: 999}
+    end
+
+    test "starts a count not yet given from the default" do
+      assert Pattern.put_count(%{freq: :daily}, nil) == %{freq: :daily, count: 10}
+      assert Pattern.put_count(%{freq: :daily}, 0) == %{freq: :daily, count: 10}
+    end
+  end
+
+  describe "put_until/3" do
+    test "takes the date given" do
+      assert Pattern.put_until(%{freq: :weekly}, ~D[2027-01-05], ~D[2026-10-13]) ==
+               %{freq: :weekly, until: ~D[2027-01-05]}
+    end
+
+    test "without a date, ends on the default end from the start" do
+      assert Pattern.put_until(%{freq: :weekly}, nil, ~D[2026-10-13]) ==
+               %{freq: :weekly, until: ~D[2026-12-15]}
+    end
+
+    test "without a date or a start, leaves the pattern without an end" do
+      assert Pattern.put_until(%{freq: :weekly}, nil, nil) == %{freq: :weekly}
+    end
+  end
+
   describe "equivalent?/3" do
     test "an UNTIL written as a date or as the instant ending that day is the same end" do
       assert Pattern.equivalent?(

@@ -28,9 +28,6 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
     "su" => :su
   }
 
-  # The largest interval or count the editor takes, as its inputs' `max`.
-  @max_number 999
-
   # What an `on` field's kind may name (`Pattern.kind/0`).
   @on_kinds Map.merge(@weekday_atoms, %{
               "day" => :day,
@@ -365,7 +362,7 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
         opts =
           %{freq: freq}
-          |> put_interval(params["interval"])
+          |> Pattern.put_interval(field_int(params["interval"]))
           |> put_by_day(freq, params["by_day"], start_date)
           |> put_start_day(freq, start_date)
           |> put_on(freq, params["on"], start_date)
@@ -400,10 +397,11 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
   defp parse_freq("yearly"), do: :yearly
   defp parse_freq(_other), do: nil
 
-  defp put_interval(opts, value) do
+  # A number field's value, or `nil` for one empty or not a number.
+  defp field_int(value) do
     case parse_int(value || "") do
-      {:ok, n} when n > 1 -> Map.put(opts, :interval, min(n, @max_number))
-      _other -> opts
+      {:ok, n} -> n
+      :error -> nil
     end
   end
 
@@ -456,25 +454,19 @@ defmodule TymeslotWeb.Dashboard.CalendarGrid.EventHandlers.Shared do
 
   # An end picked before its number or date is given (the field appears only
   # once the end is picked) starts from the editor's default, so the pick
-  # holds rather than reading back as "Never ends".
-  defp put_end_condition(opts, "count", params, _start_date) do
-    case parse_int(params["count"] || "") do
-      {:ok, n} when n > 0 -> Map.put(opts, :count, min(n, @max_number))
-      _other -> Map.put(opts, :count, Pattern.default_count())
-    end
-  end
+  # holds rather than reading back as "Never ends" (`Pattern.put_count/2`,
+  # `Pattern.put_until/3`).
+  defp put_end_condition(opts, "count", params, _start_date),
+    do: Pattern.put_count(opts, field_int(params["count"]))
 
   defp put_end_condition(opts, "until", params, start_date) do
-    case {Date.from_iso8601(params["until"] || ""), start_date} do
-      {{:ok, date}, _start_date} ->
-        Map.put(opts, :until, date)
+    until =
+      case Date.from_iso8601(params["until"] || "") do
+        {:ok, date} -> date
+        {:error, _reason} -> nil
+      end
 
-      {{:error, _reason}, %Date{}} ->
-        Map.put(opts, :until, Pattern.default_until(opts, start_date))
-
-      {{:error, _reason}, nil} ->
-        opts
-    end
+    Pattern.put_until(opts, until, start_date)
   end
 
   defp put_end_condition(opts, _never_or_other, _params, _start_date), do: opts
