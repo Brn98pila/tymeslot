@@ -562,11 +562,6 @@ msgstr "Jemné"
 msgid "Spacing"
 msgstr "Rozestupy"
 
-#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
-#, elixir-autogen, elixir-format
-msgid "JPG, PNG or WebP. Max %{size} MB."
-msgstr "JPG, PNG nebo WebP. Max. %{size} MB."
-
 #: lib/tymeslot/theme_customizations/presets/colour_schemes.ex
 #, elixir-autogen, elixir-format
 msgid "Blush"
@@ -649,3 +644,33 @@ msgstr "Neplatný soubor titulků. Nahrajte prosím soubor WebVTT (.vtt)."
 #, elixir-autogen, elixir-format
 msgid "MP4 or WebM. Max %{size} MB."
 msgstr "MP4 nebo WebM. Max. %{size} MB."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/theme_customization/pickers/image_upload.ex
+#, elixir-autogen, elixir-format
+msgid "JPG, PNG or WebP. Max %{size} MB and %{megapixels} megapixels (%{webp_megapixels} for WebP)."
+msgstr "JPG, PNG nebo WebP. Max. %{size} MB a %{megapixels} Mpx (%{webp_megapixels} pro WebP)."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "Please upload one file at a time."
+msgstr "Nahrávejte prosím vždy jen jeden soubor."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "The upload failed. Please try again."
+msgstr "Nahrání se nezdařilo. Zkuste to prosím znovu."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "This file is too large. Please upload one of at most %{size} MB."
+msgstr "Tento soubor je příliš velký. Nahrajte prosím soubor o velikosti nejvýše %{size} MB."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "This file type is not supported. Please upload a JPG, PNG or WebP image."
+msgstr "Tento typ souboru není podporován. Nahrajte prosím obrázek ve formátu JPG, PNG nebo WebP."
+
+#: lib/tymeslot_web/live/dashboard/theme_settings/asset_uploads.ex
+#, elixir-autogen, elixir-format
+msgid "This file type is not supported. Please upload an MP4 or WebM video."
+msgstr "Tento typ souboru není podporován. Nahrajte prosím video ve formátu MP4 nebo WebM."

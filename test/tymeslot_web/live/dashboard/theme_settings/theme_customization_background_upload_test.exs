@@ -249,6 +249,26 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.ThemeCustomizationBackgroundUpload
       assert MediaFixtures.image_metadata_fields(response.resp_body) == []
     end
 
+    test "refuses a file type it does not take, in words", %{conn: conn, profile: profile} do
+      view = open_tab(conn, "1", "image")
+
+      image = %{
+        last_modified: System.system_time(:millisecond),
+        name: "moving.gif",
+        content: MediaFixtures.read!("animated.gif"),
+        type: "image/gif"
+      }
+
+      view
+      |> file_input("#theme-background-image-form", :background_image_path, [image])
+      |> render_upload("moving.gif")
+
+      assert render(view) =~
+               "This file type is not supported. Please upload a JPG, PNG or WebP image."
+
+      assert ThemeCustomizations.get_by_profile_and_theme(profile.id, "1") == nil
+    end
+
     test "refuses an image over 40 megapixels and says how large it may be", %{
       conn: conn,
       profile: profile

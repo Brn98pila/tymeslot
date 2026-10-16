@@ -222,4 +222,38 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploads do
 
   defp consumed_refs(socket), do: socket.assigns[:consumed_upload_refs] || MapSet.new()
 
+  @doc """
+  The message to show for an error LiveView reports on an upload of `kind`
+  (`upload_errors/1,2`), which refuses a file before it reaches
+  `consume/2`: over the kind's size limit, of a type it does not take, or one
+  file too many.
+  """
+  @spec error_message(:image | :video, term()) :: String.t()
+  def error_message(kind, :too_large),
+    do:
+      dgettext(
+        "dashboard_appearance",
+        "This file is too large. Please upload one of at most %{size} MB.",
+        size: UploadConstraints.max_file_size_mb(kind)
+      )
+
+  def error_message(:image, :not_accepted),
+    do:
+      dgettext(
+        "dashboard_appearance",
+        "This file type is not supported. Please upload a JPG, PNG or WebP image."
+      )
+
+  def error_message(:video, :not_accepted),
+    do:
+      dgettext(
+        "dashboard_appearance",
+        "This file type is not supported. Please upload an MP4 or WebM video."
+      )
+
+  def error_message(_kind, :too_many_files),
+    do: dgettext("dashboard_appearance", "Please upload one file at a time.")
+
+  def error_message(_kind, _reason),
+    do: dgettext("dashboard_appearance", "The upload failed. Please try again.")
 end

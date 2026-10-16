@@ -337,7 +337,10 @@ defmodule TymeslotWeb.Dashboard.ThemeSettingsTest do
         |> render_click()
 
       # The hints state the limits the uploads enforce.
-      image_hint = "JPG, PNG or WebP. Max #{UploadConstraints.max_file_size_mb(:image)} MB."
+      image_hint =
+        "JPG, PNG or WebP. Max #{UploadConstraints.max_file_size_mb(:image)} MB " <>
+          "and 40 megapixels (16 for WebP)."
+
       video_hint = "MP4 or WebM. Max #{UploadConstraints.max_file_size_mb(:video)} MB."
 
       refute html_gradient =~ "Select a solid colour"
