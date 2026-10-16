@@ -332,6 +332,33 @@ defmodule Tymeslot.AppSettings do
   end
 
   @doc """
+  Logs a warning for each setting whose environment variable now overrides a
+  different value saved on the admin settings page, naming the variable, the
+  value it fixes and the saved one it hides. An install upgraded with an old
+  `.env` (`ENABLE_GOOGLE_AUTH=false` from the example file, say) would
+  otherwise switch off what an admin had turned on, without a word. Run at
+  boot, after `load!/0`.
+  """
+  @spec warn_pins_overriding_saved_values() :: :ok
+  def warn_pins_overriding_saved_values do
+    settings = get!()
+
+    Enum.each(keys(), fn key ->
+      saved = Map.get(settings, key)
+      var = Env.pinned_var(key)
+      pinned = Env.read(key)
+
+      if var && not is_nil(saved) && saved != pinned do
+        Logger.warning(
+          "#{var} fixes #{key} to #{inspect(pinned)}, overriding #{inspect(saved)} saved " <>
+            "on the admin settings page. Unset #{var} to use the saved value.",
+          env_var: var
+        )
+      end
+    end)
+  end
+
+  @doc """
   Clears the DB override for `key`, falling back to the config layer or
   built-in default. Convenience wrapper over `update/1`.
   """

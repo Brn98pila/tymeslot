@@ -262,6 +262,10 @@ defmodule Tymeslot.Application do
     # A variable set to a value it does not recognise fixes nothing.
     AppSettings.warn_unrecognised_env_values()
 
+    # A variable outranks what an admin saved, so an old `.env` line can
+    # silently undo it.
+    AppSettings.warn_pins_overriding_saved_values()
+
     # A variable fixing a sign-in setting can lock every admin out.
     AppSettings.warn_if_pins_block_sign_in()
   end

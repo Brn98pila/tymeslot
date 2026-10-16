@@ -119,6 +119,44 @@ defmodule Tymeslot.AppSettingsEnvPinsTest do
     end
   end
 
+  describe "warn_pins_overriding_saved_values/0" do
+    # An old `.env` still carrying ENABLE_GOOGLE_AUTH=false, on an install
+    # whose admin turned Google sign-in on.
+    defp boot_with_google_pinned_off do
+      Application.put_env(:tymeslot, :social_auth,
+        google_enabled: false,
+        github_enabled: false,
+        oauth_enabled: false
+      )
+
+      pin_setting(:google_auth_enabled, "ENABLE_GOOGLE_AUTH")
+      AppSettings.load!()
+    end
+
+    test "names the variable, the value it fixes and the saved value it hides" do
+      {:ok, _settings} = AppSettings.update(%{google_auth_enabled: true})
+      boot_with_google_pinned_off()
+
+      log = capture_log(fn -> assert :ok = AppSettings.warn_pins_overriding_saved_values() end)
+
+      assert log =~
+               "ENABLE_GOOGLE_AUTH fixes google_auth_enabled to false, overriding true saved"
+    end
+
+    test "logs nothing when the saved value agrees with the variable" do
+      {:ok, _settings} = AppSettings.update(%{google_auth_enabled: false})
+      boot_with_google_pinned_off()
+
+      assert capture_log(fn -> AppSettings.warn_pins_overriding_saved_values() end) == ""
+    end
+
+    test "logs nothing for a saved value no variable fixes" do
+      {:ok, _settings} = AppSettings.update(%{booking_analytics_enabled: true})
+
+      assert capture_log(fn -> AppSettings.warn_pins_overriding_saved_values() end) == ""
+    end
+  end
+
   describe "warn_unrecognised_env_values/0" do
     setup do
       original = Application.get_env(:tymeslot, :env_unrecognised_settings)
