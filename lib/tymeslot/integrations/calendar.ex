@@ -247,11 +247,6 @@ defmodule Tymeslot.Integrations.Calendar do
           %{integration_id() => [String.t()]}
   defdelegate booking_calendar_ids_by_integration(user_id, integrations), to: Blocking
 
-  @doc "See `Tymeslot.Integrations.Calendar.OwnerActions.toggle_calendar_selection/3`."
-  @spec toggle_calendar_selection(user_id(), integration_id(), String.t() | integer()) ::
-          {:ok, integration()} | {:error, any()}
-  defdelegate toggle_calendar_selection(user_id, integration_id, calendar_id), to: OwnerActions
-
   @doc """
   Returns the selected entries from an integration's `calendar_list` that
   are also writable — the calendars available as booking/sync targets. See

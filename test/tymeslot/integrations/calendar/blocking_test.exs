@@ -176,22 +176,6 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
       assert state_of(integration, "work") == :block
     end
 
-    test "never switches a booking calendar off through the selection toggle", %{user: user} do
-      integration = google_integration(user, calendars(), default_booking_calendar_id: "work")
-
-      assert {:error, :booking_calendar} =
-               OwnerActions.toggle_calendar_selection(user.id, integration.id, "work")
-
-      assert {:ok, _updated} =
-               OwnerActions.toggle_calendar_selection(user.id, integration.id, "rota")
-
-      assert {:ok, _updated} =
-               OwnerActions.toggle_calendar_selection(user.id, integration.id, "rota")
-
-      # Switched back on, it blocks as it was set to: show only.
-      assert state_of(integration, "rota") == :show
-    end
-
     test "never shows a calendar shared as busy times only", %{user: user} do
       integration =
         google_integration(user, [
@@ -386,11 +370,11 @@ defmodule Tymeslot.Integrations.Calendar.BlockingTest do
       assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
     end
 
-    test "frees a calendar's times at once when it is unticked", ctx do
+    test "frees a calendar's times at once when it is switched off", ctx do
       refute "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
 
       {:ok, _updated} =
-        OwnerActions.toggle_calendar_selection(ctx.user.id, ctx.integration.id, "team")
+        OwnerActions.set_calendar_state(ctx.user.id, ctx.integration.id, "team", :off)
 
       assert "2:00 PM" in offered(ctx.profile, ctx.date, "30min")
     end

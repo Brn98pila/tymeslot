@@ -96,16 +96,6 @@ defmodule Tymeslot.Integrations.Calendar.OwnerActions do
   end
 
   @doc """
-  Ticks or unticks one of an integration's calendars, under the rules of
-  `Blocking.toggle/2`: a booking calendar is not switched off.
-  """
-  @spec toggle_calendar_selection(pos_integer(), pos_integer(), String.t() | integer()) ::
-          {:ok, integration()} | {:error, refusal() | Blocking.refusal() | term()}
-  def toggle_calendar_selection(user_id, integration_id, calendar_id) do
-    with_owned(user_id, integration_id, :write, &Blocking.toggle(&1, calendar_id))
-  end
-
-  @doc """
   Sets whether one of an integration's calendars is used, and whether it
   blocks availability, in one change (see `Blocking.set_state/3`).
   """

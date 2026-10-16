@@ -327,7 +327,7 @@ defmodule Tymeslot.Integrations.Calendar.RemovedCalendarsPathsTest do
     integration = primary_and_work()
 
     assert {:ok, _updated} =
-             Calendar.toggle_calendar_selection(integration.user_id, integration.id, "work")
+             Calendar.set_calendar_state(integration.user_id, integration.id, "work", :off)
 
     refute selected?(integration, "work")
     assert recorded(integration) == []

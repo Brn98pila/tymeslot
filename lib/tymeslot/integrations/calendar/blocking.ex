@@ -96,15 +96,6 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
   def set_shown(integration, calendar_id, shown?) when is_boolean(shown?),
     do: change(integration, calendar_id, {:shown, shown?})
 
-  @doc """
-  Flips whether the calendar `calendar_id` of `integration` is used, under
-  the same rules: a calendar switched back on blocks as it was set to, and
-  a booking calendar is not switched off.
-  """
-  @spec toggle(integration(), String.t() | integer()) ::
-          {:ok, integration()} | {:error, refusal() | term()}
-  def toggle(integration, calendar_id), do: change(integration, calendar_id, :toggle)
-
   # Every write to a calendar's use runs here, under the integration's row
   # lock and against the row as it stands, so no change can reach a state
   # the rules refuse:
@@ -122,27 +113,15 @@ defmodule Tymeslot.Integrations.Calendar.Blocking do
     |> CalendarSelectionQueries.with_locked(fn fresh ->
       with %CalendarEntry{} = entry <-
              find(fresh.calendar_list, calendar_id) || {:error, :not_found},
-           change = resolve(fresh, entry, requested),
-           :ok <- check(fresh, entry, change) do
+           :ok <- check(fresh, entry, requested) do
         Selection.persist_calendar_list(
           fresh,
-          apply_change(fresh.calendar_list, entry.id, change)
+          apply_change(fresh.calendar_list, entry.id, requested)
         )
       end
     end)
     |> invalidate_on_success()
   end
-
-  defp resolve(integration, entry, :toggle) do
-    cond do
-      kind(integration, entry) == :exchange_main -> {:shown, not entry.selected}
-      entry.selected -> {:state, :off}
-      entry.blocks_availability -> {:state, :block}
-      true -> {:state, :show}
-    end
-  end
-
-  defp resolve(_integration, _entry, change), do: change
 
   defp check(integration, entry, change) do
     kind = kind(integration, entry)
