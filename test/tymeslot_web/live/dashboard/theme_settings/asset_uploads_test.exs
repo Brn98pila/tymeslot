@@ -49,7 +49,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploadsTest do
     end
 
     test "does not charge the rate limit while an upload is still in flight" do
-      socket = socket_with([%{done?: false, cancelled?: false}])
+      socket = socket_with([%{ref: "0", done?: false, cancelled?: false}])
 
       for _i <- 1..20, do: AssetUploads.consume(socket, :background_image_path)
 
@@ -60,7 +60,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploadsTest do
       for _i <- 1..@limit,
           do: assert(:ok = RateLimiter.check(:theme_upload, @user_id))
 
-      socket = socket_with([%{done?: true, cancelled?: false}])
+      socket = socket_with([%{ref: "0", done?: true, cancelled?: false}])
 
       # Processing would call ThemeCustomizations.attach_asset/4 and touch the
       # database. Being refused before that is the whole point: the socket
@@ -102,7 +102,7 @@ defmodule TymeslotWeb.Dashboard.ThemeSettings.AssetUploadsTest do
     test "leaves the socket and the budget untouched" do
       # A finished entry sits in the undeclared field's config, so it is the
       # declared-field check that stops the consume, not `ready?/2`.
-      entry = %{done?: true, cancelled?: false}
+      entry = %{ref: "0", done?: true, cancelled?: false}
       socket = socket_with([entry])
       socket = put_in(socket.assigns.uploads[:logo_path], %{entries: [entry]})
 

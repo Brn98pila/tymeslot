@@ -616,3 +616,13 @@ msgstr "Це бронювання вже скасовано."
 #, elixir-autogen, elixir-format
 msgid "The meeting could not be cancelled. Please try again."
 msgstr "Не вдалося скасувати зустріч. Спробуйте ще раз."
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "This meeting is now fully booked"
+msgstr "На цю зустріч уже немає вільних місць"
+
+#: lib/tymeslot_web/controllers/guest_rsvp_html.ex
+#, elixir-autogen, elixir-format
+msgid "Your seat was given to someone else after you declined. Your answer stays as it was; please contact the person who invited you or the meeting host."
+msgstr "Після вашої відмови ваше місце віддали іншій людині. Ваша відповідь залишається без змін; зверніться до того, хто вас запросив, або до організатора."
