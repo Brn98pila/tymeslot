@@ -27,7 +27,7 @@ defmodule Tymeslot.Profiles.Settings do
   Updates basic profile settings (name, username, timezone), as the
   onboarding form submits them.
 
-  The username goes through `Profiles.change_username/3`, so it is validated,
+  The username goes through `Profiles.change_username/2`, so it is validated,
   rate limited when it actually changes, and can publish the booking page,
   exactly as it would from the profile settings page.
   """

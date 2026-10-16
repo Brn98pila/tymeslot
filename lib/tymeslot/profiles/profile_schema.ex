@@ -121,7 +121,7 @@ defmodule Tymeslot.Profiles.ProfileSchema do
 
   @doc """
   The username, apart from the other basic fields so that only
-  `Tymeslot.Profiles.change_username/3` (validation, rate limit, publish)
+  `Tymeslot.Profiles.change_username/2` (validation, rate limit, publish)
   can write it.
   """
   @spec username_changeset(t(), map()) :: Ecto.Changeset.t()

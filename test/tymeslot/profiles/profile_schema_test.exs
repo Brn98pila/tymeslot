@@ -262,7 +262,7 @@ defmodule Tymeslot.Profiles.ProfileSchemaTest do
       assert changeset.valid?
     end
 
-    # Only change_username/3 writes the username, through its own changeset.
+    # Only change_username/2 writes the username, through its own changeset.
     test "does not cast the username" do
       assert ProfileSchema.basic_changeset(insert(:profile), %{username: "sneaky"}).changes == %{}
     end
