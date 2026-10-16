@@ -332,4 +332,23 @@ defmodule Tymeslot.AppSettingsLockoutTest do
       assert values[:password_auth_enabled].locked_states == []
     end
   end
+
+  describe "settings fixed by an environment variable" do
+    test "a pinned PASSWORD_AUTH_ENABLED=false outranks a stored true in the guard" do
+      enable_credentialed_oauth()
+      insert(:user, is_admin: true)
+
+      {:ok, _settings} =
+        AppSettings.update(%{password_auth_enabled: true, oauth_auth_enabled: true})
+
+      # The operator then sets PASSWORD_AUTH_ENABLED=false and restarts.
+      Application.put_env(:tymeslot, :password_auth_enabled, false)
+      pin_setting(:password_auth_enabled, "PASSWORD_AUTH_ENABLED")
+      AppSettings.load!()
+
+      # SSO is now the only way in, so switching it off must be refused.
+      assert {:error, :would_lock_out} = AppSettings.update(%{oauth_auth_enabled: false})
+      assert AppSettings.effective_values()[:oauth_auth_enabled].locked_states == [false]
+    end
+  end
 end

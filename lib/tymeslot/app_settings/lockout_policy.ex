@@ -162,17 +162,24 @@ defmodule Tymeslot.AppSettings.LockoutPolicy do
   def locked_states_for(_key, _current_row), do: []
 
   # Computes what the effective value of `key` would be after applying `attrs`,
-  # without performing any side effects. Precedence: an explicit value in the
-  # update wins; clearing an override (`nil`) falls back to the captured
-  # baseline; an absent key falls back to the value already persisted in the
-  # merged row (DB override) or, failing that, the config layer. Evaluating
-  # absent keys against `merged_row` rather than the live Application env is
-  # what makes the commit-path guard see concurrent writes.
+  # without performing any side effects. A setting an environment variable
+  # fixes keeps its config value whatever the update or the row holds; the
+  # row may carry an override stored before the variable was set. Otherwise:
+  # an explicit value in the update wins; clearing an override (`nil`) falls
+  # back to the captured baseline; an absent key falls back to the value
+  # already persisted in the merged row (DB override) or, failing that, the
+  # config layer. Evaluating absent keys against `merged_row` rather than the
+  # live Application env is what makes the commit-path guard see concurrent
+  # writes.
   defp next_effective_value(key, merged_row, attrs) do
-    case Map.fetch(attrs, key) do
-      {:ok, nil} -> baseline_or_default(key)
-      {:ok, value} -> value
-      :error -> row_value_or_config(key, merged_row)
+    if Env.pinned?(key) do
+      Env.read(key)
+    else
+      case Map.fetch(attrs, key) do
+        {:ok, nil} -> baseline_or_default(key)
+        {:ok, value} -> value
+        :error -> row_value_or_config(key, merged_row)
+      end
     end
   end
 
