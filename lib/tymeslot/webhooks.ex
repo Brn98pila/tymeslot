@@ -18,7 +18,7 @@ defmodule Tymeslot.Webhooks do
   alias Tymeslot.Infrastructure.Tasks
   alias Tymeslot.Meetings.SeatView
   alias Tymeslot.Notifications.Channel
-  alias Tymeslot.Notifications.EventTypes
+  alias Tymeslot.Notifications.EventOptions
   alias Tymeslot.Security.EncryptedString
 
   alias Tymeslot.Webhooks.{
@@ -391,10 +391,10 @@ defmodule Tymeslot.Webhooks do
 
   @doc """
   Returns all available event types, with their translated labels; see
-  `EventTypes.options/0`.
+  `EventOptions.options/0`.
   """
-  @spec available_events() :: [EventTypes.option()]
-  defdelegate available_events, to: EventTypes, as: :options
+  @spec available_events() :: [EventOptions.option()]
+  defdelegate available_events, to: EventOptions, as: :options
 
   # ============================================================================
   # Private Helpers

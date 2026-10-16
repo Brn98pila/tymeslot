@@ -374,19 +374,19 @@ msgstr "Diese Automatisierungsfunktion ist im Pro-Tarif verfügbar."
 msgid "Total"
 msgstr "Gesamt"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when a booking time is changed"
 msgstr "Wird ausgelöst, wenn eine Buchungszeit geändert wird"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when a new booking is successfully created"
 msgstr "Wird ausgelöst, wenn eine neue Buchung erfolgreich erstellt wird"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #: lib/tymeslot_web/live/dashboard/automation/webhook_documentation.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when an existing booking is cancelled"
@@ -539,17 +539,17 @@ msgstr "Zustellverlauf - %{name}"
 msgid "Too many requests. Please slow down."
 msgstr "Zu viele Anfragen. Bitte verlangsamen Sie."
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Cancelled"
 msgstr "Termin abgesagt"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Created"
 msgstr "Termin erstellt"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Meeting Rescheduled"
 msgstr "Termin verschoben"
@@ -609,37 +609,37 @@ msgstr "Die URL löst sich zu einer privaten oder eingeschränkten Adresse auf"
 msgid "Webhook returned status %{status}"
 msgstr "Webhook hat den Status %{status} zurückgegeben"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Booking Declined"
 msgstr "Buchung abgelehnt"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Booking Request Expired"
 msgstr "Buchungsanfrage abgelaufen"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Booking Requested"
 msgstr "Buchung angefragt"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when nobody answers a booking request before its deadline"
 msgstr "Wird ausgelöst, wenn niemand innerhalb der Frist auf eine Buchungsanfrage antwortet"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when someone requests a booking on a meeting type that needs your approval"
 msgstr "Wird ausgelöst, wenn jemand eine Buchung für einen Termintyp anfragt, der Ihre Bestätigung erfordert"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers when you decline a booking request"
 msgstr "Wird ausgelöst, wenn Sie eine Buchungsanfrage ablehnen"
 
-#: lib/tymeslot/notifications/event_types.ex
+#: lib/tymeslot/notifications/event_options.ex
 #, elixir-autogen, elixir-format
 msgid "Triggers on this event"
 msgstr "Wird bei diesem Ereignis ausgelöst"

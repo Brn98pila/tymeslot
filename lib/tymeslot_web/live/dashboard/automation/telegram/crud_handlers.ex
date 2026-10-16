@@ -6,7 +6,7 @@ defmodule TymeslotWeb.Dashboard.Automation.Telegram.CrudHandlers do
   use Gettext, backend: TymeslotWeb.Gettext
 
   import Phoenix.Component, only: [assign: 3]
-  import Tymeslot.Features, only: [is_access_error: 1]
+  import Tymeslot.Features.AccessErrors, only: [is_access_error: 1]
 
   alias Tymeslot.Security.RateLimiter
   alias Tymeslot.Telegram

@@ -3,6 +3,7 @@ defmodule Tymeslot.Notifications.EventTypesTest do
 
   @moduletag :notifications
 
+  alias Tymeslot.Notifications.EventOptions
   alias Tymeslot.Notifications.EventTypes
   alias Tymeslot.Slack
   alias Tymeslot.Telegram
@@ -14,7 +15,7 @@ defmodule Tymeslot.Notifications.EventTypesTest do
   # first edit, and one that could not offer an event could never send it.
   describe "options/0 and the channels that offer it" do
     test "offers every event, in order" do
-      assert Enum.map(EventTypes.options(), & &1.value) == EventTypes.all()
+      assert Enum.map(EventOptions.options(), & &1.value) == EventTypes.all()
     end
 
     test "Slack, Telegram and webhooks all offer every event" do

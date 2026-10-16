@@ -17,7 +17,7 @@ defmodule Tymeslot.FeaturesTest do
 
   import ExUnit.CaptureLog
   import Tymeslot.ConfigTestHelpers
-  import Tymeslot.Features, only: [is_access_error: 1]
+  import Tymeslot.Features.AccessErrors, only: [is_access_error: 1]
 
   alias ErrorTracker.Error
   alias Tymeslot.Features
