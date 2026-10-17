@@ -311,7 +311,7 @@ defmodule Tymeslot.Application do
   # after every other child for that reason, and all are skipped in test.
   @spec startup_check_children() :: [Supervisor.child_spec()]
   defp startup_check_children do
-    mailer_health_check_children() ++ index_health_children() ++ retired_key_check_children()
+    mailer_health_check_children() ++ index_health_children() ++ key_check_children()
   end
 
   # Runs the mailer startup health check as a supervised, transient Task
@@ -362,18 +362,19 @@ defmodule Tymeslot.Application do
     end
   end
 
-  # Logs an error when LEGACY_KEY_RETIRED is set while stored values no
-  # configured key opens remain (see `KeyReport`). Off the boot path and
-  # `:temporary`, like `index_health_children/0`: a diagnostic never delays or
-  # takes down the application. The check itself returns at once when the flag
-  # is unset. Skipped in test, which drives the check directly.
-  @spec retired_key_check_children() :: [Supervisor.child_spec()]
-  defp retired_key_check_children do
+  # Logs an error when stored values sit under a key id the keyring no longer
+  # lists, or, with LEGACY_KEY_RETIRED set, under no configured key at all
+  # (see `KeyReport`). Off the boot path and `:temporary`, like
+  # `index_health_children/0`: the check reads every encrypted column, and a
+  # diagnostic never delays or takes down the application. Skipped in test,
+  # which drives the check directly.
+  @spec key_check_children() :: [Supervisor.child_spec()]
+  defp key_check_children do
     if Application.get_env(:tymeslot, :environment) != :test do
       [
         Supervisor.child_spec(
-          {Task, &KeyReport.warn_if_retired_key_holds_values/0},
-          id: Tymeslot.Security.RetiredKeyCheckTask,
+          {Task, &KeyReport.warn_about_unreadable_values/0},
+          id: Tymeslot.Security.KeyCheckTask,
           restart: :temporary
         )
       ]
