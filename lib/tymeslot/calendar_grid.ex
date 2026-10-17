@@ -177,8 +177,8 @@ defmodule Tymeslot.CalendarGrid do
     )
   end
 
-  @doc "Enqueues a sync of each of the user's active integrations. See `Freshness.refresh_events/1`."
-  defdelegate refresh_events(user_id), to: Freshness
+  @doc "Enqueues a sync of each of the user's active integrations. See `Freshness.refresh_events/2`."
+  defdelegate refresh_events(user_id, how \\ :requested), to: Freshness
 
   @doc "The integrations whose cached events are stale. See `Freshness.stale_integrations/1`."
   defdelegate stale_integrations(integrations), to: Freshness
