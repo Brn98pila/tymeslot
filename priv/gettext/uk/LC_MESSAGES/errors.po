@@ -1272,3 +1272,14 @@ msgstr "Цей тип файлу не підтримується. Заванта
 #, elixir-autogen, elixir-format
 msgid "Prices cannot be set in your Stripe account's currency"
 msgstr "У валюті вашого облікового запису Stripe не можна встановлювати ціни"
+
+#: lib/tymeslot/custom_fields/custom_fields.ex
+#: lib/tymeslot/custom_fields/validator.ex
+#, elixir-autogen, elixir-format
+msgid "Answer is too long"
+msgstr "Відповідь задовга"
+
+#: lib/tymeslot/custom_fields/validator.ex
+#, elixir-autogen, elixir-format
+msgid "Unknown field type"
+msgstr "Невідомий тип поля"

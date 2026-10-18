@@ -1252,3 +1252,14 @@ msgstr "Dieser Dateityp wird nicht akzeptiert. Bitte laden Sie ein JPG-, PNG-, G
 #, elixir-autogen, elixir-format
 msgid "Prices cannot be set in your Stripe account's currency"
 msgstr "In der Währung Ihres Stripe-Kontos können keine Preise festgelegt werden"
+
+#: lib/tymeslot/custom_fields/custom_fields.ex
+#: lib/tymeslot/custom_fields/validator.ex
+#, elixir-autogen, elixir-format
+msgid "Answer is too long"
+msgstr "Antwort ist zu lang"
+
+#: lib/tymeslot/custom_fields/validator.ex
+#, elixir-autogen, elixir-format
+msgid "Unknown field type"
+msgstr "Unbekannter Feldtyp"

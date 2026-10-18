@@ -1279,3 +1279,14 @@ msgstr "Tento typ souboru není podporován. Nahrajte prosím obrázek JPG, PNG,
 #, elixir-autogen, elixir-format
 msgid "Prices cannot be set in your Stripe account's currency"
 msgstr "Ve měně vašeho účtu Stripe nelze nastavovat ceny"
+
+#: lib/tymeslot/custom_fields/custom_fields.ex
+#: lib/tymeslot/custom_fields/validator.ex
+#, elixir-autogen, elixir-format
+msgid "Answer is too long"
+msgstr "Odpověď je příliš dlouhá"
+
+#: lib/tymeslot/custom_fields/validator.ex
+#, elixir-autogen, elixir-format
+msgid "Unknown field type"
+msgstr "Neznámý typ pole"
