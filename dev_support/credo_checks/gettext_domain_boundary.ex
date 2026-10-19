@@ -56,6 +56,7 @@ defmodule CredoChecks.GettextDomainBoundary do
         booking booking_manage booking_polls booking_voice embed errors common
         datetime booking_errors booking_payments
         emails emails_account emails_booking emails_booking_requests
+        emails_booking_changes
         emails_integrations emails_payments emails_polls
         auth account onboarding onboarding_wizard
         dashboard_common
