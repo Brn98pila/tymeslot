@@ -28,23 +28,21 @@ Tymeslot is designed to work seamlessly with Cloudron's managed infrastructure. 
 
 There are two ways to install Tymeslot on Cloudron:
 
-### Option A: Community Package (Recommended)
+### Option A: Cloudron App Store (Recommended)
 
-Install via Cloudron's [community package system](https://forum.cloudron.io/topic/15046/update-on-community-packages). This gives you automatic update notifications and one-click upgrades — the same experience as official Cloudron apps.
+Tymeslot is listed in the Cloudron App Store, which gives you automatic update notifications and one-click upgrades.
 
 1. Open your Cloudron dashboard and go to **App Store**
-2. Click **Install via URL**
-3. Paste the following URL:
-   ```
-   https://raw.githubusercontent.com/Tymeslot/tymeslot/main/CloudronVersions.json
-   ```
-4. Choose a location (e.g. `tymeslot.yourdomain.com`) and click **Install**
+2. Search for **Tymeslot** and open it
+3. Choose a location (e.g. `tymeslot.yourdomain.com`) and click **Install**
 
 Cloudron handles the Docker image, health checks, and updates automatically. When a new version is published, you'll see an update prompt in the dashboard.
 
+> **Installed earlier with Install via URL?** Installs made from the community package URL (`https://raw.githubusercontent.com/Tymeslot/tymeslot/main/CloudronVersions.json`) get one more update, whose notes explain how to move to the App Store version; from then on, new versions are published only to the App Store. The steps will also be added here.
+
 ### Option B: Manual Docker Build
 
-Build and install from source using the Cloudron CLI. Use this if you want to run a custom fork or a version not yet published to the community package.
+Build and install from source using the Cloudron CLI. Use this if you want to run a custom fork or a version not yet published to the App Store.
 
 1. Clone the repository and build the Docker image:
    ```bash
@@ -461,9 +459,9 @@ Tymeslot records every unexpected error, process crash and failed background job
 
 ## Updates
 
-### Community Package (Option A)
+### Cloudron App Store (Option A)
 
-Cloudron checks for new versions automatically. When a new release is published, you'll see an update prompt in the dashboard — apply it with one click or via CLI:
+Cloudron checks for new versions automatically. When a new release is published, you'll see an update prompt in the dashboard; apply it with one click or via CLI:
 
 ```bash
 cloudron update --app tymeslot.yourdomain.com
