@@ -42,7 +42,9 @@ defmodule Tymeslot.Security.Encryption do
   rather than flagged, and the boot check names the missing ids.
   """
 
-  alias Tymeslot.Security.Encryption.Keyring
+  require Logger
+
+  alias Tymeslot.Security.Encryption.{ConfigError, Keyring}
 
   @aad Keyring.aad()
 
@@ -207,14 +209,36 @@ defmodule Tymeslot.Security.Encryption do
   def current_version, do: keyring().current_version
 
   @doc """
-  Builds and caches the keyring, raising with an operator-readable message when
-  the key configuration cannot work. Called once at application start.
+  Builds and caches the keyring, raising `ConfigError` when the key
+  configuration cannot work.
   """
   @spec validate!() :: :ok
   def validate! do
     reset_keyring()
     _keyring = keyring()
     :ok
+  end
+
+  @doc """
+  The boot-time form of `validate!/0`. On a key configuration that cannot work
+  it logs what is wrong and how to fix it, and returns the error so the
+  application can refuse to start without burying the reason in a stack trace.
+  """
+  @spec check_config() :: :ok | {:error, ConfigError.t()}
+  def check_config do
+    validate!()
+  rescue
+    error in ConfigError ->
+      Logger.error(
+        "Tymeslot cannot start: the data encryption key configuration is invalid. " <>
+          Exception.message(error) <>
+          " Nothing has been read or changed; start Tymeslot again once the " <>
+          "configuration is fixed. The data-at-rest encryption section of the " <>
+          "installation guide explains every setting.",
+        event_type: "encryption_config_invalid"
+      )
+
+      {:error, error}
   end
 
   @doc """

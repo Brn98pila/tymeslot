@@ -55,6 +55,15 @@ defmodule Tymeslot.Application do
 
   @impl Application
   def start(_type, _args) do
+    # Checked before anything else, so that an unusable key stops the boot
+    # with a log line saying how to fix it rather than a crash report.
+    case Encryption.check_config() do
+      :ok -> start_application()
+      {:error, error} -> {:error, {:invalid_encryption_config, error.reason}}
+    end
+  end
+
+  defp start_application do
     validate_config!()
 
     # Install the global Logger metadata redactor before the first log line
@@ -256,10 +265,6 @@ defmodule Tymeslot.Application do
   end
 
   defp validate_config! do
-    # Stops the boot on a key configuration that cannot work, instead of
-    # failing on the first credential read or written.
-    Encryption.validate!()
-
     # Mailer configuration is validated by mailer_health_check_children/0
     # instead of here: its credential probe needs Tymeslot.Finch, which
     # doesn't exist yet at this point in start/2, before Supervisor.start_link
