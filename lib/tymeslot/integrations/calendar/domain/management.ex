@@ -355,7 +355,7 @@ defmodule Tymeslot.Integrations.Calendar.Management do
 
   `message` is the explanation shown on the dashboard, passed as its
   untranslated msgid (mark it with `dgettext_noop/2` in the
-  `dashboard_calendar_providers` or `dashboard_integrations` domain) so the
+  `integrations_calendar` or `dashboard_integrations` domain) so the
   dashboard can translate it into the viewer's locale;
   `discard_reason` is the operator-facing reason recorded on the job.
 
