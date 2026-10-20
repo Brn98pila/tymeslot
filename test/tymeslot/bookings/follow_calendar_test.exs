@@ -1,6 +1,6 @@
 defmodule Tymeslot.Bookings.FollowCalendarTest do
   @moduledoc """
-  `FollowCalendar.execute/3` against the real email service: a host moved a
+  `FollowCalendar.execute/4` against the real email service: a host moved a
   booked meeting in their own calendar, and the booking follows that time.
 
   The move must do everything a reschedule does afterwards (emails, reminders,
@@ -18,6 +18,7 @@ defmodule Tymeslot.Bookings.FollowCalendarTest do
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
 
+  alias Ecto.Changeset
   alias Ecto.UUID
   alias Tymeslot.Bookings.FollowCalendar
   alias Tymeslot.Emails.EmailScheduler
@@ -67,7 +68,7 @@ defmodule Tymeslot.Bookings.FollowCalendarTest do
     %{user: user}
   end
 
-  describe "execute/3" do
+  describe "execute/4" do
     test "moves the meeting and follows a changed length", %{user: user} do
       meeting = insert_future_meeting(user)
       {new_start, new_end} = new_times(meeting)
@@ -107,6 +108,31 @@ defmodule Tymeslot.Bookings.FollowCalendarTest do
       assert {:ok, _updated} = FollowCalendar.execute(meeting, new_start, new_end)
 
       refute_enqueued(worker: CalendarEventWorker)
+    end
+
+    test "a guard refusing the locked row writes and sends nothing", %{user: user} do
+      stale = insert_future_meeting(user, calendar_sync_status: "externally_modified")
+      {new_start, new_end} = new_times(stale)
+
+      # A confirm from another tab moved the booking after `stale` was read,
+      # clearing the flag; only the locked row knows.
+      stale
+      |> Changeset.change(calendar_sync_status: nil)
+      |> Repo.update!()
+
+      still_flagged = fn
+        %{calendar_sync_status: "externally_modified"} -> :ok
+        _current -> {:error, :not_flagged}
+      end
+
+      assert {:error, :not_flagged} =
+               FollowCalendar.execute(stale, new_start, new_end, guard: still_flagged)
+
+      reloaded = Repo.get!(MeetingSchema, stale.id)
+      assert reloaded.start_time == stale.start_time
+      assert reloaded.ical_sequence == stale.ical_sequence
+      refute_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+      refute_enqueued(worker: VideoSyncWorker)
     end
 
     test "re-pins the reminders to the new time", %{user: user} do

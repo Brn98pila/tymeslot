@@ -149,7 +149,7 @@ defmodule Tymeslot.Notifications.Email.RescheduleEmails do
   end
 
   # A move the host made in their own calendar
-  # (`Tymeslot.Bookings.FollowCalendar.execute/3`): the organiser's copy
+  # (`Tymeslot.Bookings.FollowCalendar.execute/4`): the organiser's copy
   # says so rather than naming the attendee.
   defp put_moved_by(content, "host"), do: Map.put(content, :moved_by, :host)
   defp put_moved_by(content, _attendee), do: content

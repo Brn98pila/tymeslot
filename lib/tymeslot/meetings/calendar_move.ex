@@ -34,8 +34,10 @@ defmodule Tymeslot.Meetings.CalendarMove do
   written back to the calendar; the event is already where the host put it.
 
   `move/2` takes a fresh offer instead of trusting a time handed in, so a
-  click always applies the cache as it is now, and a second click on an
-  already-moved booking is refused as `:not_flagged`.
+  click always applies the cache as it is now, and re-checks the booking
+  under its row lock before writing, so a second confirm of an
+  already-moved booking (the move clears the flag) is refused as
+  `:not_flagged`, and so is a move racing an attendee's reschedule.
   """
 
   alias Tymeslot.Bookings.FollowCalendar
@@ -100,7 +102,7 @@ defmodule Tymeslot.Meetings.CalendarMove do
   def move(meeting_id, organizer_user_id) do
     with {:ok, meeting} <- MeetingQueries.get_meeting_for_organizer(meeting_id, organizer_user_id),
          {:ok, %{start_time: start_time, end_time: end_time}} <- offer(meeting) do
-      FollowCalendar.execute(meeting, start_time, end_time)
+      FollowCalendar.execute(meeting, start_time, end_time, guard: &check_meeting/1)
     end
   end
 

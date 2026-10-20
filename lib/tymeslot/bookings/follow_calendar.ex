@@ -35,16 +35,32 @@ defmodule Tymeslot.Bookings.FollowCalendar do
   alias Tymeslot.Workers.VideoSyncWorker
 
   @doc """
-  Moves `meeting` to `start_time`–`end_time`. The caller guarantees the
-  meeting is eligible; this checks nothing.
+  Moves `meeting` to `start_time`–`end_time`. The caller decides whether the
+  meeting is eligible; this checks nothing of its own.
+
+  The caller's decision was made on the row as it was read, and a confirm
+  from a second tab or an attendee's reschedule may commit before the lock
+  is taken. `:guard`, a function of the locked row returning `:ok` or
+  `{:error, reason}`, re-runs that decision under the lock, and a refusal
+  comes back as `{:error, reason}` with nothing written or sent.
   """
-  @spec execute(MeetingSchema.t(), DateTime.t(), DateTime.t()) ::
-          {:ok, MeetingSchema.t()} | {:error, :failed_to_update_meeting}
-  def execute(%MeetingSchema{} = meeting, %DateTime{} = start_time, %DateTime{} = end_time) do
-    case Repo.transaction(fn -> write(meeting, start_time, end_time) end) do
+  @spec execute(MeetingSchema.t(), DateTime.t(), DateTime.t(), keyword()) ::
+          {:ok, MeetingSchema.t()} | {:error, term()}
+  def execute(
+        %MeetingSchema{} = meeting,
+        %DateTime{} = start_time,
+        %DateTime{} = end_time,
+        opts \\ []
+      ) do
+    guard = Keyword.get(opts, :guard, fn _current -> :ok end)
+
+    case Repo.transaction(fn -> write(meeting, start_time, end_time, guard) end) do
       {:ok, updated} ->
         announce(updated, meeting)
         {:ok, updated}
+
+      {:error, {:refused, reason}} ->
+        {:error, reason}
 
       {:error, reason} ->
         Logger.warning("Failed to move the meeting to its calendar event's time",
@@ -60,8 +76,9 @@ defmodule Tymeslot.Bookings.FollowCalendar do
   # the row's lock, with the calendar revision moved on from the row as it
   # stands, and with the reminders re-pinned in the same transaction, so they
   # commit with the new time or not at all.
-  defp write(meeting, start_time, end_time) do
+  defp write(meeting, start_time, end_time, guard) do
     with {:ok, current} <- MeetingQueries.get_meeting_for_update(meeting.id),
+         :ok <- refuse_unless(guard.(current)),
          {:ok, updated} <-
            MeetingQueries.update_meeting(current, attrs(current, start_time, end_time)),
          :ok <- repin_reminders(updated) do
@@ -74,6 +91,9 @@ defmodule Tymeslot.Bookings.FollowCalendar do
       {:error, reason} -> Repo.rollback(reason)
     end
   end
+
+  defp refuse_unless(:ok), do: :ok
+  defp refuse_unless({:error, reason}), do: {:error, {:refused, reason}}
 
   # Reminders already sent were pinned to the old time, so their tracking is
   # reset and they cannot suppress the new ones. Join links that expire

@@ -511,7 +511,7 @@ defmodule Tymeslot.Emails.Templates.AppointmentRescheduled do
 
   # Who moved the meeting, as the organiser is told. A move the host made in
   # their own calendar (`moved_by: :host`, set by
-  # `Tymeslot.Bookings.FollowCalendar.execute/3`) is not the attendee's.
+  # `Tymeslot.Bookings.FollowCalendar.execute/4`) is not the attendee's.
   defp organizer_moved_line(%{moved_by: :host}),
     do: dgettext("emails_booking", "You moved this meeting in your calendar.")
 
