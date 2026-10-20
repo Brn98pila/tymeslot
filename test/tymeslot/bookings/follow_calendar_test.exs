@@ -17,6 +17,7 @@ defmodule Tymeslot.Bookings.FollowCalendarTest do
   import Mox
   import Tymeslot.ConfigTestHelpers
   import Tymeslot.Factory
+  import Tymeslot.WorkerTestHelpers
 
   alias Ecto.Changeset
   alias Ecto.UUID
@@ -28,6 +29,7 @@ defmodule Tymeslot.Bookings.FollowCalendarTest do
   alias Tymeslot.TestMocks
   alias Tymeslot.Workers.CalendarEventWorker
   alias Tymeslot.Workers.EmailWorker
+  alias Tymeslot.Workers.VideoRoomWorker
   alias Tymeslot.Workers.VideoSyncWorker
   alias Tymeslot.Workers.WebhookWorker
 
@@ -188,6 +190,36 @@ defmodule Tymeslot.Bookings.FollowCalendarTest do
       end
 
       refute attendee.text_body =~ "You moved this meeting in your calendar."
+    end
+
+    test "still tells the host they moved it when the meeting's room comes later",
+         %{user: user} do
+      integration = insert(:video_integration, user: user, provider: "mirotalk")
+
+      meeting =
+        insert_future_meeting(user,
+          attendee_name: "Ada Attendee",
+          video_integration_id: integration.id,
+          video_room_id: nil
+        )
+
+      {new_start, new_end} = new_times(meeting)
+
+      assert {:ok, _updated} = FollowCalendar.execute(meeting, new_start, new_end)
+
+      # The room's job owns the announcement, so nothing is sent until it runs.
+      refute_enqueued(worker: EmailWorker, args: %{"action" => "send_reschedule_emails"})
+
+      [job] = all_enqueued(worker: VideoRoomWorker, args: %{"meeting_id" => meeting.id})
+      expect_mirotalk_success()
+      assert :ok = perform_job(VideoRoomWorker, job.args)
+
+      organizer = delivered_emails()[meeting.organizer_email]
+
+      for body <- [organizer.text_body, organizer.html_body] do
+        assert body =~ "You moved this meeting in your calendar."
+        refute body =~ "has moved your meeting"
+      end
     end
 
     test "resets and emails the booking's guests", %{user: user} do

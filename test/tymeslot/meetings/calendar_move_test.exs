@@ -158,17 +158,19 @@ defmodule Tymeslot.Meetings.CalendarMoveTest do
     assert Map.keys(CalendarMove.offers([a, b])) == [a.id]
   end
 
-  describe "move/2" do
+  describe "move/3" do
     test "moves the booking and clears the flag", %{user: user, meeting: meeting} do
       {:ok, offer} = CalendarMove.offer(meeting)
 
-      assert {:ok, moved} = CalendarMove.move(meeting.id, user.id)
+      assert {:ok, moved} = CalendarMove.move(meeting.id, user.id, offer)
       assert moved.start_time == offer.start_time
       assert moved.end_time == offer.end_time
       assert moved.calendar_sync_status == nil
     end
 
-    test "uses the cached time at the moment of the move", %{
+    # The event moved again after the host was shown the offer: the booking
+    # must not land on a time the host never confirmed.
+    test "refuses when the calendar time changed after the host confirmed", %{
       user: user,
       meeting: meeting,
       event: event
@@ -178,14 +180,34 @@ defmodule Tymeslot.Meetings.CalendarMoveTest do
       later = DateTime.add(event.start_at, 1, :hour)
       change_event(event, start_at: later, end_at: DateTime.add(event.end_at, 1, :hour))
 
-      assert {:ok, moved} = CalendarMove.move(meeting.id, user.id)
+      assert CalendarMove.move(meeting.id, user.id, offer) == {:error, :offer_changed}
+
+      {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)
+      assert unchanged.start_time == meeting.start_time
+      assert unchanged.calendar_sync_status == "externally_modified"
+
+      {:ok, fresh} = CalendarMove.offer(meeting)
+      assert {:ok, moved} = CalendarMove.move(meeting.id, user.id, fresh)
       assert moved.start_time == DateTime.truncate(later, :second)
-      assert DateTime.compare(moved.start_time, offer.start_time) == :gt
+    end
+
+    test "refuses when only the end changed after the host confirmed", %{
+      user: user,
+      meeting: meeting,
+      event: event
+    } do
+      {:ok, offer} = CalendarMove.offer(meeting)
+
+      change_event(event, end_at: DateTime.add(event.end_at, 15, :minute))
+
+      assert CalendarMove.move(meeting.id, user.id, offer) == {:error, :offer_changed}
     end
 
     test "a second move is refused", %{user: user, meeting: meeting} do
-      assert {:ok, _moved} = CalendarMove.move(meeting.id, user.id)
-      assert CalendarMove.move(meeting.id, user.id) == {:error, :not_flagged}
+      {:ok, offer} = CalendarMove.offer(meeting)
+
+      assert {:ok, _moved} = CalendarMove.move(meeting.id, user.id, offer)
+      assert CalendarMove.move(meeting.id, user.id, offer) == {:error, :not_flagged}
     end
 
     test "a move onto another confirmed booking's start is refused", %{
@@ -200,7 +222,9 @@ defmodule Tymeslot.Meetings.CalendarMoveTest do
         end_time: DateTime.truncate(event.end_at, :second)
       )
 
-      assert CalendarMove.move(meeting.id, user.id) == {:error, :failed_to_update_meeting}
+      {:ok, offer} = CalendarMove.offer(meeting)
+
+      assert CalendarMove.move(meeting.id, user.id, offer) == {:error, :slot_taken}
 
       {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)
       assert unchanged.start_time == meeting.start_time
@@ -210,8 +234,9 @@ defmodule Tymeslot.Meetings.CalendarMoveTest do
 
     test "refuses another organiser's meeting", %{meeting: meeting} do
       other = insert(:user)
+      {:ok, offer} = CalendarMove.offer(meeting)
 
-      assert CalendarMove.move(meeting.id, other.id) == {:error, :not_found}
+      assert CalendarMove.move(meeting.id, other.id, offer) == {:error, :not_found}
 
       {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)
       assert unchanged.start_time == meeting.start_time

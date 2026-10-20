@@ -23,6 +23,7 @@ defmodule Tymeslot.Bookings.FollowCalendar do
 
   require Logger
 
+  alias Ecto.Changeset
   alias Tymeslot.Availability
   alias Tymeslot.Bookings.RescheduleLocation
   alias Tymeslot.Infrastructure.Logging.LogFormat
@@ -34,6 +35,10 @@ defmodule Tymeslot.Bookings.FollowCalendar do
   alias Tymeslot.Repo
   alias Tymeslot.Workers.VideoSyncWorker
 
+  # The organiser's copy of the reschedule emails says the host moved the
+  # meeting rather than naming the attendee.
+  @reschedule_opts [moved_by: :host]
+
   @doc """
   Moves `meeting` to `start_time`–`end_time`. The caller decides whether the
   meeting is eligible; this checks nothing of its own.
@@ -43,6 +48,10 @@ defmodule Tymeslot.Bookings.FollowCalendar do
   is taken. `:guard`, a function of the locked row returning `:ok` or
   `{:error, reason}`, re-runs that decision under the lock, and a refusal
   comes back as `{:error, reason}` with nothing written or sent.
+
+  `{:error, :slot_taken}` means another confirmed booking of the organiser's
+  already starts at `start_time`; any other failure to write is
+  `{:error, :failed_to_update_meeting}`.
   """
   @spec execute(MeetingSchema.t(), DateTime.t(), DateTime.t(), keyword()) ::
           {:ok, MeetingSchema.t()} | {:error, term()}
@@ -62,14 +71,30 @@ defmodule Tymeslot.Bookings.FollowCalendar do
       {:error, {:refused, reason}} ->
         {:error, reason}
 
-      {:error, reason} ->
-        Logger.warning("Failed to move the meeting to its calendar event's time",
-          meeting_id: meeting.id,
-          reason: LogFormat.reason(reason)
-        )
+      {:error, %Changeset{} = changeset} = error ->
+        if slot_taken?(changeset), do: {:error, :slot_taken}, else: failed(meeting, error)
 
-        {:error, :failed_to_update_meeting}
+      error ->
+        failed(meeting, error)
     end
+  end
+
+  defp failed(meeting, {:error, reason}) do
+    Logger.warning("Failed to move the meeting to its calendar event's time",
+      meeting_id: meeting.id,
+      reason: LogFormat.reason(reason)
+    )
+
+    {:error, :failed_to_update_meeting}
+  end
+
+  # The unique index on a confirmed booking's start time
+  # (`MeetingSchema`'s `unique_confirmed_meeting_per_organizer_at_time`).
+  defp slot_taken?(%Changeset{errors: errors}) do
+    Enum.any?(errors, fn {_field, {_message, meta}} ->
+      meta[:constraint] == :unique and
+        meta[:constraint_name] == "unique_confirmed_meeting_per_organizer_at_time"
+    end)
   end
 
   # Written as `Reschedule` writes a new time, less its conflict check: under
@@ -128,12 +153,13 @@ defmodule Tymeslot.Bookings.FollowCalendar do
   end
 
   # As after a reschedule: a room still on its way owns the emails and sends
-  # them once its join link exists (`RescheduleLocation.create_room/2`).
+  # them once its join link exists (`RescheduleLocation.create_room/3`), still
+  # saying the host moved the meeting.
   defp announce(updated, original) do
     Availability.changed(updated.organizer_user_id)
     sync_video_room(updated)
 
-    case RescheduleLocation.create_room(updated, original) do
+    case RescheduleLocation.create_room(updated, original, @reschedule_opts) do
       :scheduled -> :ok
       :not_scheduled -> send_notifications(updated, original)
     end
@@ -160,10 +186,8 @@ defmodule Tymeslot.Bookings.FollowCalendar do
     end
   end
 
-  # The organiser's copy says the host moved the meeting rather than naming
-  # the attendee (`moved_by: :host`).
   defp send_notifications(updated, original) do
-    case Events.meeting_rescheduled(updated, original, moved_by: :host) do
+    case Events.meeting_rescheduled(updated, original, @reschedule_opts) do
       {:ok, _result} ->
         Logger.info("Calendar move notifications scheduled", meeting_id: updated.id)
         :ok

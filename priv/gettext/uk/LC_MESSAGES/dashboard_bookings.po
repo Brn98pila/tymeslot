@@ -784,11 +784,6 @@ msgstr "Це бронювання більше не можна перенест�
 
 #: lib/tymeslot_web/live/dashboard/bookings_management/calendar_move.ex
 #, elixir-autogen, elixir-format
-msgid "Tymeslot could not move this booking. Another booking may already start at that time."
-msgstr "Tymeslot не вдалося перенести це бронювання. Можливо, інше бронювання вже починається в цей час."
-
-#: lib/tymeslot_web/live/dashboard/bookings_management/calendar_move.ex
-#, elixir-autogen, elixir-format
 msgid "Tymeslot is still updating your calendar for this booking. Please try again in a moment."
 msgstr "Tymeslot ще оновлює ваш календар для цього бронювання. Спробуйте ще раз за мить."
 
@@ -796,3 +791,18 @@ msgstr "Tymeslot ще оновлює ваш календар для цього �
 #, elixir-autogen, elixir-format
 msgid "Your calendar now has this meeting at %{time}. Tymeslot will move the booking there, reschedule its reminders and email %{attendee_name} and any guests the new time."
 msgstr "У вашому календарі ця зустріч тепер на %{time}. Tymeslot перенесе бронювання на цей час, перепланує його нагадування та надішле електронною поштою нову дату й час учаснику %{attendee_name} і всім гостям."
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/calendar_move.ex
+#, elixir-autogen, elixir-format
+msgid "The meeting has moved again in your calendar. Check the new time and confirm the move."
+msgstr "Зустріч знову перенесли у вашому календарі. Перевірте новий час і підтвердьте перенесення."
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/calendar_move.ex
+#, elixir-autogen, elixir-format
+msgid "Tymeslot could not move this booking. Another booking already starts at that time."
+msgstr "Tymeslot не вдалося перенести це бронювання. У цей час уже починається інше бронювання."
+
+#: lib/tymeslot_web/live/dashboard/bookings_management/calendar_move.ex
+#, elixir-autogen, elixir-format
+msgid "Tymeslot could not move this booking. Please try again."
+msgstr "Tymeslot не вдалося перенести це бронювання. Спробуйте ще раз."

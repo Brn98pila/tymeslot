@@ -134,6 +134,66 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.CalendarMoveTest do
     assert unchanged.calendar_sync_status == "externally_modified"
   end
 
+  test "a calendar time changed after the modal opened is offered again, not applied", %{
+    conn: conn,
+    profile: profile,
+    meeting: meeting,
+    event: event
+  } do
+    {:ok, view, _html} = live(conn, ~p"/dashboard/meetings")
+
+    view |> element("[phx-click=show_calendar_move_modal]") |> render_click()
+    assert render(view) =~ shown(profile, event.start_at, event.end_at)
+
+    later_start = DateTime.add(event.start_at, 1, :hour)
+    later_end = DateTime.add(event.end_at, 1, :hour)
+    event |> Changeset.change(start_at: later_start, end_at: later_end) |> Repo.update!()
+
+    view |> element("[data-testid=confirm-calendar-move]") |> render_click()
+
+    html = render(view)
+    assert html =~ "The meeting has moved again in your calendar."
+    assert html =~ "Your calendar now has this meeting at"
+    assert html =~ shown(profile, later_start, later_end)
+    refute html =~ shown(profile, event.start_at, event.end_at)
+
+    {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)
+    assert unchanged.start_time == meeting.start_time
+    assert unchanged.calendar_sync_status == "externally_modified"
+
+    view |> element("[data-testid=confirm-calendar-move]") |> render_click()
+
+    assert render(view) =~ "Booking moved to"
+    {:ok, moved} = MeetingQueries.get_meeting(meeting.id)
+    assert moved.start_time == DateTime.truncate(later_start, :second)
+  end
+
+  test "a move onto another booking's start says that booking is in the way", %{
+    conn: conn,
+    user: user,
+    meeting: meeting,
+    event: event
+  } do
+    {:ok, view, _html} = live(conn, ~p"/dashboard/meetings")
+
+    view |> element("[phx-click=show_calendar_move_modal]") |> render_click()
+
+    insert(:meeting,
+      organizer_user_id: user.id,
+      status: "confirmed",
+      start_time: DateTime.truncate(event.start_at, :second),
+      end_time: DateTime.truncate(event.end_at, :second)
+    )
+
+    view |> element("[data-testid=confirm-calendar-move]") |> render_click()
+
+    assert render(view) =~
+             "Tymeslot could not move this booking. Another booking already starts at that time."
+
+    {:ok, unchanged} = MeetingQueries.get_meeting(meeting.id)
+    assert unchanged.start_time == meeting.start_time
+  end
+
   test "a refused open refreshes the list so the stale Move button goes", %{
     conn: conn,
     meeting: meeting

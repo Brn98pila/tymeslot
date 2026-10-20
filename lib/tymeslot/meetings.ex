@@ -477,13 +477,13 @@ defmodule Tymeslot.Meetings do
   defdelegate calendar_move_offers(meetings), to: CalendarMove, as: :offers
 
   @doc """
-  Moves the organiser's booking to its calendar event's current time. See
-  `Tymeslot.Meetings.CalendarMove.move/2`.
+  Moves the organiser's booking to its calendar event's current time, provided
+  it is still the `confirmed` offer the host agreed to. See
+  `Tymeslot.Meetings.CalendarMove.move/3`.
   """
-  @spec move_to_calendar_time(String.t(), integer()) ::
-          {:ok, MeetingSchema.t()}
-          | {:error, CalendarMove.refusal() | :not_found | :failed_to_update_meeting}
-  defdelegate move_to_calendar_time(meeting_id, organizer_user_id),
+  @spec move_to_calendar_time(String.t(), integer(), CalendarMove.offer()) ::
+          {:ok, MeetingSchema.t()} | {:error, CalendarMove.move_error()}
+  defdelegate move_to_calendar_time(meeting_id, organizer_user_id, confirmed),
     to: CalendarMove,
     as: :move
 

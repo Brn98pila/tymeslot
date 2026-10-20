@@ -6,9 +6,10 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.CalendarMove do
   Split out of `BookingsManagementComponent` to keep that module inside the
   size limit. Whether a move is allowed is `Tymeslot.Meetings`' decision; this
   module opens the confirmation from a fresh offer, so the host agrees to the
-  time the calendar has now rather than the one the list was drawn with, and
-  turns the outcome into a flash. The reload is passed in because the list
-  belongs to the component.
+  time the calendar has now rather than the one the list was drawn with,
+  moves the booking only to the time the dialog showed, and turns the outcome
+  into a flash. The reload is passed in because the list belongs to the
+  component.
   """
 
   use Gettext, backend: TymeslotWeb.Gettext
@@ -34,12 +35,13 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.CalendarMove do
   def show(socket, params, reload) when is_function(reload, 1) do
     user_id = socket.assigns.current_user.id
 
-    with {:ok, id} <- cast_id(params),
-         {:ok, meeting} <- Meetings.get_meeting_for_organizer(id, user_id),
-         {:ok, offer} <- Meetings.calendar_move_offer(meeting) do
-      emit(user_id, meeting.id, :open, :ok)
-      ModalHook.show_modal(socket, :calendar_move, %{meeting: meeting, offer: offer})
-    else
+    case cast_id(params) do
+      {:ok, id} ->
+        case open(socket, id, user_id) do
+          {:ok, socket} -> socket
+          {:error, socket} -> reload.(socket)
+        end
+
       {:error, reason} ->
         emit(user_id, requested_id(params), :open, reason)
         Flash.error(refusal_message(reason))
@@ -47,10 +49,26 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.CalendarMove do
     end
   end
 
+  # The confirmation from a fresh offer, or the dialog closed with the reason
+  # it cannot open.
+  defp open(socket, meeting_id, user_id) do
+    with {:ok, meeting} <- Meetings.get_meeting_for_organizer(meeting_id, user_id),
+         {:ok, offer} <- Meetings.calendar_move_offer(meeting) do
+      emit(user_id, meeting.id, :open, :ok)
+      {:ok, ModalHook.show_modal(socket, :calendar_move, %{meeting: meeting, offer: offer})}
+    else
+      {:error, reason} ->
+        emit(user_id, meeting_id, :open, reason)
+        Flash.error(refusal_message(reason))
+        {:error, ModalHook.hide_modal(socket, :calendar_move)}
+    end
+  end
+
   @doc """
-  Moves the booking to the calendar's time as it is now and settles the dialog:
-  closed and the list refreshed whatever the outcome, since a refused move
-  means the card on screen is out of date.
+  Moves the booking to the time the dialog showed and settles it: the list is
+  refreshed whatever the outcome, since a refused move means the card on
+  screen is out of date. The dialog closes, unless the calendar time changed
+  again since it opened: then it shows the new time for the host to confirm.
   """
   @spec confirm(Phoenix.LiveView.Socket.t(), (Phoenix.LiveView.Socket.t() ->
                                                 Phoenix.LiveView.Socket.t())) ::
@@ -65,16 +83,16 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.CalendarMove do
 
       :ok ->
         {:noreply, socket} =
-          ModalHook.with_modal_data(socket, :calendar_move, fn %{meeting: meeting} ->
-            {:noreply, move(socket, meeting.id, user_id, reload)}
+          ModalHook.with_modal_data(socket, :calendar_move, fn %{meeting: meeting, offer: offer} ->
+            {:noreply, move(socket, meeting.id, user_id, offer, reload)}
           end)
 
         socket
     end
   end
 
-  defp move(socket, meeting_id, user_id, reload) do
-    case Meetings.move_to_calendar_time(meeting_id, user_id) do
+  defp move(socket, meeting_id, user_id, offer, reload) do
+    case Meetings.move_to_calendar_time(meeting_id, user_id, offer) do
       {:ok, moved} ->
         emit(user_id, meeting_id, :confirm, :ok)
 
@@ -84,14 +102,22 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.CalendarMove do
           )
         )
 
+        socket |> reload.() |> ModalHook.hide_modal(:calendar_move)
+
+      # The event moved again while the dialog was open. Its new time is
+      # offered afresh; should it no longer be movable at all, `open/3` says
+      # why instead.
+      {:error, :offer_changed} ->
+        emit(user_id, meeting_id, :confirm, :offer_changed)
+        Flash.warning(refusal_message(:offer_changed))
+        {_opened_or_closed, socket} = socket |> reload.() |> open(meeting_id, user_id)
+        socket
+
       {:error, reason} ->
         emit(user_id, meeting_id, :confirm, reason)
         Flash.error(refusal_message(reason))
+        socket |> reload.() |> ModalHook.hide_modal(:calendar_move)
     end
-
-    socket
-    |> reload.()
-    |> ModalHook.hide_modal(:calendar_move)
   end
 
   defp time_phrase(socket, times) do
@@ -123,12 +149,22 @@ defmodule TymeslotWeb.Dashboard.BookingsManagement.CalendarMove do
     )
   end
 
-  # The unique index on a confirmed booking's start time.
-  defp refusal_message(:failed_to_update_meeting) do
+  defp refusal_message(:offer_changed) do
     dgettext(
       "dashboard_bookings",
-      "Tymeslot could not move this booking. Another booking may already start at that time."
+      "The meeting has moved again in your calendar. Check the new time and confirm the move."
     )
+  end
+
+  defp refusal_message(:slot_taken) do
+    dgettext(
+      "dashboard_bookings",
+      "Tymeslot could not move this booking. Another booking already starts at that time."
+    )
+  end
+
+  defp refusal_message(:failed_to_update_meeting) do
+    dgettext("dashboard_bookings", "Tymeslot could not move this booking. Please try again.")
   end
 
   defp refusal_message(_reason) do

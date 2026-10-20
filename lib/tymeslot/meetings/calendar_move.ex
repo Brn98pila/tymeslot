@@ -5,7 +5,7 @@ defmodule Tymeslot.Meetings.CalendarMove do
   When the host drags a booked meeting to another time in their own calendar,
   sync flags the booking `"externally_modified"`. This module decides whether
   the booking can follow the event (`offer/1`), at what time, and performs the
-  move (`move/2`).
+  move (`move/3`).
 
   The offer is a cheap, honest rule: it is made only when the cached event
   gives an unambiguous new time. Each refusal exists because following the
@@ -29,13 +29,18 @@ defmodule Tymeslot.Meetings.CalendarMove do
   - `:unchanged` — the event already sits at the booking's time.
   - `:in_past` — a booking is never moved to a start that has passed.
 
+  `move/3` adds one of its own: `:offer_changed`, the calendar time is no
+  longer the one the host confirmed.
+
   Nothing here checks availability, buffers, notice or booking limits: the
   host moved the event themselves, so the booking follows it. And nothing is
   written back to the calendar; the event is already where the host put it.
 
-  `move/2` takes a fresh offer instead of trusting a time handed in, so a
-  click always applies the cache as it is now, and re-checks the booking
-  under its row lock before writing, so a second confirm of an
+  `move/3` takes a fresh offer instead of trusting a time handed in, and
+  moves the booking only when that offer is the time the host confirmed: the
+  event may have moved again since the host was shown it, and the booking
+  must never land on a time the host did not agree to. It then re-checks the
+  booking under its row lock before writing, so a second confirm of an
   already-moved booking (the move clears the flag) is refused as
   `:not_flagged`, and so is a move racing an attendee's reschedule.
   """
@@ -64,6 +69,8 @@ defmodule Tymeslot.Meetings.CalendarMove do
           | :invalid_times
           | :unchanged
           | :in_past
+  @type move_error ::
+          refusal() | :offer_changed | :not_found | :slot_taken | :failed_to_update_meeting
 
   @doc """
   The time `meeting` can follow its calendar event to, or why it cannot.
@@ -92,18 +99,32 @@ defmodule Tymeslot.Meetings.CalendarMove do
   end
 
   @doc """
-  Moves the organiser's booking to its calendar event's current time.
+  Moves the organiser's booking to its calendar event's current time, which
+  must be `confirmed`, the offer the host agreed to.
 
   The meeting is loaded through the organiser, so another user's id is
-  `:not_found`, and the offer is taken afresh rather than passed in.
+  `:not_found`. The offer is taken afresh, and a fresh offer that differs from
+  `confirmed` is `:offer_changed`: the host is asked again rather than moved
+  to a time they never saw.
   """
-  @spec move(String.t(), integer()) ::
-          {:ok, MeetingSchema.t()} | {:error, refusal() | :not_found | :failed_to_update_meeting}
-  def move(meeting_id, organizer_user_id) do
+  @spec move(String.t(), integer(), offer()) :: {:ok, MeetingSchema.t()} | {:error, move_error()}
+  def move(
+        meeting_id,
+        organizer_user_id,
+        %{start_time: %DateTime{}, end_time: %DateTime{}} = confirmed
+      ) do
     with {:ok, meeting} <- MeetingQueries.get_meeting_for_organizer(meeting_id, organizer_user_id),
-         {:ok, %{start_time: start_time, end_time: end_time}} <- offer(meeting) do
-      FollowCalendar.execute(meeting, start_time, end_time, guard: &check_meeting/1)
+         {:ok, offer} <- offer(meeting),
+         :ok <- check_confirmed(offer, confirmed) do
+      FollowCalendar.execute(meeting, offer.start_time, offer.end_time, guard: &check_meeting/1)
     end
+  end
+
+  defp check_confirmed(offer, confirmed) do
+    if DateTime.compare(offer.start_time, confirmed.start_time) == :eq and
+         DateTime.compare(offer.end_time, confirmed.end_time) == :eq,
+       do: :ok,
+       else: {:error, :offer_changed}
   end
 
   # The checks that need only the struct, cheapest first.
