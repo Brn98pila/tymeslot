@@ -8,7 +8,8 @@ defmodule Tymeslot.Migrations.LowerUnprovenTymeslotOwnershipOnCachedEventsTest d
   The decisive properties: a flagged row with neither a Tymeslot UID nor a
   meeting is lowered, and nothing that can prove its ownership is: a
   grid-created event (or one instance of its series), a booking matched by
-  UID or by provider event id, even through another integration, and every
+  UID or by provider event id in either of the meeting's two fields, even
+  through another integration, and every
   Google or Outlook row, whose flag the provider's marker decides.
   """
 
@@ -77,6 +78,36 @@ defmodule Tymeslot.Migrations.LowerUnprovenTymeslotOwnershipOnCachedEventsTest d
 
     assert flag(by_uid)
     assert flag(by_href)
+  end
+
+  test "keeps a booking whose identifier the meeting holds in the other field",
+       %{user: user, caldav: caldav} do
+    insert(:meeting, organizer_user_id: user.id, calendar_uid: "uid-held-as-href")
+
+    insert(:meeting,
+      organizer_user_id: user.id,
+      provider_event_id: "href-held-as-uid",
+      start_time: DateTime.add(DateTime.utc_now(:second), 2, :day),
+      end_time: DateTime.add(DateTime.utc_now(:second), 2 * 86_400 + 3600, :second)
+    )
+
+    by_meeting_uid = cached!(caldav, uid: "unrelated-uid", provider_event_id: "uid-held-as-href")
+    by_meeting_href = cached!(caldav, uid: "href-held-as-uid", provider_event_id: "/cal/x.ics")
+
+    MigrationRunner.replay!(@version)
+
+    assert flag(by_meeting_uid)
+    assert flag(by_meeting_href)
+  end
+
+  test "does not match a blank UID against a meeting's blank calendar UID",
+       %{user: user, caldav: caldav} do
+    insert(:meeting, organizer_user_id: user.id, calendar_uid: " ")
+    foreign = cached!(caldav, uid: " ", provider_event_id: "/cal/blank.ics")
+
+    MigrationRunner.replay!(@version)
+
+    refute flag(foreign)
   end
 
   test "keeps a booking whose meeting was written through another integration",

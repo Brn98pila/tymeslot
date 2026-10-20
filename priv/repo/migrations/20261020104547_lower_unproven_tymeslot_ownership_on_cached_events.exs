@@ -14,7 +14,8 @@ defmodule Tymeslot.Repo.Migrations.LowerUnprovenTymeslotOwnershipOnCachedEvents 
   provable from it: a cached event is Tymeslot's when its UID is one Tymeslot
   generated (`…@tymeslot.com`, which the grid's creates and the iCalendar
   normaliser's own check both rely on) or when a meeting shares one of its
-  identifiers (the rule `Tymeslot.Integrations.Calendar.Sync` raises the flag
+  identifiers, any of the row's UID and provider event id against any of the
+  meeting's (the rule `Tymeslot.Integrations.Calendar.Sync` raises the flag
   by). A flagged row with neither is lowered; every other row is left alone.
 
   Two choices keep it on the safe side, since a wrongly lowered booking would
@@ -42,11 +43,22 @@ defmodule Tymeslot.Repo.Migrations.LowerUnprovenTymeslotOwnershipOnCachedEvents 
   """
   use Ecto.Migration
 
-  # A one-off data repair, which is the whole of the migration. The UPDATE
-  # touches only flagged rows, which are a small fraction of the cache.
+  # A one-off data repair, which is the whole of the migration. It reads only
+  # flagged rows outside Google and Outlook, which on an install that used
+  # the CalDAV grid can be a sizeable share of that provider's cache, so the
+  # meeting match is written as one `NOT EXISTS` per pair of columns: each is
+  # a plain equality, which PostgreSQL plans as an anti-join (by the unique
+  # index on `meetings.calendar_uid`, or a single hashed pass over `meetings`
+  # for `provider_event_id`, whose only index leads with the integration this
+  # match deliberately ignores), where one `NOT EXISTS` over an `OR` would be
+  # a scan of `meetings` per row.
   # excellent_migrations:safety-assured-for-this-file raw_sql_executed
   # excellent_migrations:safety-assured-for-this-file operation_update
 
+  # A cached event and a meeting are linked when any identifier of one equals
+  # any identifier of the other (`Tymeslot.Meetings.CalendarEventLink`), and
+  # a blank identifier links nothing. Guarding the meeting side is enough:
+  # an equal row-side value is then not blank either.
   def up do
     execute("""
     UPDATE provider_calendar_events AS e
@@ -57,11 +69,20 @@ defmodule Tymeslot.Repo.Migrations.LowerUnprovenTymeslotOwnershipOnCachedEvents 
       AND ci.provider NOT IN ('google', 'outlook')
       AND e.uid NOT LIKE '%@tymeslot.com%'
       AND NOT EXISTS (
-        SELECT 1
-        FROM meetings AS m
-        WHERE m.calendar_uid = e.uid
-           OR (btrim(coalesce(e.provider_event_id, '')) <> ''
-               AND m.provider_event_id = e.provider_event_id)
+        SELECT 1 FROM meetings AS m
+        WHERE m.calendar_uid = e.uid AND btrim(m.calendar_uid) <> ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM meetings AS m
+        WHERE m.calendar_uid = e.provider_event_id AND btrim(m.calendar_uid) <> ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM meetings AS m
+        WHERE m.provider_event_id = e.uid AND btrim(m.provider_event_id) <> ''
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM meetings AS m
+        WHERE m.provider_event_id = e.provider_event_id AND btrim(m.provider_event_id) <> ''
       )
     """)
   end
