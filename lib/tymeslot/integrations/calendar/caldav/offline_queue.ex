@@ -296,9 +296,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueue do
   #
   # A live event is recreated only when a meeting that still expects its
   # calendar event claims the row. The `created_by_tymeslot` flag cannot gate
-  # this: `QueueWiring.tag/3` stamps it on every write it queues, including an
-  # organiser's grid edit of an event Tymeslot never created, so recreating on
-  # the flag would resurrect somebody else's deletion. Resolving against the
+  # this: it is also set on an event the organiser created from the grid, and
+  # on one a sync once read as Tymeslot's, so recreating on the flag would
+  # resurrect a deletion nobody here asked to undo. Resolving against the
   # meeting itself is the rule the grid and the reconciler already use. A
   # create racing another writer comes back `:precondition_failed`, which
   # records a failure and leaves the row queued — the next cycle then finds

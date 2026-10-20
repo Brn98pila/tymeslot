@@ -162,9 +162,9 @@ defmodule Tymeslot.Integrations.Calendar.CalDAV.OfflineQueueTest do
     # gets a 404, falls back to `If-Match: *`, and reads the resulting 412 as
     # absence rather than conflict once a GET has confirmed it.
     #
-    # `QueueWiring.tag/3` also stamps `created_by_tymeslot: true` on every row
-    # it queues, so the flag is set throughout: what decides a recreate is the
-    # meeting behind the row, never the flag.
+    # The flag is set throughout, as `QueueWiring.tag/3` sets it on a queued
+    # booking: what decides a recreate is the meeting behind the row, never
+    # the flag.
     @future_start DateTime.utc_now() |> DateTime.add(2, :day) |> DateTime.truncate(:second)
     @future_end DateTime.add(@future_start, 1, :hour)
 
