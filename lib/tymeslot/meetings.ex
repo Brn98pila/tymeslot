@@ -561,6 +561,13 @@ defmodule Tymeslot.Meetings do
     as: :list_by_calendar_identifiers
 
   @doc """
+  Returns the subset of `identifiers` carried by any meeting the organiser
+  `organizer_user_id` organises, in any status and through any integration.
+  """
+  defdelegate organizer_calendar_identifiers(organizer_user_id, identifiers),
+    to: MeetingCalendarQueries
+
+  @doc """
   Returns the non-blank identifiers by which `record` — a meeting or a cached
   provider calendar event — is matched to its counterpart on the other side.
   """
