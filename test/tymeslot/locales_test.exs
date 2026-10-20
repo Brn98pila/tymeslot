@@ -265,7 +265,7 @@ defmodule Tymeslot.LocalesTest do
     end
 
     test "skips absent and unsupported candidates instead of stopping at them" do
-      assert Locales.resolve([nil, "es", "", "it"], "en") == "it"
+      assert Locales.resolve([nil, "ja", "", "it"], "en") == "it"
     end
 
     test "returns the fallback when nothing is acceptable" do

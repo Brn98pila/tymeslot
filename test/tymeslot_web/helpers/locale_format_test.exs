@@ -42,7 +42,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormatTest do
 
     test "falls back to English for unknown locale" do
       date = ~D[2026-03-15]
-      assert LocaleFormat.format_date(date, "es") == "15 March 2026"
+      assert LocaleFormat.format_date(date, "ja") == "15 March 2026"
     end
   end
 
@@ -94,7 +94,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormatTest do
 
     test "falls back to English for unknown locale" do
       time = ~T[14:30:00]
-      assert LocaleFormat.format_time(time, "es") == "02:30 PM"
+      assert LocaleFormat.format_time(time, "ja") == "02:30 PM"
     end
   end
 
@@ -149,7 +149,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormatTest do
     end
 
     test "falls back to English for unknown locale" do
-      months = LocaleFormat.get_month_names("es")
+      months = LocaleFormat.get_month_names("ja")
       assert Enum.at(months, 0) == "January"
     end
   end
@@ -181,7 +181,7 @@ defmodule TymeslotWeb.Helpers.LocaleFormatTest do
     end
 
     test "falls back to English for unknown locale in short format" do
-      months = LocaleFormat.get_month_names("es", :short)
+      months = LocaleFormat.get_month_names("ja", :short)
       assert Enum.at(months, 0) == "Jan"
       assert Enum.at(months, 11) == "Dec"
     end
