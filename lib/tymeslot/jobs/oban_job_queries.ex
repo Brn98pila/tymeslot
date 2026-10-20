@@ -455,8 +455,33 @@ defmodule Tymeslot.Jobs.ObanJobQueries do
     Repo.exists?(
       from(j in Job,
         where: j.worker == ^worker_name,
-        where: j.state in ["available", "scheduled", "executing", "retryable", "suspended"],
+        where: j.state in ^@incomplete_states,
         where: fragment("?->>'meeting_id' = ?", j.args, ^to_string(meeting_id))
+      )
+    )
+  end
+
+  @doc """
+  Whether a job of `worker` for `meeting_id` is still pending (as
+  `pending_meeting_job?/2` asks) or completed at or after `since`.
+
+  A caller holding a copy of something the worker writes, read from the outside
+  world starting at `since`, uses it to tell whether that copy may predate the
+  worker's latest write: a job that completed while the copy was being read can
+  have landed after the part that matters was read. Discarded and cancelled
+  jobs wrote nothing, so they never count.
+  """
+  @spec meeting_job_since?(module() | String.t(), term(), DateTime.t()) :: boolean()
+  def meeting_job_since?(worker, meeting_id, %DateTime{} = since) do
+    worker_name = normalize_worker_name(worker)
+
+    Repo.exists?(
+      from(j in Job,
+        where: j.worker == ^worker_name,
+        where: fragment("?->>'meeting_id' = ?", j.args, ^to_string(meeting_id)),
+        where:
+          j.state in ^@incomplete_states or
+            (j.state == "completed" and j.completed_at >= ^since)
       )
     )
   end

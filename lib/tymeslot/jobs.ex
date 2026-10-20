@@ -109,6 +109,13 @@ defmodule Tymeslot.Jobs do
   defdelegate pending_meeting_job?(worker, meeting_id), to: ObanJobQueries
 
   @doc """
+  Whether a job of `worker` for one meeting is still pending, or completed at
+  or after `since`. Lets a caller holding a copy of what the worker writes, read
+  from `since` on, tell that the copy may predate the worker's latest write.
+  """
+  defdelegate meeting_job_since?(worker, meeting_id, since), to: ObanJobQueries
+
+  @doc """
   Deletes every pending job naming the user id or one of the meeting ids. See
   `Tymeslot.Jobs.ObanJobQueries.delete_pending_account_jobs/2`.
   """

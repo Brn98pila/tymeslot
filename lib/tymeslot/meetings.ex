@@ -495,12 +495,16 @@ defmodule Tymeslot.Meetings do
   detects that a provider event linked to a meeting changed externally.
   Owns all meeting-side consequences: sync-status updates, auto-cancellation
   on external deletion, and host notifications.
+
+  `snapshot_at:` is when the read that saw the change began; see
+  `Tymeslot.Meetings.ExternalCalendarChanges.apply_change/5`.
   """
   defdelegate apply_external_calendar_change(
                 calendar_integration_id,
                 provider_event_id,
                 uid,
-                signal
+                signal,
+                opts \\ []
               ),
               to: ExternalCalendarChanges,
               as: :apply_change
