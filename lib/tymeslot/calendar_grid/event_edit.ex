@@ -25,7 +25,9 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
   update is a `PATCH` and a patched CalDAV document keeps what the payload
   leaves out, so on those writes the guest list is sent only by an edit that
   changes it: a Graph `PATCH` that carries attendees resets every reply, and
-  a CalDAV write that carries them states the new complete list.
+  a CalDAV write that carries them states the new complete list. Reminders
+  are the other, on a patched CalDAV document only: the sync does not read
+  its alarms, so the cached list is empty and would delete them all.
 
   ## Recurring events
 
@@ -200,7 +202,7 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
     with :single <- Occurrence.series_family(stored || event),
          {:ok, updated} <- apply_changes(event, changes, opts),
          {:ok, payload} <- ProviderPayload.from_event(updated),
-         payload = payload |> put_stored_document(stored) |> scope_attendees(event, changes),
+         payload = payload |> put_stored_document(stored) |> scope_merged_fields(event, changes),
          :queued <- queue_retry(:queue_recoverable, user_id, updated, payload, :not_written) do
       {:ok, updated}
     else
@@ -264,7 +266,7 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
            |> maybe_put_conference(Keyword.get(opts, :conference_data))
            |> ProviderPayload.put_series_zone(Keyword.get(opts, :timezone))
            |> put_stored_document(stored)
-           |> scope_attendees(event, changes)
+           |> scope_merged_fields(event, changes)
            |> address.() do
       write_to_provider(user_id, event, updated, payload, retry, answered)
     else
@@ -327,6 +329,12 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
   # guests off the event. So those writes carry attendees only when the edit
   # changes them. A CalDAV event with no stored document is rebuilt from the
   # payload, not patched, and keeps the whole list.
+  defp scope_merged_fields(payload, event, changes) do
+    payload
+    |> scope_attendees(event, changes)
+    |> scope_reminders(event, changes)
+  end
+
   defp scope_attendees(payload, _event, %{attendees: _attendees}), do: payload
 
   defp scope_attendees(payload, event, _changes) do
@@ -336,11 +344,28 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
   end
 
   defp merges_attendees?(provider, _payload) when provider in [:outlook, "outlook"], do: true
+  defp merges_attendees?(provider, payload), do: patches_document?(provider, payload)
 
-  defp merges_attendees?(provider, %{raw_ical: _stored_document}),
+  # The sync never reads a CalDAV event's VALARMs, so its cached reminders are
+  # `[]` whatever the server holds, and the patcher replaces every VALARM
+  # whenever the payload carries `:reminders`. Sending them with an edit that
+  # is not about reminders would delete each alarm on the organiser's server.
+  # A patched document keeps the alarms a payload leaves out, so those writes
+  # carry reminders only when the edit changes them. Google and Outlook read
+  # their reminders back on sync and treat a missing key as a reset (Google's
+  # calendar defaults, Outlook's reminder switched off), so they keep it.
+  defp scope_reminders(payload, _event, %{reminders: _reminders}), do: payload
+
+  defp scope_reminders(payload, event, _changes) do
+    if patches_document?(Map.get(event, :provider), payload),
+      do: Map.delete(payload, :reminders),
+      else: payload
+  end
+
+  defp patches_document?(provider, %{raw_ical: _stored_document}),
     do: ProviderConfig.caldav_based?(provider)
 
-  defp merges_attendees?(_provider, _payload), do: false
+  defp patches_document?(_provider, _payload), do: false
 
   defp write_to_provider(user_id, event, updated, payload, retry, answered) do
     case CalendarEvents.update_event(event.uid, payload, {event.calendar_integration_id, user_id}) do
