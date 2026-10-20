@@ -297,11 +297,26 @@ defmodule Tymeslot.CalendarGrid.EventEdit do
   # assigned and may be an optimistic copy built from a form: a payload that
   # quietly arrived without a document would be rebuilt, which is the loss
   # this exists to prevent.
-  defp put_stored_document(payload, %{raw_ical: raw_ical} = row)
+  #
+  # The row also says whose event it is, which decides whether the write
+  # marks it as Tymeslot's, and holds the raw Google event, whose unmodelled
+  # fields a Google `PUT` has to restate.
+  defp put_stored_document(payload, nil), do: payload
+
+  defp put_stored_document(payload, row) do
+    payload
+    |> Map.merge(%{
+      created_by_tymeslot: row.created_by_tymeslot,
+      provider_metadata: row.provider_metadata
+    })
+    |> put_raw_ical(row)
+  end
+
+  defp put_raw_ical(payload, %{raw_ical: raw_ical} = row)
        when is_binary(raw_ical) and raw_ical != "",
        do: Map.merge(payload, %{raw_ical: raw_ical, etag: row.etag})
 
-  defp put_stored_document(payload, _never_synced), do: payload
+  defp put_raw_ical(payload, _no_document), do: payload
 
   # Google's `events.update` is a `PUT`, so its payload has to carry the guest
   # list on every write or the guests are deleted. Outlook's `PATCH` and a
