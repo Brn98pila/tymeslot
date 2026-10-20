@@ -103,6 +103,19 @@ defmodule Tymeslot.Emails.ExternalBookingChangeTest do
       refute email.text_body =~ "<strong>"
     end
 
+    # Not every flagged booking can follow its event (an all-day event, one
+    # moved into the past, one missing from the cache), so the copy must not
+    # leave the host looking for a button that is not there.
+    test "a rescheduled one-to-one meeting says what to do without Move booking" do
+      meeting = build_meeting()
+
+      email =
+        ExternalBookingChange.render(meeting, "john@example.com", :modified, "Europe/London")
+
+      assert email.html_body =~ "send the attendee a reschedule request"
+      assert email.text_body =~ "send the attendee a reschedule request"
+    end
+
     test "the text body of a rescheduled one-to-one meeting keeps apostrophes unencoded" do
       host = insert(:user, locale: "it")
       meeting = build_meeting(%{organizer_user_id: host.id})
