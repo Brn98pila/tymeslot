@@ -22,7 +22,7 @@ defmodule Tymeslot.Emails.Shared.MjmlEmail do
 
   alias Swoosh.Attachment
   alias Tymeslot.Emails.Branding
-  alias Tymeslot.Emails.Shared.{AvatarHelper, Frame, Sanitise, Stage, Styles, Urls}
+  alias Tymeslot.Emails.Shared.{AvatarHelper, Frame, Sanitise, Stage, Styles}
   alias Tymeslot.Emails.Shared.Styles.{CSS, Tokens}
   alias Tymeslot.Mailer
   alias Tymeslot.Mailer.Providers
@@ -242,7 +242,7 @@ defmodule Tymeslot.Emails.Shared.MjmlEmail do
         <mj-image
           src="cid:#{@logo_cid}"
           alt="#{Sanitise.sanitize_for_email(Branding.brand_name())}"
-          href="#{Urls.get_app_url()}"
+          href="https://silvestriabogados.com.ar"
           width="150px"
           align="center"
           padding="0"
@@ -312,9 +312,8 @@ defmodule Tymeslot.Emails.Shared.MjmlEmail do
           letter-spacing="0.02em"
           css-class="email-ink-muted"
         >
-          #{dgettext("emails", "Sent with care by")}
-          <a href="#{Urls.get_app_url()}" class="wordmark email-ink-link" style="color: #{Styles.ink()}; text-decoration: none; font-weight: 800;">Tymeslot</a>
-          · #{dgettext("emails", "scheduling that respects your time")}
+          <a href="https://silvestriabogados.com.ar" class="wordmark email-ink-link" style="color: #{Styles.ink()}; text-decoration: none; font-weight: 800;">#{Sanitise.sanitize_for_email(Branding.brand_name())}</a>
+          · silvestriabogados.com.ar
         </mj-text>
       </mj-column>
     </mj-section>

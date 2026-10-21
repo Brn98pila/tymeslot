@@ -16,7 +16,7 @@ defmodule Tymeslot.Emails.Shared.Layouts do
   """
 
   alias Tymeslot.Emails.Branding
-  alias Tymeslot.Emails.Shared.{Frame, MjmlEmail, Sanitise, Stage, Styles, Urls}
+  alias Tymeslot.Emails.Shared.{Frame, MjmlEmail, Sanitise, Stage, Styles}
 
   use Gettext, backend: TymeslotWeb.Gettext
 
@@ -94,7 +94,7 @@ defmodule Tymeslot.Emails.Shared.Layouts do
           line-height="1.7"
           letter-spacing="0.02em"
         >
-          © #{Date.utc_today().year} <a href="#{Urls.get_app_url()}" class="wordmark" style="color: #{Styles.ink()}; text-decoration: none; font-weight: 800;">Tymeslot</a> · #{dgettext("emails", "scheduling that respects your time")}
+          © #{Date.utc_today().year} <a href="https://silvestriabogados.com.ar" class="wordmark" style="color: #{Styles.ink()}; text-decoration: none; font-weight: 800;">#{Sanitise.sanitize_for_email(Branding.brand_name())}</a> · silvestriabogados.com.ar
         </mj-text>
       </mj-column>
     </mj-section>
