@@ -52,3 +52,6 @@
 @import "../../shared/components/payment-pages.css";
 @import "../../shared/components/language-switcher.css";
 @import "./modules/language-switcher.css";
+
+/* Instancia propia: piel de Silvestri Abogados (va última, gana por orden). */
+@import "./modules/silvestri.css";
