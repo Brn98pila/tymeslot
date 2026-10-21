@@ -2,7 +2,7 @@
    Silvestri Abogados — piel de la agenda sobre Quill (instancia propia)
 
    La agenda toma la estética de silvestriabogados.com.ar: azul marino y
-   crema, Playfair Display en los títulos, Montserrat en el texto, esquinas
+   crema, Montserrat en toda la agenda, esquinas
    rectas y botones en mayúsculas espaciadas. Incrustada, llena el recuadro
    donde la pone el sitio y centra cada paso en el alto disponible.
 
@@ -12,42 +12,6 @@
    ========================================================================== */
 
 /* ---- Tipografías (autoalojadas, OFL; ver priv/static/fonts/OFL-*.txt) ---- */
-
-@font-face {
-  font-family: "Playfair Display Variable";
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url("/fonts/playfair-display-latin-ext-wght-normal.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-  font-family: "Playfair Display Variable";
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url("/fonts/playfair-display-latin-wght-normal.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: "Playfair Display Variable";
-  font-style: italic;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url("/fonts/playfair-display-latin-ext-wght-italic.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-  font-family: "Playfair Display Variable";
-  font-style: italic;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url("/fonts/playfair-display-latin-wght-italic.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
 
 @font-face {
   font-family: "Montserrat Variable";
@@ -84,7 +48,7 @@
   --silv-embed-min-height: 700px;
 
   --font-stack-silvestri: "Montserrat Variable", "Montserrat", var(--font-system-sans);
-  --font-heading-silvestri: "Playfair Display Variable", "Playfair Display", var(--font-system-serif);
+  --font-heading-silvestri: var(--font-stack-silvestri);
   --theme-font-family: var(--font-stack-silvestri);
   --theme-font-heading: var(--font-heading-silvestri);
 
@@ -263,8 +227,8 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 
 .quill-theme-wrapper .step-circle span {
   font-family: var(--theme-font-heading);
-  font-weight: 400 !important;
-  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  font-size: 0.8rem !important;
 }
 
 .quill-theme-wrapper .step-circle--active,
@@ -293,23 +257,22 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 
 .quill-theme-wrapper :is(h1, h2, h3, .overview-title, .section-header, .duration-card-title, .slot-list__heading, .booking-heading, .confirmation-title) {
   font-family: var(--theme-font-heading) !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   letter-spacing: 0 !important;
   color: var(--silv-cream) !important;
   text-shadow: none !important;
 }
 
 .quill-theme-wrapper :is(.overview-title, .schedule-title, .booking-heading, .confirmation-title) {
-  font-style: italic;
   line-height: 1.15;
 }
 
 .quill-theme-wrapper .overview-title {
-  font-size: clamp(2rem, 6cqi, 2.75rem) !important;
+  font-size: clamp(1.75rem, 5cqi, 2.25rem) !important;
 }
 
 .quill-theme-wrapper :is(.schedule-title, .booking-heading, .confirmation-title) {
-  font-size: clamp(1.5rem, 4.5cqi, 2rem) !important;
+  font-size: clamp(1.3rem, 3.8cqi, 1.65rem) !important;
 }
 
 .quill-theme-wrapper :is(.overview-description, .profile-intro__headline, .profile-intro__bio, .schedule-advance-notice, .booking-subtitle, .confirmation-subtitle) {
@@ -495,8 +458,7 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .calendar-slots-container {
 /* ---- Horarios ------------------------------------------------------------- */
 
 .quill-theme-wrapper .slot-list__heading {
-  font-size: 1.15rem !important;
-  font-style: italic;
+  font-size: 1.05rem !important;
 }
 
 .quill-theme-wrapper .slot-list__period-label {
