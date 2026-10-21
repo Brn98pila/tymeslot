@@ -1,8 +1,8 @@
 /* ==========================================================================
    Silvestri Abogados — piel de la agenda sobre Quill (instancia propia)
 
-   La agenda toma la estética de silvestriabogados.com.ar: azul marino y
-   crema, Montserrat en toda la agenda, esquinas
+   La agenda toma la estética de silvestriabogados.com.ar: fondo crema, texto
+   carbón y el azul del estudio para lo que se elige, Montserrat en toda la agenda, esquinas
    rectas y botones en mayúsculas espaciadas. Incrustada, llena el recuadro
    donde la pone el sitio y centra cada paso en el alto disponible.
 
@@ -34,15 +34,36 @@
 /* ---- Tokens ------------------------------------------------------------- */
 
 :root:root {
-  --silv-navy: #1d233b;
-  --silv-cream: #fdfdf1;
-  --silv-cream-80: rgba(253, 253, 241, 0.8);
-  --silv-cream-65: rgba(253, 253, 241, 0.65);
-  --silv-cream-40: rgba(253, 253, 241, 0.4);
-  --silv-cream-25: rgba(253, 253, 241, 0.25);
-  --silv-cream-12: rgba(253, 253, 241, 0.12);
-  --silv-cream-06: rgba(253, 253, 241, 0.06);
-  --silv-danger: #f2a7a0;
+  /* Paleta del estudio: crema de fondo, carbón para el texto y el azul
+     Silvestri para lo que se elige (día, horario, botón principal). */
+  --silv-carbon: #1c1c17;
+  --silv-azul: #1d233b;
+  --silv-crema: #fdfdf1;
+  --silv-gris-texto: #4d4a4a;
+
+  --silv-bg: var(--silv-crema);
+  --silv-fg: var(--silv-carbon);
+  --silv-fg-80: var(--silv-gris-texto);
+  --silv-fg-65: rgba(28, 28, 23, 0.62);
+  --silv-fg-40: rgba(28, 28, 23, 0.4);
+  --silv-fg-25: rgba(28, 28, 23, 0.2);
+  --silv-fg-12: rgba(28, 28, 23, 0.08);
+  --silv-fg-06: rgba(28, 28, 23, 0.04);
+  --silv-fill: var(--silv-azul);
+  --silv-fill-hover: #2a3252;
+  --silv-on-fill: var(--silv-crema);
+  --silv-danger: #9a3b2f;
+  /* Quill escribe el texto en blanco con estas opacidades; pasan a carbón. */
+  --text-opacity-high: var(--silv-fg);
+  --text-opacity-medium-high: var(--silv-fg);
+  --text-opacity-medium: var(--silv-gris-texto);
+  --text-opacity-medium-low: var(--silv-gris-texto);
+  --text-opacity-low: var(--silv-fg-65);
+  --text-opacity-subtle: var(--silv-fg-65);
+  --text-opacity-very-subtle: var(--silv-fg-40);
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: var(--silv-fg-25);
+  --scrollbar-thumb-hover: var(--silv-fg-40);
 
   /* Alto mínimo incrustada: el recuadro de Wix mide ~718px. */
   --silv-embed-min-height: 700px;
@@ -52,37 +73,37 @@
   --theme-font-family: var(--font-stack-silvestri);
   --theme-font-heading: var(--font-heading-silvestri);
 
-  --theme-primary: var(--silv-cream);
-  --theme-primary-hover: #ffffff;
-  --theme-on-primary: var(--silv-navy);
-  --theme-primary-solid: var(--silv-cream);
-  --theme-primary-solid-hover: #ffffff;
-  --theme-secondary: var(--silv-cream);
-  --theme-accent: var(--silv-cream);
-  --theme-on-accent: var(--silv-navy);
-  --theme-accent-solid: var(--silv-cream);
+  --theme-primary: var(--silv-fill);
+  --theme-primary-hover: var(--silv-fill-hover);
+  --theme-on-primary: var(--silv-on-fill);
+  --theme-primary-solid: var(--silv-fill);
+  --theme-primary-solid-hover: var(--silv-fill-hover);
+  --theme-secondary: var(--silv-fill);
+  --theme-accent: var(--silv-fill);
+  --theme-on-accent: var(--silv-on-fill);
+  --theme-accent-solid: var(--silv-fill);
 
-  --theme-background: var(--silv-navy);
-  --theme-background-color: var(--silv-navy);
-  --theme-canvas: var(--silv-navy);
+  --theme-background: var(--silv-bg);
+  --theme-background-color: var(--silv-bg);
+  --theme-canvas: var(--silv-bg);
   --background-media-scrim: none;
-  --theme-text: var(--silv-cream);
-  --theme-text-secondary: var(--silv-cream-65);
+  --theme-text: var(--silv-fg);
+  --theme-text-secondary: var(--silv-fg-65);
 
-  --border-subtle: var(--silv-cream-12);
-  --border-light: var(--silv-cream-25);
-  --border-medium: var(--silv-cream-25);
-  --border-strong: var(--silv-cream-40);
-  --border-intense: var(--silv-cream-40);
+  --border-subtle: var(--silv-fg-12);
+  --border-light: var(--silv-fg-25);
+  --border-medium: var(--silv-fg-25);
+  --border-strong: var(--silv-fg-40);
+  --border-intense: var(--silv-fg-40);
   --surface-subtle: transparent;
-  --surface-light: var(--silv-cream-06);
-  --surface-medium: var(--silv-cream-06);
-  --surface-intense: var(--silv-cream-12);
+  --surface-light: var(--silv-fg-06);
+  --surface-medium: var(--silv-fg-06);
+  --surface-intense: var(--silv-fg-12);
 
-  --input-border-glass: var(--silv-cream-25);
+  --input-border-glass: var(--silv-fg-25);
   --input-bg-glass: transparent;
-  --input-bg-glass-focus: var(--silv-cream-06);
-  --input-placeholder-glass: var(--silv-cream-40);
+  --input-bg-glass-focus: var(--silv-fg-06);
+  --input-placeholder-glass: var(--silv-fg-40);
   --text-shadow-input: none;
   --input-shadow-base: transparent;
   --input-inset-highlight: transparent;
@@ -116,7 +137,7 @@ html.quill-theme,
 html.quill-theme body,
 .quill-theme-wrapper,
 .quill-theme-wrapper .main-gradient {
-  background: var(--silv-navy) !important;
+  background: var(--silv-bg) !important;
 }
 
 .quill-theme-wrapper .video-background,
@@ -126,7 +147,13 @@ html.quill-theme body,
 
 .quill-theme-wrapper {
   font-family: var(--theme-font-family);
-  color: var(--silv-cream);
+  color: var(--silv-fg);
+}
+
+/* Las plantillas de Quill traen utilidades de texto blanco (pensadas para
+   fondo oscuro); sobre crema pasan a carbón. */
+.quill-theme-wrapper :is(.text-white, [class*="text-white/"], .text-glass-primary, .text-quill-primary, .text-quill-secondary) {
+  color: var(--silv-fg) !important;
 }
 
 /* El idioma lo fija el sitio (es-AR); el selector sobra. */
@@ -191,7 +218,7 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 
 .quill-theme-wrapper .step-navigation-wrapper .step-navigation-card {
   width: 100%;
-  border-bottom: 1px solid var(--silv-cream-25) !important;
+  border-bottom: 1px solid var(--silv-fg-25) !important;
   margin-bottom: 0.75rem !important;
 }
 
@@ -209,19 +236,19 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
   width: auto !important;
   height: 1px !important;
   margin: 0 0.75rem 1.1rem !important;
-  background: var(--silv-cream-25) !important;
+  background: var(--silv-fg-25) !important;
 }
 
 .quill-theme-wrapper .step-connector--active {
-  background: var(--silv-cream) !important;
+  background: var(--silv-fill) !important;
 }
 
 .quill-theme-wrapper .step-circle {
   width: 1.75rem !important;
   height: 1.75rem !important;
   background: transparent !important;
-  border: 1px solid var(--silv-cream-40) !important;
-  color: var(--silv-cream-65) !important;
+  border: 1px solid var(--silv-fg-40) !important;
+  color: var(--silv-fg-65) !important;
   box-shadow: none !important;
 }
 
@@ -233,9 +260,9 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 
 .quill-theme-wrapper .step-circle--active,
 .quill-theme-wrapper .step-circle--completed {
-  background: var(--silv-cream) !important;
-  border-color: var(--silv-cream) !important;
-  color: var(--silv-navy) !important;
+  background: var(--silv-fill) !important;
+  border-color: var(--silv-fill) !important;
+  color: var(--silv-on-fill) !important;
 }
 
 .quill-theme-wrapper .step-item-wrapper .step-label {
@@ -244,13 +271,13 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
   font-weight: 500 !important;
   letter-spacing: 0.16em !important;
   text-transform: uppercase;
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
   text-shadow: none !important;
   filter: none !important;
 }
 
 .quill-theme-wrapper .step-item-wrapper .step-label.step-label--current {
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
 }
 
 /* ---- Tipografía ----------------------------------------------------------- */
@@ -259,7 +286,7 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
   font-family: var(--theme-font-heading) !important;
   font-weight: 500 !important;
   letter-spacing: 0 !important;
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
   text-shadow: none !important;
 }
 
@@ -276,7 +303,7 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 }
 
 .quill-theme-wrapper :is(.overview-description, .profile-intro__headline, .profile-intro__bio, .schedule-advance-notice, .booking-subtitle, .confirmation-subtitle) {
-  color: var(--silv-cream-80) !important;
+  color: var(--silv-fg-80) !important;
   font-size: 0.95rem;
   line-height: 1.6;
   text-shadow: none !important;
@@ -287,43 +314,43 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
   font-weight: 500 !important;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
 }
 
 /* ---- Foto ----------------------------------------------------------------- */
 
 .quill-theme-wrapper .overview-avatar {
-  border: 1px solid var(--silv-cream-40) !important;
+  border: 1px solid var(--silv-fg-40) !important;
   box-shadow: none !important;
   padding: 3px;
   background: transparent !important;
 }
 
 .quill-theme-wrapper .overview-success-badge {
-  background: var(--silv-cream) !important;
-  color: var(--silv-navy) !important;
-  border-color: var(--silv-navy) !important;
+  background: var(--silv-fill) !important;
+  color: var(--silv-on-fill) !important;
+  border-color: var(--silv-bg) !important;
 }
 
 /* ---- Tipos de reunión ----------------------------------------------------- */
 
 .quill-theme-wrapper .duration-card {
   background: transparent !important;
-  border: 1px solid var(--silv-cream-25) !important;
+  border: 1px solid var(--silv-fg-25) !important;
   border-radius: 2px !important;
   box-shadow: none !important;
   transform: none !important;
 }
 
 .quill-theme-wrapper .duration-card--unselected:hover {
-  border-color: var(--silv-cream-65) !important;
-  background: var(--silv-cream-06) !important;
+  border-color: var(--silv-fg-65) !important;
+  background: var(--silv-fg-06) !important;
 }
 
 .quill-theme-wrapper .duration-card--selected {
-  border-color: var(--silv-cream) !important;
-  background: var(--silv-cream-06) !important;
-  box-shadow: inset 3px 0 0 var(--silv-cream) !important;
+  border-color: var(--silv-fill) !important;
+  background: var(--silv-fg-06) !important;
+  box-shadow: inset 3px 0 0 var(--silv-fill) !important;
 }
 
 .quill-theme-wrapper .duration-card-title {
@@ -331,13 +358,13 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 }
 
 .quill-theme-wrapper .duration-card-description {
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
 }
 
 .quill-theme-wrapper .duration-card-badge {
   background: transparent !important;
-  border: 1px solid var(--silv-cream-40) !important;
-  color: var(--silv-cream-80) !important;
+  border: 1px solid var(--silv-fg-40) !important;
+  color: var(--silv-fg-80) !important;
   border-radius: 2px !important;
   font-size: 0.625rem !important;
   letter-spacing: 0.14em;
@@ -345,7 +372,7 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 }
 
 .quill-theme-wrapper .duration-card-icon {
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
   background: transparent !important;
 }
 
@@ -364,30 +391,30 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container > div > :l
 }
 
 .quill-theme-wrapper .action-button--primary {
-  background: var(--silv-cream) !important;
-  color: var(--silv-navy) !important;
-  border: 1px solid var(--silv-cream) !important;
+  background: var(--silv-fill) !important;
+  color: var(--silv-on-fill) !important;
+  border: 1px solid var(--silv-fill) !important;
 }
 
 .quill-theme-wrapper .action-button--primary:hover:not(:disabled) {
-  background: #ffffff !important;
+  background: var(--silv-fill-hover) !important;
 }
 
 .quill-theme-wrapper :is(.action-button--secondary, .calendar-download-button) {
   background: transparent !important;
-  color: var(--silv-cream) !important;
-  border: 1px solid var(--silv-cream-40) !important;
+  color: var(--silv-fg) !important;
+  border: 1px solid var(--silv-fg-40) !important;
 }
 
 .quill-theme-wrapper :is(.action-button--secondary, .calendar-download-button):hover:not(:disabled) {
-  border-color: var(--silv-cream) !important;
-  background: var(--silv-cream-06) !important;
+  border-color: var(--silv-fg) !important;
+  background: var(--silv-fg-06) !important;
 }
 
 .quill-theme-wrapper .action-button:disabled {
   background: transparent !important;
-  color: var(--silv-cream-40) !important;
-  border: 1px solid var(--silv-cream-25) !important;
+  color: var(--silv-fg-40) !important;
+  border: 1px solid var(--silv-fg-25) !important;
   opacity: 1 !important;
 }
 
@@ -420,7 +447,7 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .calendar-slots-container {
   background: transparent !important;
   border: 1px solid transparent !important;
   border-radius: 2px !important;
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
   font-family: var(--theme-font-family);
   font-weight: 600 !important;
   font-size: 0.85rem !important;
@@ -431,16 +458,16 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .calendar-slots-container {
 }
 
 .quill-theme-wrapper .calendar-day:not(.calendar-day--unavailable):not(.calendar-day--selected) {
-  border-color: var(--silv-cream-40) !important;
+  border-color: var(--silv-fg-40) !important;
 }
 
 .quill-theme-wrapper .calendar-day:not(.calendar-day--unavailable):not(.calendar-day--selected):hover {
-  background: var(--silv-cream-12) !important;
-  border-color: var(--silv-cream) !important;
+  background: var(--silv-fg-12) !important;
+  border-color: var(--silv-fg) !important;
 }
 
 .quill-theme-wrapper .calendar-day--unavailable {
-  color: var(--silv-cream-25) !important;
+  color: var(--silv-fg-25) !important;
   font-weight: 400 !important;
 }
 
@@ -450,9 +477,9 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .calendar-slots-container {
 }
 
 .quill-theme-wrapper .calendar-day--selected {
-  background: var(--silv-cream) !important;
-  border-color: var(--silv-cream) !important;
-  color: var(--silv-navy) !important;
+  background: var(--silv-fill) !important;
+  border-color: var(--silv-fill) !important;
+  color: var(--silv-on-fill) !important;
 }
 
 /* ---- Horarios ------------------------------------------------------------- */
@@ -466,7 +493,7 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .calendar-slots-container {
   font-weight: 500 !important;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
 }
 
 /* Cuatro columnas para que los horarios del día entren sin desplazarse y el
@@ -499,9 +526,9 @@ html.quill-theme[data-embedded] body {
 
 .quill-theme-wrapper .slot-list__slot {
   background: transparent !important;
-  border: 1px solid var(--silv-cream-40) !important;
+  border: 1px solid var(--silv-fg-40) !important;
   border-radius: 2px !important;
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
   font-family: var(--theme-font-family);
   font-size: 0.75rem !important;
   font-weight: 500 !important;
@@ -514,39 +541,39 @@ html.quill-theme[data-embedded] body {
 }
 
 .quill-theme-wrapper .slot-list__slot:hover:not(:disabled) {
-  background: var(--silv-cream-12) !important;
-  border-color: var(--silv-cream) !important;
+  background: var(--silv-fg-12) !important;
+  border-color: var(--silv-fg) !important;
 }
 
 .quill-theme-wrapper .slot-list__slot--selected,
 .quill-theme-wrapper .slot-list__slot--selected:hover {
-  background: var(--silv-cream) !important;
-  border-color: var(--silv-cream) !important;
-  color: var(--silv-navy) !important;
+  background: var(--silv-fill) !important;
+  border-color: var(--silv-fill) !important;
+  color: var(--silv-on-fill) !important;
 }
 
 .quill-theme-wrapper :is(.slot-list__prompt, .slot-list__prompt p) {
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
 }
 
 /* ---- Zona horaria --------------------------------------------------------- */
 
 .quill-theme-wrapper .tz-picker__trigger {
   background: transparent !important;
-  border: 1px solid var(--silv-cream-25) !important;
+  border: 1px solid var(--silv-fg-25) !important;
   border-radius: 2px !important;
   box-shadow: none !important;
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
   backdrop-filter: none !important;
 }
 
 .quill-theme-wrapper .tz-picker__trigger:hover {
-  border-color: var(--silv-cream-65) !important;
+  border-color: var(--silv-fg-65) !important;
 }
 
 .quill-theme-wrapper .tz-picker__panel {
-  background: var(--silv-navy) !important;
-  border: 1px solid var(--silv-cream-25) !important;
+  background: var(--silv-bg) !important;
+  border: 1px solid var(--silv-fg-25) !important;
   border-radius: 2px !important;
   backdrop-filter: none !important;
 }
@@ -557,15 +584,15 @@ html.quill-theme[data-embedded] body {
   font-size: 0.7rem !important;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
   margin-bottom: 0.75rem;
 }
 
 .quill-theme-wrapper :is(input.input, select.input, textarea.input) {
   background: transparent !important;
-  border: 1px solid var(--silv-cream-25) !important;
+  border: 1px solid var(--silv-fg-25) !important;
   border-radius: 2px !important;
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
   font-family: var(--theme-font-family);
   box-shadow: none !important;
   text-shadow: none !important;
@@ -573,21 +600,21 @@ html.quill-theme[data-embedded] body {
 }
 
 .quill-theme-wrapper :is(input.input, select.input, textarea.input):focus {
-  border-color: var(--silv-cream) !important;
-  background: var(--silv-cream-06) !important;
+  border-color: var(--silv-fg) !important;
+  background: var(--silv-fg-06) !important;
   outline: none !important;
   box-shadow: none !important;
 }
 
 .quill-theme-wrapper :is(input.input, textarea.input)::placeholder {
-  color: var(--silv-cream-40) !important;
+  color: var(--silv-fg-40) !important;
 }
 
 /* Autocompletado del navegador: sin el fondo claro que pone Chrome. */
 .quill-theme-wrapper input.input:-webkit-autofill {
-  -webkit-text-fill-color: var(--silv-cream) !important;
-  box-shadow: 0 0 0 1000px var(--silv-navy) inset !important;
-  caret-color: var(--silv-cream);
+  -webkit-text-fill-color: var(--silv-fg) !important;
+  box-shadow: 0 0 0 1000px var(--silv-bg) inset !important;
+  caret-color: var(--silv-fg);
 }
 
 .quill-theme-wrapper label.label,
@@ -596,14 +623,14 @@ html.quill-theme[data-embedded] body {
   font-weight: 500 !important;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--silv-cream-80) !important;
+  color: var(--silv-fg-80) !important;
 }
 
 .quill-theme-wrapper :is(.form-field__input, .form-field textarea, textarea.input, .guest-add__input, .location-phone__input) {
   background: transparent !important;
-  border: 1px solid var(--silv-cream-25) !important;
+  border: 1px solid var(--silv-fg-25) !important;
   border-radius: 2px !important;
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
   font-family: var(--theme-font-family);
   box-shadow: none !important;
   text-shadow: none !important;
@@ -611,8 +638,8 @@ html.quill-theme[data-embedded] body {
 }
 
 .quill-theme-wrapper :is(.form-field__input, .form-field textarea, textarea.input, .guest-add__input, .location-phone__input):focus {
-  border-color: var(--silv-cream) !important;
-  background: var(--silv-cream-06) !important;
+  border-color: var(--silv-fg) !important;
+  background: var(--silv-fg-06) !important;
   box-shadow: none !important;
 }
 
@@ -628,21 +655,21 @@ html.quill-theme[data-embedded] body {
 
 .quill-theme-wrapper .confirmation-badge {
   background: transparent !important;
-  border: 1px solid var(--silv-cream-40) !important;
-  color: var(--silv-cream) !important;
+  border: 1px solid var(--silv-fg-40) !important;
+  color: var(--silv-fg) !important;
   border-radius: 2px !important;
   box-shadow: none !important;
 }
 
 .quill-theme-wrapper .confirmation-badge-dot {
-  background: var(--silv-cream) !important;
-  color: var(--silv-navy) !important;
+  background: var(--silv-fill) !important;
+  color: var(--silv-on-fill) !important;
   box-shadow: none !important;
 }
 
 .quill-theme-wrapper .booking-details-grid {
-  border-top: 1px solid var(--silv-cream-25) !important;
-  border-bottom: 1px solid var(--silv-cream-25) !important;
+  border-top: 1px solid var(--silv-fg-25) !important;
+  border-bottom: 1px solid var(--silv-fg-25) !important;
   background: transparent !important;
 }
 
@@ -650,15 +677,15 @@ html.quill-theme[data-embedded] body {
   font-size: 0.625rem !important;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--silv-cream-65) !important;
+  color: var(--silv-fg-65) !important;
 }
 
 .quill-theme-wrapper .booking-detail-value {
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
 }
 
 .quill-theme-wrapper .booking-detail-value a {
-  color: var(--silv-cream) !important;
+  color: var(--silv-fg) !important;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
