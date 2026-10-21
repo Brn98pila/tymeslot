@@ -243,7 +243,7 @@ defmodule Tymeslot.Emails.Shared.MjmlEmail do
           src="cid:#{@logo_cid}"
           alt="#{Sanitise.sanitize_for_email(Branding.brand_name())}"
           href="https://silvestriabogados.com.ar"
-          width="150px"
+          width="260px"
           align="center"
           padding="0"
           border="0"
