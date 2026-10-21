@@ -551,7 +551,7 @@ msgstr "Tenés que aceptar los términos para continuar."
 #: lib/tymeslot_web/components/auth/registration/complete_registration_component.ex
 #, elixir-autogen, elixir-format
 msgid "your.email@example.com"
-msgstr "your.email@example.com"
+msgstr "tu.correo@example.com"
 
 #: lib/tymeslot_web/hooks/auth_live_session_hook.ex
 #: lib/tymeslot_web/plugs/redirect_if_authenticated.ex
