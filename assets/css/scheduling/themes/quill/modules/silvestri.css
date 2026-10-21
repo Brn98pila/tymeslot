@@ -469,19 +469,32 @@ html.quill-theme[data-embedded] .quill-theme-wrapper .calendar-slots-container {
   color: var(--silv-cream-65) !important;
 }
 
-/* Tres columnas y lista con su propio scroll, para que el paso entero quepa
-   en el recuadro del sitio (shared/embed.css la suelta al incrustar). */
+/* Cuatro columnas para que los horarios del día entren sin desplazarse y el
+   paso entero quepa en el recuadro del sitio. Si algún día hay más horarios
+   que lugar, la lista se desplaza con la rueda o el dedo, pero sin barra
+   visible (shared/embed.css la suelta al incrustar; acá se acota). */
 html.scheduling-app[data-embedded] .quill-theme-wrapper .slot-list__body.booker-scroll {
-  max-height: 20rem !important;
+  max-height: 21.5rem !important;
   overflow-y: auto !important;
-  padding-right: 0.4rem;
-  scrollbar-width: thin;
-  scrollbar-color: var(--silv-cream-25) transparent;
+  padding-right: 0 !important;
+  scrollbar-width: none !important;
+}
+
+.quill-theme-wrapper .slot-list__body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sin barra de desplazamiento en la página incrustada: el alto lo maneja el
+   sitio y el contenido está dimensionado para entrar. */
+html.quill-theme[data-embedded],
+html.quill-theme[data-embedded] body {
+  overflow: hidden !important;
+  scrollbar-width: none;
 }
 
 .quill-theme-wrapper .slot-list__grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 0.4rem !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0.35rem !important;
 }
 
 .quill-theme-wrapper .slot-list__slot {
@@ -490,10 +503,10 @@ html.scheduling-app[data-embedded] .quill-theme-wrapper .slot-list__body.booker-
   border-radius: 2px !important;
   color: var(--silv-cream) !important;
   font-family: var(--theme-font-family);
-  font-size: 0.8rem !important;
+  font-size: 0.75rem !important;
   font-weight: 500 !important;
-  min-height: 2.4rem !important;
-  height: 2.4rem !important;
+  min-height: 2.2rem !important;
+  height: 2.2rem !important;
   padding: 0 0.25rem !important;
   box-shadow: none !important;
   transform: none !important;
