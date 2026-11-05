@@ -43,6 +43,14 @@
       <link phx-track-static rel="stylesheet" href={css_path} />
     <% end %>
 
+    <%!-- Silvestri: animación de entrada solo en las páginas de reserva y nunca para el widget (?embed=1). El script además se corta solo si está dentro de un iframe. --%>
+    <script
+      :if={assigns[:live_action] in [:overview, :schedule, :booking, :confirmation] and !assigns[:embed_token]}
+      defer
+      src={~p"/images/silvestri/intro.js"}
+    >
+    </script>
+
     <%!-- Core bundle + Public booking bundle for scheduling pages --%>
     <script phx-track-static type="module" src={~p"/assets/app.js"}>
     </script>
