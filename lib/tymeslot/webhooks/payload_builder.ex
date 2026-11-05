@@ -78,6 +78,8 @@ defmodule Tymeslot.Webhooks.PayloadBuilder do
     |> maybe_add_approval_data(meeting)
     |> maybe_add_cancellation_data(meeting)
     |> maybe_add_seat_data(meeting)
+    |> Map.put(:tracking, build_tracking_data(meeting))
+    |> Map.put(:answers, build_answers(meeting))
   end
 
   defp build_organizer_data(meeting) do
@@ -218,6 +220,37 @@ defmodule Tymeslot.Webhooks.PayloadBuilder do
       start_time: format_datetime(previous.start_time)
     }
   end
+
+  # Silvestri: UTM del link de reserva (el bot manda el id de la conversación en utm_content)
+  defp build_tracking_data(meeting) do
+    %{
+      utm_source: meeting.utm_source,
+      utm_medium: meeting.utm_medium,
+      utm_campaign: meeting.utm_campaign,
+      utm_content: meeting.utm_content,
+      utm_term: meeting.utm_term,
+      referrer_host: meeting.referrer_host
+    }
+  end
+
+  # Silvestri: respuestas a las preguntas personalizadas del tipo de reunión (ej. teléfono)
+  defp build_answers(%MeetingSchema{} = meeting) do
+    answers = meeting.custom_field_answers || %{}
+
+    (meeting.custom_fields_snapshot || [])
+    |> Enum.map(fn field ->
+      id = Map.get(field, "id") || Map.get(field, :id)
+
+      %{
+        id: id,
+        label: Map.get(field, "label") || Map.get(field, :label),
+        type: Map.get(field, "type") || Map.get(field, :type),
+        value: Map.get(answers, to_string(id)) || Map.get(answers, id)
+      }
+    end)
+  end
+
+  defp build_answers(_meeting), do: []
 
   defp format_datetime(nil), do: nil
 
