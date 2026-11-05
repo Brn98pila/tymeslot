@@ -232,7 +232,7 @@ defmodule Tymeslot.Webhooks do
   def test_webhook(user_id, id) do
     with_webhook(user_id, id, fn webhook ->
       with :ok <- Features.check_access(user_id, :automations_allowed),
-           do: test_webhook_connection(webhook.url, webhook.webhook_token)
+           do: test_webhook_connection(webhook.url, WebhookSchema.decrypt_token(webhook).webhook_token)
     end)
   end
 
