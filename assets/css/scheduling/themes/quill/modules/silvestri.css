@@ -769,3 +769,19 @@ html.quill-theme[data-embedded] body {
   }
 }
 
+
+/* Silvestri: legibilidad sobre fondo crema (zona horaria, flechas del mes, vista semanal) */
+.quill-theme-wrapper .timezone-name,.tz-picker__option-label,.tz-picker__panel .text-white{color:#1d233b!important}
+.tz-picker__option-offset,.tz-picker__panel [class*="text-gray"]{color:#4d4a4a!important}
+html body .quill-theme-wrapper button.calendar-nav-button{color:#1d233b!important;border:1px solid rgba(29,35,59,.25)!important;background:transparent!important}
+html body .quill-theme-wrapper button.calendar-nav-button:hover:not(:disabled){background:rgba(29,35,59,.08)!important}
+.quill-theme-wrapper .calendar-nav-button:disabled{opacity:.35}
+.quill-theme-wrapper .schedule-card-header,.quill-theme-wrapper .schedule-timezone-area{position:relative;z-index:60}
+.tz-picker__panel{background:#fdfdf1!important;box-shadow:0 8px 24px rgba(29,35,59,.15)!important}
+.tz-picker__option:hover,.tz-picker__option[aria-selected="true"]{background:rgba(29,35,59,.06)!important}
+.tz-picker__panel input{color:#1d233b!important}
+.tz-picker__panel input::placeholder{color:#7a7770!important}
+.quill-theme-wrapper .week-day-cell .week-day-name{color:#4d4a4a!important}
+.quill-theme-wrapper .week-day-cell .week-day-number{color:#1d233b!important}
+.quill-theme-wrapper .week-day-cell.selected .week-day-name,.quill-theme-wrapper .week-day-cell.selected .week-day-number{color:#fdfdf1!important}
+
