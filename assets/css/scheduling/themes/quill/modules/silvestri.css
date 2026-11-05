@@ -745,3 +745,27 @@ html.quill-theme[data-embedded] body {
     transition: background-color 0.45s ease, border-color 0.45s ease, color 0.45s ease !important;
   }
 }
+
+/* ---- iPhone ---------------------------------------------------------------- */
+
+/* Safari agranda la página al tocar un campo con letra menor a 16px. */
+@media (max-width: 480px) {
+  .quill-theme-wrapper :is(input, textarea, select) {
+    font-size: 16px !important;
+  }
+}
+
+/* En pantallas táctiles el :hover queda pegado después del toque: sin efecto. */
+@media (hover: none) {
+  .quill-theme-wrapper .slot-list__slot:not(.slot-list__slot--selected):hover,
+  .quill-theme-wrapper .calendar-day:not(.calendar-day--unavailable):not(.calendar-day--selected):hover,
+  .quill-theme-wrapper .duration-card--unselected:hover {
+    background: transparent !important;
+    border-color: var(--silv-fg-40) !important;
+  }
+
+  .quill-theme-wrapper .action-button--primary:hover:not(:disabled) {
+    background: var(--silv-fill) !important;
+  }
+}
+
