@@ -785,3 +785,59 @@ html body .quill-theme-wrapper button.calendar-nav-button:hover:not(:disabled){b
 .quill-theme-wrapper .week-day-cell .week-day-number{color:#1d233b!important}
 .quill-theme-wrapper .week-day-cell.selected .week-day-name,.quill-theme-wrapper .week-day-cell.selected .week-day-number{color:#fdfdf1!important}
 
+
+/* ---- Silvestri: logo arriba de cada paso (duración, fecha, datos, confirmación) ---- */
+.quill-theme-wrapper .quill-container::before{content:"";display:block;flex:0 0 auto;width:100%;height:64px;margin:.75rem auto 1rem;background:url("/images/silvestri/logo.png") center / contain no-repeat}
+@media (max-width:480px){.quill-theme-wrapper .quill-container::before{height:48px;margin:.5rem auto .75rem}}
+/* Incrustada en la web (widget): sin logo, para no correr el contenido del recuadro */
+html.quill-theme[data-embedded] .quill-theme-wrapper .quill-container::before{display:none}
+
+/* ---- Silvestri: animación de entrada (versión celular "isologo"), solo con el link directo ---- */
+#si-intro{position:fixed;inset:0;z-index:2147483000;background:#fdfdf1;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#si-intro .si-stage{position:absolute;inset:0;display:grid;place-items:center}
+#si-intro .si-h{width:min(560px,82vw);height:auto;display:block;overflow:visible}
+#si-intro .si-v{height:min(56vh,520px);width:auto;display:block;overflow:visible}
+#si-intro .si-door{position:absolute;top:0;bottom:0;width:50%;background:#1d233b}
+#si-intro .si-l{left:0} #si-intro .si-r{right:0}
+#si-intro .si-seam{position:absolute;top:0;bottom:0;left:calc(50% - .5px);width:1px;background:#fdfdf1;transform:scaleY(0)}
+html.si-lock,html.si-lock body{overflow:hidden!important}
+
+/* ---- Silvestri: arreglos para teléfono (probados en 320 a 430 px, link directo y widget) ---- */
+@media (max-width:480px){
+/* márgenes laterales */
+.quill-theme-wrapper .content-area{padding-left:12px!important;padding-right:12px!important;padding-top:8px!important}
+.quill-theme-wrapper .quill-container{padding-left:0!important;padding-right:0!important}
+.quill-theme-wrapper .schedule-content-area{padding-left:0!important;padding-right:0!important}
+.quill-theme-wrapper .glass-morphism-card.calendar-card>.schedule-card-body{padding-left:4px!important;padding-right:4px!important}
+/* alinear arriba (link directo y embebido) */
+.quill-theme-wrapper.quill-theme-wrapper .content-area>.quill-container{margin-top:0!important;margin-bottom:auto!important}
+.quill-theme-wrapper .schedule-content-area>.w-full{justify-content:flex-start!important}
+.quill-theme-wrapper.quill-theme-wrapper .quill-container.quill-container>div>.stack{margin-top:0!important;margin-bottom:auto!important}
+/* título + zona horaria en columna */
+.quill-theme-wrapper .schedule-card-header{flex-direction:column!important;align-items:stretch!important;gap:8px!important}
+.quill-theme-wrapper .schedule-card-header>.flex-1{width:100%!important}
+.quill-theme-wrapper .schedule-timezone-area,.quill-theme-wrapper .schedule-timezone-area .tz-picker{width:100%!important}
+/* panel de zona horaria */
+.quill-theme-wrapper .glass-morphism-card.calendar-card{overflow:visible!important}
+.tz-picker__panel{left:0!important;right:0!important;width:auto!important;max-width:100%!important;max-height:min(370px,calc(100dvh - 120px))!important}
+.tz-picker__panel input{text-overflow:ellipsis}
+/* toques y estado vacío */
+.quill-theme-wrapper .calendar-nav-button{min-width:40px!important;min-height:40px!important}
+.quill-theme-wrapper .slot-list__slot{min-height:44px!important}
+.quill-theme-wrapper .slot-list__body .text-center :is(p,svg){color:#4d4a4a!important}
+/* pasos compactos */
+.quill-theme-wrapper .step-navigation-wrapper{display:flex!important;padding-top:4px!important;padding-bottom:4px!important}
+.quill-theme-wrapper .step-navigation-card{display:block!important;min-width:0!important;max-width:100%!important}
+.quill-theme-wrapper .step-navigation-card>div{padding:6px 0!important}
+.quill-theme-wrapper .step-indicator-container{gap:4px!important;min-width:0!important}
+.quill-theme-wrapper .step-indicator-container>*{margin-left:0!important;margin-right:0!important}
+.quill-theme-wrapper .step-item-wrapper{flex:1 1 auto!important;min-width:auto!important}
+.quill-theme-wrapper .step-connector{flex:0 0 8px!important;width:8px!important;margin-top:-14px!important}
+.quill-theme-wrapper .step-item-wrapper .step-label{white-space:normal!important;text-align:center!important;letter-spacing:.02em!important;font-size:8.5px!important;line-height:1.2!important;overflow-wrap:normal!important;hyphens:none!important}
+/* paso 3: Continuar arriba, Volver abajo */
+.quill-theme-wrapper .stack>.flex-1.px-4{padding-left:0!important;padding-right:0!important;align-items:flex-start!important}
+.quill-theme-wrapper .booking-actions{flex-direction:column-reverse!important;align-items:stretch!important;gap:10px!important}
+.quill-theme-wrapper .booking-actions>*{width:100%!important;flex:0 0 auto!important;margin:0!important}
+}
+/* el mensaje "No quedan horarios" también era blanco en computadora */
+.quill-theme-wrapper .slot-list__body .text-center :is(p,svg){color:#4d4a4a!important}
